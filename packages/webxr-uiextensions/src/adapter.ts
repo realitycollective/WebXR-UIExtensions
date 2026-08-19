@@ -1,8 +1,8 @@
 /**
  * Platform-adapter contract.
  *
- * The core package owns every UX decision — window lifecycle, dock state,
- * region slot math, drag math, control models — and knows nothing about any
+ * The core package owns every UX decision - window lifecycle, dock state,
+ * region slot math, drag math, control models - and knows nothing about any
  * engine. An engine adapter supplies the three capabilities the core cannot
  * provide for itself, and drives the core from its own frame loop:
  *
@@ -11,12 +11,12 @@
  *  - {@link HeadPoseSource}: the viewer pose, for follow mode & body-lock
  *
  * Known adapters:
- *  - `@realitycollective/iwsdk-uiextensions` — Meta IWSDK (ECS systems bind
+ *  - `@realitycollective/iwsdk-uiextensions` - Meta IWSDK (ECS systems bind
  *    these capabilities to `@iwsdk/core` components)
- *  - `@realitycollective/xrblocks-uiextensions` — Google XR Blocks / plain
+ *  - `@realitycollective/xrblocks-uiextensions` - Google XR Blocks / plain
  *    three.js (experimental)
  *
- * The interfaces use plain tuples/records only — no engine, no three.js.
+ * The interfaces use plain tuples/records only - no engine, no three.js.
  */
 import type { UixElement } from './controls/element.js';
 
@@ -32,7 +32,7 @@ export interface HeadPose {
   quaternion: QuatTuple;
 }
 
-/** Supplies the viewer pose each frame — camera on desktop, HMD in XR. */
+/** Supplies the viewer pose each frame - camera on desktop, HMD in XR. */
 export interface HeadPoseSource {
   getHeadPose(): HeadPose;
 }
@@ -40,7 +40,7 @@ export interface HeadPoseSource {
 /**
  * A live spatial panel created from compiled UIKitML JSON.
  * The `root` is traversable with the core's `walk`/`findRole` helpers and
- * the `data-uix` control upgraders — identical markup works on every
+ * the `data-uix` control upgraders - identical markup works on every
  * adapter.
  */
 export interface PanelHandle {
@@ -54,7 +54,7 @@ export interface PanelHandle {
   dispose(): void;
 }
 
-/** Creates spatial panels — the engine-specific half of UIKitML rendering. */
+/** Creates spatial panels - the engine-specific half of UIKitML rendering. */
 export interface PanelHost {
   /**
    * Create a panel from compiled UIKitML JSON (the `{ element, classes }`
@@ -71,7 +71,7 @@ export interface PanelHost {
 export interface PanelReadyEvent {
   /** The window's id, as given to the scene descriptor / create call. */
   id: string;
-  /** The live panel — traverse it, or look elements up by markup id. */
+  /** The live panel - traverse it, or look elements up by markup id. */
   panel: PanelHandle;
 }
 
@@ -83,7 +83,7 @@ export interface PanelReadyEvent {
  * Panels load asynchronously on every adapter (IWSDK fetches the config;
  * uikit lays out over following frames), so app code must never assume a
  * panel exists immediately after creating its window. {@link onPanelReady}
- * is the portable answer — it replaces engine-specific discovery (ECS
+ * is the portable answer - it replaces engine-specific discovery (ECS
  * queries on IWSDK, polling anywhere else) and fires for panels that became
  * ready before the listener was registered, so wiring order never matters.
  */

@@ -1,5 +1,5 @@
 /**
- * Follow-mode math — pure tuple arithmetic (no three.js) so it is fully
+ * Follow-mode math - pure tuple arithmetic (no three.js) so it is fully
  * unit-testable. Windows in `body-follow` mode chase a target point that is
  * the viewer's head position plus a yaw-rotated offset (pitch/roll are
  * deliberately ignored so panels never tilt with the viewer's head).

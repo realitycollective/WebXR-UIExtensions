@@ -1,5 +1,5 @@
 /**
- * Panel upgrade — scans a loaded panel for `data-uix` markers and wires the
+ * Panel upgrade - scans a loaded panel for `data-uix` markers and wires the
  * matching control behaviour. App code retrieves the resulting handles via
  * `panelControlsFor(document)` and the control's `data-uix-id`.
  */
@@ -27,7 +27,7 @@ export class PanelControls {
     this.handles.set(key, handle);
   }
 
-  /** Typed accessors — throw on wrong id so mistakes surface immediately. */
+  /** Typed accessors - throw on wrong id so mistakes surface immediately. */
   stepper(id: string): StepperHandle {
     return this.expect(id, StepperHandle);
   }
@@ -93,7 +93,7 @@ export function upgradePanel(documentKey: object, root: UixElement): PanelContro
     }
     const upgrader = UPGRADERS[marker];
     if (!upgrader) {
-      console.warn(`[uix] unknown control type data-uix="${marker}" — skipped`);
+      console.warn(`[uix] unknown control type data-uix="${marker}" - skipped`);
       return;
     }
     controls.add(attrString(element, 'uixId'), upgrader(element));

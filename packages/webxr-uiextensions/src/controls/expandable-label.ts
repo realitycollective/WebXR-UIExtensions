@@ -1,5 +1,5 @@
 /**
- * Expandable label — `data-uix="expandable-label"`.
+ * Expandable label - `data-uix="expandable-label"`.
  *
  * A multi-line label that collapses to a character budget with an ellipsis
  * and an inline more/less affordance.

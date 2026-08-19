@@ -1,5 +1,5 @@
 /**
- * Dock regions — snap windows into named layout regions.
+ * Dock regions - snap windows into named layout regions.
  *
  * A region is an anchor entity with slot layout (row / column / grid).
  * Drop a window inside its snap radius to dock it; drag it out to undock.
@@ -18,7 +18,7 @@ export async function start(container: HTMLDivElement) {
   });
   registerUIExtensions(world);
 
-  // A world-locked column on the wall — drop windows to stack them.
+  // A world-locked column on the wall - drop windows to stack them.
   createDockRegion(world, {
     id: 'wall',
     flow: 'column',
@@ -28,7 +28,7 @@ export async function start(container: HTMLDivElement) {
     position: [1.6, 1.9, -1.5],
   });
 
-  // A row that follows the player — a floating toolbar.
+  // A row that follows the player - a floating toolbar.
   createDockRegion(world, {
     id: 'toolbar',
     flow: 'row',

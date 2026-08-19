@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Deployable showcase client for @realitycollective/iwsdk-uiextensions — windows, docking, layout regions and controls.",
+  "description": "Deployable showcase client for @realitycollective/iwsdk-uiextensions - windows, docking, layout regions and controls.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

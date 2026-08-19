@@ -1,5 +1,5 @@
 /**
- * DesktopControls — first-person camera control for mouse + keyboard, the
+ * DesktopControls - first-person camera control for mouse + keyboard, the
  * stand-in for a headset's head tracking when running on a desktop.
  *
  * - WASD / arrows walk, Shift sprints, Space jumps, C (or Left Ctrl) crouches

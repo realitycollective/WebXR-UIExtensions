@@ -1,5 +1,5 @@
 /**
- * IWSDK UI Extensions — showcase client entry.
+ * IWSDK UI Extensions - showcase client entry.
  * All scene construction lives in world.ts so other demo clients (the
  * uix-devtools playground) can reuse the identical scene.
  */

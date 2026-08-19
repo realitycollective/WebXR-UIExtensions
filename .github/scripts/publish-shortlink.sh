@@ -3,17 +3,17 @@
 #
 #   publish-shortlink.sh <apex-url> <preferred-code> [max-alternates]
 #
-# Every candidate is verified by following the redirect — da.gd can report a
+# Every candidate is verified by following the redirect - da.gd can report a
 # custom code as "already taken" while serving 404 for it (a dead, burned
 # name), so creation output is never trusted on its own. Order:
 #   1. the preferred custom code (use it if it already redirects correctly,
 #      else try to claim it, then re-verify),
 #   2. custom alternates <code>1..<code>N the same way,
 #   3. a RANDOM da.gd code (da.gd dedupes by URL, so the same random code
-#      comes back on every run — stable for bookmarks/QRs).
+#      comes back on every run - stable for bookmarks/QRs).
 #
 # Prints the VERIFIED short URL to stdout and exits 0, or prints nothing and
-# exits 1 when nothing could be verified — callers must then fall back to
+# exits 1 when nothing could be verified - callers must then fall back to
 # publishing the direct URL instead of an unproven short link.
 set -uo pipefail
 

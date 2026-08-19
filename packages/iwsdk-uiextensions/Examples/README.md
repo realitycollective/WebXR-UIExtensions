@@ -13,6 +13,6 @@ Each example assumes an IWSDK app created with `npm create @iwsdk@latest`
 (so the UIKitML Vite plugin is already wired: `.uikitml` files in `ui/`
 compile to `public/ui/*.json`).
 
-For a complete integrated application — five windows, two regions, a
-registration form, event log, and horizon-kit Slider — see the `showcase/`
+For a complete integrated application - five windows, two regions, a
+registration form, event log, and horizon-kit Slider - see the `showcase/`
 client in the repository, which deploys to Cloudflare Pages from CI.

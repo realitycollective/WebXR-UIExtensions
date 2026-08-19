@@ -1,11 +1,11 @@
 /**
- * Minimal pointer forwarding — turns engine raycast hits into uikit events.
+ * Minimal pointer forwarding - turns engine raycast hits into uikit events.
  *
  * XR Blocks (and any plain three.js app) raycasts with its own machinery;
  * uikit components are ordinary three.js Meshes, so they appear in those
  * intersections. This module picks the correct interactive element from a
  * hit list and dispatches DOM-ish events to it. v1 forwards clicks and
- * hover enter/leave — enough for window chrome and `data-uix` controls.
+ * hover enter/leave - enough for window chrome and `data-uix` controls.
  * (Full pointer capture / poke semantics: use `@pmndrs/pointer-events`,
  * which is what IWSDK itself builds on.)
  */
@@ -21,7 +21,7 @@ interface InteractiveLike {
 /**
  * Walk up from a hit object to the nearest ancestor that can receive
  * events and belongs to a uikit tree (identified by the `dataUid` UIKitML
- * stamps into userData). Pure — testable with stub objects.
+ * stamps into userData). Pure - testable with stub objects.
  */
 export function pickInteractive(hit: unknown): InteractiveLike | undefined {
   let current = hit as InteractiveLike | undefined;

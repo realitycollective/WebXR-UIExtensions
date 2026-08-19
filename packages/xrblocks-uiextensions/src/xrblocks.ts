@@ -25,7 +25,7 @@ import { UixWindowHost } from './host.js';
 
 /** The slice of an XR Blocks Script / three.js app the host binds to. */
 export interface EngineContext {
-  /** Where windows are parented — an XR Blocks Script IS an Object3D. */
+  /** Where windows are parented - an XR Blocks Script IS an Object3D. */
   scene: Object3D;
   /** The rendering camera; in XR the engine keeps it at the viewer pose. */
   camera: Pick<PerspectiveCamera, 'getWorldPosition' | 'getWorldQuaternion'>;

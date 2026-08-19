@@ -1,12 +1,12 @@
 /**
- * uix-devtools playground — the showcase scene plus the edit-session gate.
+ * uix-devtools playground - the showcase scene plus the edit-session gate.
  *
  * Safety model (see @realitycollective/uix-devtools docs):
  * - The whole gate block is guarded by build flags, so a production build
- *   without VITE_UIX_EDIT contains none of this — the branch is eliminated.
+ *   without VITE_UIX_EDIT contains none of this - the branch is eliminated.
  * - Where compiled in, the gate only opens for the token minted by
  *   `uix-dev tunnel` (or any token in plain local dev, where no token is set).
- * - The editor overlay is a dynamic import — its chunk is never downloaded
+ * - The editor overlay is a dynamic import - its chunk is never downloaded
  *   unless the gate opens.
  */
 import { bootstrapShowcase } from '@showcase/world.js';
@@ -29,7 +29,7 @@ bootstrapShowcase(
     });
     if (!result.active) {
       console.info(
-        '[playground] no edit session — append ?uix-edit=<token> to activate the live editor.',
+        '[playground] no edit session - append ?uix-edit=<token> to activate the live editor.',
       );
     }
   }

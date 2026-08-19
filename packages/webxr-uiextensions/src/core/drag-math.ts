@@ -1,5 +1,5 @@
 /**
- * Laser-drag math — pure vector logic for title-bar window dragging.
+ * Laser-drag math - pure vector logic for title-bar window dragging.
  *
  * The interaction model matches the Quest system shell: grab the title bar
  * with the ray, and the window rides the ray at the distance it was grabbed
@@ -51,7 +51,7 @@ export function dragPosition(session: DragSession, rayOrigin: Vec3, rayDirection
 
 /**
  * Yaw (radians, three.js Y-up convention) that turns the window's -Z face
- * toward `viewer` — the "PivotY" billboard used while dragging so a window
+ * toward `viewer` - the "PivotY" billboard used while dragging so a window
  * never gets parked edge-on. Returns `current` when the viewer is directly
  * above/below (degenerate on the Y axis).
  */

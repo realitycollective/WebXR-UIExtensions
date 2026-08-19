@@ -1,12 +1,12 @@
 /**
- * Dock state machine — pure logic, no engine imports.
+ * Dock state machine - pure logic, no engine imports.
  *
  * A window is always in exactly one dock mode:
  *
- * - `world-locked` — placed in space; the window keeps its world transform.
- * - `body-follow`  — lazily follows the player (IWSDK `Follower` on the head),
+ * - `world-locked` - placed in space; the window keeps its world transform.
+ * - `body-follow`  - lazily follows the player (IWSDK `Follower` on the head),
  *                    with a deadzone so it doesn't jitter.
- * - `head-locked`  — rigidly attached to the view (IWSDK `ScreenSpace` outside
+ * - `head-locked`  - rigidly attached to the view (IWSDK `ScreenSpace` outside
  *                    XR / a zero-tolerance follow inside XR). Use sparingly.
  *
  * The state machine itself only decides WHICH engine ingredients a mode needs;
@@ -92,7 +92,7 @@ export function planTransition(
 /**
  * The "pin" affordance on a window's title bar toggles between following the
  * player and being placed in space. Head-locked windows unpin to world-locked
- * too — pinning something rigidly to the user's face is never the toggle
+ * too - pinning something rigidly to the user's face is never the toggle
  * target you want.
  */
 export function togglePinned(mode: DockModeValue): DockModeValue {

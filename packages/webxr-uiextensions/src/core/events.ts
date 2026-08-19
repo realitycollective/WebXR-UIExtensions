@@ -1,7 +1,7 @@
 /**
  * Minimal typed event emitter.
  *
- * The library keeps its observable surface deliberately tiny — consumers that
+ * The library keeps its observable surface deliberately tiny - consumers that
  * want richer eventing can bridge these into their own bus (for example the
  * Reality Collective service framework's IEventService).
  */

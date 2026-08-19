@@ -1,29 +1,29 @@
-# webxr-multiplatform demo — "the lab"
+# webxr-multiplatform demo - "the lab"
 
 Demo client for
 [`@realitycollective/webxr-uiextensions`](../../packages/webxr-uiextensions/README.md)
-— ships **both platform adapters** and activates the pipeline that matches
+- ships **both platform adapters** and activates the pipeline that matches
 the hardware it finds itself on.
 
 It is also the **single encompassing demo**: it exercises all four packages
 in one deployable client (core + both adapters + the devtools edit gate on
-the IWSDK pipeline), and it deploys automatically — see
+the IWSDK pipeline), and it deploys automatically - see
 [Deployment](#deployment).
 
 ## Can it detect IWSDK vs XR Blocks?
 
-Not directly — those are frameworks an app is *built with*, not properties
+Not directly - those are frameworks an app is *built with*, not properties
 of the device. What is detectable is the **browser/hardware**, and that
 pre-selects one of **three modes** on the launch screen
 (`src/platform-detect.ts`, unit-tested):
 
 | Signature | Pre-selected mode |
 | --- | --- |
-| Meta Horizon OS browser (`OculusBrowser`) | **IWSDK** — the full showcase scene |
-| Android XR Chrome (`AndroidXR`) | **XR Blocks** — experimental adapter in an `xb.Script` |
-| anything else (desktop/mobile) | **Desktop** — plain three.js, mouse + orbit controls |
+| Meta Horizon OS browser (`OculusBrowser`) | **IWSDK** - the full showcase scene |
+| Android XR Chrome (`AndroidXR`) | **XR Blocks** - experimental adapter in an `xb.Script` |
+| anything else (desktop/mobile) | **Desktop** - plain three.js, mouse + orbit controls |
 
-Nothing boots until you press **START** — the launch screen shows what was
+Nothing boots until you press **START** - the launch screen shows what was
 detected and why, lets you pick any of the three modes, and launching is
 the proof that the chosen implementation runs on this browser. The chosen
 mode is written into the URL (`?uix-engine=desktop|iwsdk|xrblocks`) so
@@ -34,22 +34,22 @@ engine it launches, and an on-page badge shows the active engine.
 
 ## What each pipeline shows
 
-All three build the **identical playground** — five windows and two dock
+All three build the **identical playground** - five windows and two dock
 regions from the portable descriptor in
 [`demos/showcase/src/playground-scene.ts`](../showcase/src/playground-scene.ts),
 with the identical engine-free behaviour from
 [`playground-behaviour.ts`](../showcase/src/playground-behaviour.ts). Only
 the bootstrap differs:
 
-- **Desktop (three.js)** — a hand-rolled three.js scene with no XR
+- **Desktop (three.js)** - a hand-rolled three.js scene with no XR
   framework. Real mouse input via `@pmndrs/pointer-events`
   (`forwardHtmlEvents`), so hover, buttons, steppers, toggles and text
   fields behave exactly as under IWSDK, plus **WASD** movement, **Space**
   jump, **C** crouch, **Shift** sprint and right-drag look
   (`DesktopControls`).
-- **IWSDK** — the same playground through the IWSDK adapter's scene host,
+- **IWSDK** - the same playground through the IWSDK adapter's scene host,
   with drag, dock-by-drag and VR entry.
-- **XR Blocks** — the same playground hosted inside an `xb.Script`, with
+- **XR Blocks** - the same playground hosted inside an `xb.Script`, with
   select-ray click forwarding. Scope matches that adapter's feature matrix.
 
 ### Desktop controls
@@ -74,7 +74,7 @@ npm run dev:multiplatform     # from the workspace root → http://localhost:808
 ```
 
 Headset loops (tunnel / adb) work exactly as described in
-[docs/developer-cycle.md](../../docs/developer-cycle.md) — point `uix-dev
+[docs/developer-cycle.md](../../docs/developer-cycle.md) - point `uix-dev
 tunnel --cwd demos/webxr-multiplatform` at this demo. In local dev the
 devtools edit gate is open on the IWSDK pipeline (`?uix-edit=dev`), reusing
 the playground's UX Editor overlay.
@@ -91,7 +91,7 @@ Cloudflare Pages projects, alongside (never instead of) the showcase:
 
 Each deploy's step summary publishes a **verified** da.gd short link + QR
 (`.github/scripts/publish-shortlink.sh` follows the redirect and confirms it
-lands on the right URL before anything is published — falling back to a
+lands on the right URL before anything is published - falling back to a
 stable random code, or the direct URL, when a memorable code can't be
 verified).
 

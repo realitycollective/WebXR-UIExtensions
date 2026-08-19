@@ -1,5 +1,5 @@
 /**
- * Basic window — chrome, focus, docking and drag with one call.
+ * Basic window - chrome, focus, docking and drag with one call.
  * Put window.uikitml in your app's ui/ folder (compiles to /ui/window.json).
  */
 import { World } from '@iwsdk/core';

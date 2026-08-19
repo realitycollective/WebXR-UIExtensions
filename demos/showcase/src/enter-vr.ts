@@ -1,7 +1,7 @@
 /**
  * Minimal "Enter VR" overlay for browser boots (adapted from the Pale Signal
  * pattern): a DOM button that launches the XR session and hides while
- * immersed. On desktop the scene stays fully usable with the mouse — the
+ * immersed. On desktop the scene stays fully usable with the mouse - the
  * overlay collapses to a hint bar instead of blocking the view.
  */
 import { VisibilityState, type World } from '@iwsdk/core';
@@ -27,7 +27,7 @@ export function installEnterVROverlay(world: World): void {
 
   const hint = document.createElement('span');
   hint.textContent =
-    'IWSDK UI Extensions showcase — drag title bars to move windows, PIN toggles follow mode, drop windows on the glowing regions to dock. Works with the mouse here, or:';
+    'IWSDK UI Extensions showcase - drag title bars to move windows, PIN toggles follow mode, drop windows on the glowing regions to dock. Works with the mouse here, or:';
 
   const button = document.createElement('button');
   button.textContent = 'Enter VR';
@@ -77,7 +77,7 @@ export function installEnterVROverlay(world: World): void {
   if (!xr) {
     button.style.display = 'none';
     hint.textContent =
-      'IWSDK UI Extensions showcase — no WebXR here, but everything works with the mouse: drag title bars, PIN to follow, drop windows on the glowing regions.';
+      'IWSDK UI Extensions showcase - no WebXR here, but everything works with the mouse: drag title bars, PIN to follow, drop windows on the glowing regions.';
   } else {
     void xr
       .isSessionSupported('immersive-vr')

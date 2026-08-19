@@ -1,5 +1,5 @@
 /**
- * UIDockRegionSystem — keeps the region registry in sync with `UIDockRegion`
+ * UIDockRegionSystem - keeps the region registry in sync with `UIDockRegion`
  * entities and lays docked windows out in their region's slots each frame.
  *
  * Regions are ordinary entities: give one a `Follower` and its docked
@@ -90,7 +90,7 @@ export class UIDockRegionSystem extends createSystem({
     const windowId = entity.getValue(UIWindow, 'windowId') as string;
     const regionId = entity.getValue(UIDockedTo, 'regionId') as string;
     if (!windowId || !regionId || !this.registry.get(regionId)) {
-      // Unknown region (or the window has no id yet) — docking is meaningless.
+      // Unknown region (or the window has no id yet) - docking is meaningless.
       entity.removeComponent(UIDockedTo);
       return;
     }

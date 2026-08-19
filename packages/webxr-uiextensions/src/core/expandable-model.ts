@@ -1,5 +1,5 @@
 /**
- * Expandable label model — pure truncation/expansion state for the
+ * Expandable label model - pure truncation/expansion state for the
  * `data-uix="expandable-label"` control (a multi-line label that collapses to
  * a preview with an ellipsis and a "more/less" affordance).
  *

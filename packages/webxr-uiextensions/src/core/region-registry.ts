@@ -1,5 +1,5 @@
 /**
- * RegionRegistry — pure bookkeeping of dock regions and their members.
+ * RegionRegistry - pure bookkeeping of dock regions and their members.
  *
  * The ECS layer feeds it region definitions (from `UIDockRegion` components)
  * and world-space origins at drop time; it answers slot assignments and drop

@@ -1,5 +1,5 @@
 /**
- * Stepper model — pure numeric state for the `data-uix="stepper"` control.
+ * Stepper model - pure numeric state for the `data-uix="stepper"` control.
  */
 export interface StepperOptions {
   min?: number;

@@ -1,5 +1,5 @@
 /**
- * IWSDK pipeline — the full showcase scene, unchanged: the exact same
+ * IWSDK pipeline - the full showcase scene, unchanged: the exact same
  * client the library's own demo deploys, driven by the IWSDK adapter.
  *
  * The uix-devtools edit gate rides along under the same rules as the
@@ -25,7 +25,7 @@ export async function bootIWSDK(container: HTMLDivElement): Promise<void> {
     });
     if (!result.active) {
       console.info(
-        '[lab] no edit session — append ?uix-edit=<token> to activate the live editor.',
+        '[lab] no edit session - append ?uix-edit=<token> to activate the live editor.',
       );
     }
   }

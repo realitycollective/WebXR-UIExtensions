@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Workspace for the Reality Collective WebXR UI Extensions — an engine-free windowing, docking and control core for WebXR spatial UI, with Meta IWSDK and Google XR Blocks adapters, devtools and demo clients.",
+  "description": "Workspace for the Reality Collective WebXR UI Extensions - an engine-free windowing, docking and control core for WebXR spatial UI, with Meta IWSDK and Google XR Blocks adapters, devtools and demo clients.",
   "workspaces": [
     "packages/*",
     "demos/*"

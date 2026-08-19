@@ -1,13 +1,13 @@
 /**
- * @realitycollective/xrblocks-uiextensions — EXPERIMENTAL Google XR Blocks /
+ * @realitycollective/xrblocks-uiextensions - EXPERIMENTAL Google XR Blocks /
  * plain three.js adapter for the Reality Collective UI Extensions.
  *
  * Binds the engine-free `@realitycollective/webxr-uiextensions` core to any
- * three.js WebXR scene graph — which is exactly what an XR Blocks Script
+ * three.js WebXR scene graph - which is exactly what an XR Blocks Script
  * provides. See the README for the current feature matrix versus the IWSDK
  * adapter.
  */
-// The portable core — re-exported for a single-dependency experience.
+// The portable core - re-exported for a single-dependency experience.
 export * from '@realitycollective/webxr-uiextensions';
 
 // three.js / XR Blocks binding

@@ -1,5 +1,5 @@
 /**
- * THE playground scene — five windows and two dock regions, as plain data.
+ * THE playground scene - five windows and two dock regions, as plain data.
  *
  * Engine-free: no IWSDK, no XR Blocks, no three.js. Every demo client feeds
  * this same descriptor to its adapter's `SceneTarget`, so the IWSDK, XR

@@ -1,5 +1,5 @@
 /**
- * Controls — data-uix markup upgrades on any IWSDK panel.
+ * Controls - data-uix markup upgrades on any IWSDK panel.
  *
  * The controls work in plain panels too (no window required): the
  * UIControlsSystem upgrades every loaded PanelDocument.
@@ -32,7 +32,7 @@ export async function start(container: HTMLDivElement) {
     override init(): void {
       this.queries.panel.subscribe('qualify', (entity) => {
         const document = PanelDocument.data.document[entity.index] as UIKitDocument;
-        // upgradePanel is idempotent — safe regardless of system order.
+        // upgradePanel is idempotent - safe regardless of system order.
         const controls = upgradePanel(document, document.rootElement as unknown as UixElement);
         const log = controls.logView('log');
         controls.stepper('volume').events.on('change', (v) => log.push(`volume ${v}`));

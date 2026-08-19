@@ -1,5 +1,5 @@
 /**
- * `uix-dev` — get an IWSDK UI Extensions client onto a headset in one command.
+ * `uix-dev` - get an IWSDK UI Extensions client onto a headset in one command.
  *
  * Commands:
  *   uix-dev tunnel [--port N] [--cwd DIR] [--no-dev-server]
@@ -11,7 +11,7 @@
  *   uix-dev qr <url>
  *       Print a QR code for any URL (e.g. a staging deploy).
  *
- * Orchestration only — all decision logic lives in lib.ts where it is unit
+ * Orchestration only - all decision logic lives in lib.ts where it is unit
  * tested.
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -151,14 +151,14 @@ async function runTunnel(argv: string[]): Promise<number> {
     console.log(`\n  EDIT MODE: ${editUrl}`);
     await printQr(editUrl);
     console.log('  Scan the second code on the headset to open an edit session.');
-    console.log('  URL and token are minted per run — Ctrl+C invalidates both.');
+    console.log('  URL and token are minted per run - Ctrl+C invalidates both.');
     console.log('──────────────────────────────────────────────────────\n');
   };
   tunnel.stderr?.on('data', onChunk);
   tunnel.stdout?.on('data', onChunk);
   tunnel.on('error', () => {
     console.error(
-      '[uix-dev] could not start cloudflared — is it installed? Run `uix-dev doctor`.',
+      '[uix-dev] could not start cloudflared - is it installed? Run `uix-dev doctor`.',
     );
     shutdown();
     process.exit(1);
@@ -170,7 +170,7 @@ async function runTunnel(argv: string[]): Promise<number> {
   });
 
   return new Promise<number>(() => {
-    // Runs until Ctrl+C or a child exits — handlers above end the process.
+    // Runs until Ctrl+C or a child exits - handlers above end the process.
   });
 }
 
@@ -193,7 +193,7 @@ export async function main(argv: string[]): Promise<number> {
     default:
       console.log(
         [
-          'uix-dev — IWSDK UI Extensions dev tooling',
+          'uix-dev - IWSDK UI Extensions dev tooling',
           '',
           'Usage:',
           '  uix-dev tunnel [--port N] [--cwd DIR] [--no-dev-server]',

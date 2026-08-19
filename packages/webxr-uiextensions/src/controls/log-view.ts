@@ -1,5 +1,5 @@
 /**
- * Log view — `data-uix="log-view"`.
+ * Log view - `data-uix="log-view"`.
  *
  * A console-style scrolling list rendered into a fixed pool of row elements
  * (UIKitML's text rule: each row needs a literal placeholder child). Rows
@@ -59,7 +59,7 @@ export class LogViewHandle {
     this.rows.forEach((row, index) => {
       const entry = visible[index];
       row.setProperties({
-        // UIKitML renders "" as empty text — exactly what vacant rows need.
+        // UIKitML renders "" as empty text - exactly what vacant rows need.
         text: entry ? entry.message : '',
       });
     });

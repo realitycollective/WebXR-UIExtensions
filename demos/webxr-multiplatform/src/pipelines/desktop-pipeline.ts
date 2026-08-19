@@ -1,5 +1,5 @@
 /**
- * Desktop pipeline — plain three.js with desktop input and locomotion.
+ * Desktop pipeline - plain three.js with desktop input and locomotion.
  *
  * No XR framework at all: a hand-rolled three.js scene hosting the SAME
  * portable playground descriptor and the SAME engine-free behaviour as the

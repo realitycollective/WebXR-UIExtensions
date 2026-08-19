@@ -15,16 +15,16 @@ Initial release, published from the standalone `WebXR-UIExtensions` repository.
 
 ### Added
 
-- `@realitycollective/webxr-uiextensions` — engine-free core: window manager,
+- `@realitycollective/webxr-uiextensions` - engine-free core: window manager,
   dock state and regions, drag maths, hold-to-drag, control models
   (stepper/toggle/expandable/log), the `SceneDescriptor` scene format, window
   chrome conventions and the platform-adapter contract.
-- `@realitycollective/iwsdk-uiextensions` — Meta IWSDK adapter binding the core
+- `@realitycollective/iwsdk-uiextensions` - Meta IWSDK adapter binding the core
   onto IWSDK's ECS, UIKitML and interaction systems, with shipped examples.
-- `@realitycollective/xrblocks-uiextensions` — EXPERIMENTAL Google XR Blocks /
+- `@realitycollective/xrblocks-uiextensions` - EXPERIMENTAL Google XR Blocks /
   plain three.js adapter: panel document, window host, follow and scale maths,
   desktop controls and locomotion, pointer forwarding.
-- `@realitycollective/uix-devtools` — dev-only tooling: edit-session launch
+- `@realitycollective/uix-devtools` - dev-only tooling: edit-session launch
   gate, runtime UIKitML compilation, and the `uix-dev` CLI (Cloudflare quick
   tunnel, QR onboarding, environment doctor).
 - Demo clients: the IWSDK showcase, the devtools playground, and the

@@ -1,4 +1,4 @@
-# WebXR UI Extensions — CI gate for all packages + all demo clients.
+# WebXR UI Extensions - CI gate for all packages + all demo clients.
 #
 # The repository root is the workspace root: `packages/*` holds the libraries,
 # `demos/*` the clients. Work branches off `main` and opens PRs against it.

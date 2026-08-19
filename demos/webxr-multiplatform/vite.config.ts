@@ -55,7 +55,7 @@ export default defineConfig({
     rollupOptions: {
       // xrblocks lazily imports optional integrations (AI, MediaPipe,
       // gaussian splats, text rendering, physics helpers). This demo uses
-      // none of those features, so the modules stay unresolved — xrblocks
+      // none of those features, so the modules stay unresolved - xrblocks
       // only touches them behind the corresponding feature options.
       // (three-pathfinding ships as a real dependency of xrblocks and DOES
       // resolve; it is deliberately not externalized.)

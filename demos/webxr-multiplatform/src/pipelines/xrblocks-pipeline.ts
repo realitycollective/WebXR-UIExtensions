@@ -1,5 +1,5 @@
 /**
- * XR Blocks pipeline — the experimental adapter driving the SAME portable
+ * XR Blocks pipeline - the experimental adapter driving the SAME portable
  * playground descriptor and engine-free behaviour as the other two
  * pipelines, inside a Google XR Blocks Script (Android XR Chrome, or the XR
  * Blocks desktop simulator via ?uix-engine=xrblocks).

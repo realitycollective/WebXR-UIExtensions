@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Demo client for @realitycollective/uix-devtools — the showcase scene plus the edit-session gate and a live in-headset UIKitML editor. Nothing here is reachable without an edit token.",
+  "description": "Demo client for @realitycollective/uix-devtools - the showcase scene plus the edit-session gate and a live in-headset UIKitML editor. Nothing here is reachable without an edit token.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

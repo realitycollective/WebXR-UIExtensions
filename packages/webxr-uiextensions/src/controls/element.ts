@@ -3,7 +3,7 @@
  *
  * UIKitML preserves `data-*` attributes into `element.userData` (camelCased,
  * `data-` stripped): `data-uix="stepper"` → `userData.uix`. Controls are
- * discovered by traversing a panel's object tree for those markers — no
+ * discovered by traversing a panel's object tree for those markers - no
  * custom uikit component classes, so any markup (or kit) works.
  */
 export interface UixElement {

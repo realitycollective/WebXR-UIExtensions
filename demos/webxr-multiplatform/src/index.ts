@@ -2,7 +2,7 @@
  * Multiplatform demo entry.
  *
  * Detects the platform, pre-selects the matching pipeline on a launch
- * screen, and boots NOTHING until the user presses START — proving the
+ * screen, and boots NOTHING until the user presses START - proving the
  * chosen implementation actually runs on this browser. All three pipelines
  * are dynamic imports, so a session only downloads the engine it launches.
  */
@@ -15,15 +15,15 @@ interface ModeInfo {
 
 const MODES: Record<UixEngine, ModeInfo> = {
   desktop: {
-    title: 'Desktop — three.js',
+    title: 'Desktop - three.js',
     blurb: 'Plain three.js scene, mouse + orbit controls, vanilla window host. No engine framework.',
   },
   iwsdk: {
-    title: 'Meta — IWSDK',
+    title: 'Meta - IWSDK',
     blurb: 'Full showcase scene on the Meta Immersive Web SDK adapter (mouse works; VR on a Quest).',
   },
   xrblocks: {
-    title: 'Google — XR Blocks',
+    title: 'Google - XR Blocks',
     blurb: 'Same panels hosted inside a Google XR Blocks Script (Android XR; desktop simulator).',
   },
 };
@@ -34,7 +34,7 @@ const container = document.getElementById('scene-container') as HTMLDivElement;
 async function boot(engine: UixEngine): Promise<void> {
   const badge = document.getElementById('engine-badge');
   if (badge) {
-    badge.textContent = `engine: ${engine} — ${MODES[engine].title}`;
+    badge.textContent = `engine: ${engine} - ${MODES[engine].title}`;
     badge.style.display = 'block';
   }
   if (engine === 'desktop') {
@@ -60,7 +60,7 @@ function showLaunchScreen(): void {
   const cardById = new Map<UixEngine, HTMLButtonElement>();
 
   const heading = document.createElement('h1');
-  heading.textContent = 'WebXR UI Extensions — Multiplatform Lab';
+  heading.textContent = 'WebXR UI Extensions - Multiplatform Lab';
   heading.setAttribute('style', 'margin:0;font-size:22px;');
 
   const detected = document.createElement('p');
@@ -118,7 +118,7 @@ function showLaunchScreen(): void {
         console.error('[lab] pipeline failed to start:', error);
         start.disabled = false;
         start.textContent = 'START';
-        detected.textContent = `Failed to start ${MODES[selected].title} — see console. Pick a mode and try again.`;
+        detected.textContent = `Failed to start ${MODES[selected].title} - see console. Pick a mode and try again.`;
         detected.style.color = '#ff9d7a';
       });
   });

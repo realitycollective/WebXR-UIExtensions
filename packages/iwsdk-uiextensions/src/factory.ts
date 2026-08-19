@@ -1,5 +1,5 @@
 /**
- * Convenience factories — one call to spawn a managed window or dock region.
+ * Convenience factories - one call to spawn a managed window or dock region.
  * Thin sugar over `createTransformEntity().addComponent(...)`; everything
  * they do can be done manually with the components.
  */
@@ -18,7 +18,7 @@ import { DockMode, type DockModeValue } from '@realitycollective/webxr-uiextensi
 export interface CreateWindowOptions {
   /**
    * URL of the UIKitML source (e.g. "/ui/my-window.uikitml"). IWSDK 0.5 parses
-   * UIKitML at runtime — the build-time plugin and its generated JSON are gone.
+   * UIKitML at runtime - the build-time plugin and its generated JSON are gone.
    */
   config: string;
   id?: string;
@@ -52,7 +52,7 @@ export function createUIWindow(world: World, options: CreateWindowOptions): Enti
       config: options.config,
     })
     .addComponent(UIWindow, {
-      // Applied by UIWindowSystem once the document loads — see components.ts.
+      // Applied by UIWindowSystem once the document loads - see components.ts.
       targetWidth: options.maxWidth ?? 0,
       targetHeight: options.maxHeight ?? 0,
       windowId: options.id ?? '',
@@ -110,7 +110,7 @@ export function createDockRegion(world: World, options: CreateDockRegionOptions)
   }
   if (options.follow) {
     entity.addComponent(Follower, {
-      // Camera, not player.head — the head rig is origin-locked outside XR.
+      // Camera, not player.head - the head rig is origin-locked outside XR.
       target: world.camera,
       offsetPosition: options.followOffset ?? [0, -0.2, -1.4],
       behavior: FollowBehavior.PivotY,

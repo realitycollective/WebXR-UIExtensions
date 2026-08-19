@@ -1,10 +1,10 @@
 /**
- * IWSDK UI Extensions — showcase world bootstrap.
+ * IWSDK UI Extensions - showcase world bootstrap.
  *
  * The scene itself is now PORTABLE DATA (`playground-scene.ts`) and the demo
  * behaviour is engine-free (`playground-behaviour.ts`); this module only
- * supplies the IWSDK-specific half — world creation, stage dressing, region
- * markers and the Enter VR overlay — then hands the descriptor to the
+ * supplies the IWSDK-specific half - world creation, stage dressing, region
+ * markers and the Enter VR overlay - then hands the descriptor to the
  * adapter's scene host. The XR Blocks and desktop pipelines do the same with
  * their own bootstrap, so all three build the identical playground.
  */

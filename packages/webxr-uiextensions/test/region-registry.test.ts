@@ -70,7 +70,7 @@ describe('RegionRegistry', () => {
     registry.register('right', { snapRadius: 0.6 });
     const origins = new Map<string, Vec3>([
       ['left', [-1, 0, 0]],
-      // 'right' has no origin this frame — not considered.
+      // 'right' has no origin this frame - not considered.
     ]);
     expect(registry.capture([-0.8, 0, 0], origins)).toBe('left');
     expect(registry.capture([5, 0, 0], origins)).toBeUndefined();

@@ -1,5 +1,5 @@
 /**
- * UixWindowHost — the engine binding for plain three.js / XR Blocks scenes.
+ * UixWindowHost - the engine binding for plain three.js / XR Blocks scenes.
  *
  * Owns a core `WindowManager` + `RegionRegistry` and applies their decisions
  * to the scene graph: spawn UIKitML windows and dock regions, wire chrome
@@ -69,7 +69,7 @@ export interface CreateRegionOptions extends Partial<RegionDefinition> {
 
 export interface WindowHandle {
   id: string;
-  /** The scene-graph node — position/rotate freely. */
+  /** The scene-graph node - position/rotate freely. */
   group: Group;
   document: UixPanelDocument;
 }
@@ -82,7 +82,7 @@ export interface RegionHandle {
 export interface UixWindowHostOptions {
   /** Parent for spawned windows (the scene, or any group inside it). */
   scene: Object3D;
-  /** Viewer pose provider — camera on desktop, HMD pose in XR. */
+  /** Viewer pose provider - camera on desktop, HMD pose in XR. */
   headPose: HeadPoseSource;
   /** Optional UIKitML component kit(s) (e.g. horizon kit). */
   kit?: Kit;
@@ -126,7 +126,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
   private readonly states = new Map<string, WindowState>();
   private readonly regionStates = new Map<string, RegionState>();
   private readonly readyListeners = new Set<(event: PanelReadyEvent) => void>();
-  /** Panels already live — replayed to late `onPanelReady` subscribers. */
+  /** Panels already live - replayed to late `onPanelReady` subscribers. */
   private readonly ready = new Map<string, PanelReadyEvent>();
 
   constructor(options: UixWindowHostOptions) {
@@ -163,7 +163,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
 
   // --- WindowHost -----------------------------------------------------------
 
-  /** PanelHost — bare panel, unmanaged (used by devtools and tests). */
+  /** PanelHost - bare panel, unmanaged (used by devtools and tests). */
   createPanel(configJson: unknown): UixPanelDocument {
     return new UixPanelDocument(configJson, this.kit);
   }
@@ -202,7 +202,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
 
   /**
    * Scene descriptors carry config PATHS; this resolves the path and spawns
-   * the window when it arrives. Fire-and-forget by design — subscribe with
+   * the window when it arrives. Fire-and-forget by design - subscribe with
    * {@link onPanelReady} to wire behaviour once the panel exists.
    */
   spawnWindow(window: SceneWindow): void {
@@ -506,7 +506,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       ?.content?.setProperties({ display: collapsed ? 'none' : 'flex' });
   }
 
-  /** MIN when open, MAX when minimized — the label names the next action. */
+  /** MIN when open, MAX when minimized - the label names the next action. */
   private syncMinimizeLabel(id: string): void {
     const record = this.manager.get(id);
     const minimize = this.states.get(id)?.minimize;

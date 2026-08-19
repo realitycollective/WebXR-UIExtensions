@@ -1,5 +1,5 @@
 /**
- * The live UIKitML editor — a spatial window whose own panel is compiled at
+ * The live UIKitML editor - a spatial window whose own panel is compiled at
  * runtime by `compilePanelSource`, dogfooding the exact mechanism it offers:
  * edit markup in the textarea (Quest system keyboard works), press SPAWN, and
  * the source is compiled in-browser to a `blob:` config that IWSDK fetches
@@ -25,7 +25,7 @@ type UikitElement = {
   setProperties: (props: Record<string, unknown>) => void;
 };
 
-/** Markup for the editor window itself — also compiled at runtime. */
+/** Markup for the editor window itself - also compiled at runtime. */
 const EDITOR_PANEL_SOURCE = `
 <style>
   .editor { display: flex; flex-direction: column; width: 420; padding: 10;
@@ -42,7 +42,7 @@ const EDITOR_PANEL_SOURCE = `
   .editor-status { margin-top: 8; font-size: 9; color: #9fb8d4; }
 </style>
 <div class="editor">
-  <text class="editor-heading">UX EDITOR — live UIKitML</text>
+  <text class="editor-heading">UX EDITOR - live UIKitML</text>
   <textarea id="editor-source" class="editor-source"></textarea>
   <div class="editor-row">
     <text id="editor-spawn" class="editor-button">SPAWN</text>
@@ -53,7 +53,7 @@ const EDITOR_PANEL_SOURCE = `
 </div>
 `;
 
-/** Starter markup shown in the textarea — a valid minimal panel. */
+/** Starter markup shown in the textarea - a valid minimal panel. */
 const STARTER_PANEL_SOURCE = `<style>
   .card { display: flex; flex-direction: column; width: 280; padding: 12;
     background-color: #14261a; background-opacity: 0.92;
@@ -63,7 +63,7 @@ const STARTER_PANEL_SOURCE = `<style>
 </style>
 <div class="card">
   <text class="card-title">Hello from the headset</text>
-  <text class="card-body">Compiled at runtime — edit me and RESPAWN.</text>
+  <text class="card-body">Compiled at runtime - edit me and RESPAWN.</text>
 </div>`;
 
 const SPAWN_POSITION: [number, number, number] = [0, 1.7, -1.0];
@@ -140,7 +140,7 @@ export function installEditorOverlay(
         maxWidth: 0.8,
         maxHeight: 0.9,
       });
-      say(`Spawned "Live Panel ${spawnCount}" — drag, dock or edit again.`);
+      say(`Spawned "Live Panel ${spawnCount}" - drag, dock or edit again.`);
     };
 
     element('editor-spawn')?.addEventListener('click', () => spawn(false));

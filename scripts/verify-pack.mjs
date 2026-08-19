@@ -2,7 +2,7 @@
  * Consumer-path verification: prove the PUBLISHED artifact works.
  *
  * Everything else in this repo resolves `@realitycollective/...` to
- * `packages/<name>/src` — the demos through Vite aliases, the tests and the
+ * `packages/<name>/src` - the demos through Vite aliases, the tests and the
  * typecheck through tsconfig/vitest paths. That is fast and correct for
  * contributors, but it means nothing here ever exercises what a consumer
  * actually installs: the built `dist`, the `exports` map, the `files`

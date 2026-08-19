@@ -1,5 +1,5 @@
 /**
- * Log model — pure ring buffer + viewport for the `data-uix="log-view"`
+ * Log model - pure ring buffer + viewport for the `data-uix="log-view"`
  * control (scrollable log/list windows).
  *
  * UIKitML text nodes are a fixed pool (see "the text rule": dynamic text

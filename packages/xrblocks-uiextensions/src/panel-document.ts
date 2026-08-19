@@ -1,11 +1,11 @@
 /**
- * UixPanelDocument — minimal spatial hosting for interpreted UIKitML on
+ * UixPanelDocument - minimal spatial hosting for interpreted UIKitML on
  * plain three.js (the XR Blocks scene graph is plain three.js).
  *
  * Mirrors the behaviour of IWSDK's UIKitDocument where it matters to the
  * core: a `Group` wrapping the interpreted component tree, per-frame
  * `update`, scale-to-fit via {@link fitScale}, and `getElementById` backed
- * by the components' `userData.id` (where UIKitML places markup ids —
+ * by the components' `userData.id` (where UIKitML places markup ids -
  * the same `userData` surface the core's `UixElement` contract reads).
  */
 import { Group, type Object3D } from 'three';
@@ -76,7 +76,7 @@ export class UixPanelDocument extends Group implements PanelHandle {
     this.applyScale();
   }
 
-  /** Drive per-frame — uikit expects milliseconds. */
+  /** Drive per-frame - uikit expects milliseconds. */
   update(deltaSeconds: number): void {
     this.rootComponent.update?.(deltaSeconds * 1000);
   }

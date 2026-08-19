@@ -1,5 +1,5 @@
 /**
- * Toggle control — `data-uix="toggle"`.
+ * Toggle control - `data-uix="toggle"`.
  *
  * The whole control is the click target. Optional attributes:
  * `data-uix-on` (initial state), `data-uix-on-text` / `data-uix-off-text`

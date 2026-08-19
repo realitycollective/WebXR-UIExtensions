@@ -1,5 +1,5 @@
 /**
- * UIWindowSystem — wires window chrome, keeps the `WindowManager` in sync
+ * UIWindowSystem - wires window chrome, keeps the `WindowManager` in sync
  * with entities, applies focus ordering and minimize state.
  *
  * Reuse over recreation: the panel itself is loaded/rendered by the IWSDK's
@@ -168,7 +168,7 @@ export class UIWindowSystem extends createSystem({
     // Follow modes re-snap on their own (the dock system syncs the Follower).
   }
 
-  /** MIN when open, MAX when minimized — the label names the next action. */
+  /** MIN when open, MAX when minimized - the label names the next action. */
   private syncMinimizeLabel(record: Pick<WindowRecord, 'id' | 'minimized'>): void {
     const entity = this.entitiesById.get(record.id);
     const minimize = entity
@@ -222,7 +222,7 @@ export class UIWindowSystem extends createSystem({
       titleEl.setProperties({ text: title });
     }
 
-    // Chrome buttons live on the drag surface — keep their presses out of
+    // Chrome buttons live on the drag surface - keep their presses out of
     // the title-bar drag handle so clicks never turn into (or arm) drags.
     const swallowPress = (button: UikitElement | undefined): void => {
       button?.addEventListener('pointerdown', (event) => {

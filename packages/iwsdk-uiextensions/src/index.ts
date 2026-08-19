@@ -1,5 +1,5 @@
 /**
- * @realitycollective/iwsdk-uiextensions — the Meta IWSDK adapter.
+ * @realitycollective/iwsdk-uiextensions - the Meta IWSDK adapter.
  *
  * The engine-free UX core (window manager, dock state, region math, drag
  * math, control models, markup upgraders, adapter interfaces) lives in
@@ -10,7 +10,7 @@
  * that apply the core onto `@iwsdk/core` entities, plus the one-call
  * factories and `registerUIExtensions`.
  */
-// The portable core — re-exported for a single-dependency experience.
+// The portable core - re-exported for a single-dependency experience.
 export * from '@realitycollective/webxr-uiextensions';
 
 // IWSDK ECS binding

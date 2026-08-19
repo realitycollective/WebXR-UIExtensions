@@ -1,5 +1,5 @@
 /**
- * @realitycollective/webxr-uiextensions — the engine-free core.
+ * @realitycollective/webxr-uiextensions - the engine-free core.
  *
  * Everything exported here is pure TypeScript with no engine imports
  * (enforced by test/architecture.test.ts): window/dock/region/drag logic,

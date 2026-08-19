@@ -2,11 +2,11 @@
 
 Demo client for
 [`@realitycollective/iwsdk-uiextensions`](../../packages/iwsdk-uiextensions/README.md)
-— five windows and two dock regions exercising the library's whole surface
+- five windows and two dock regions exercising the library's whole surface
 (see the [workspace README](../../README.md#the-showcase-scene) for the tour).
 
 The scene itself is exported from `src/world.ts` so other demo clients build
-on the identical playground — the
+on the identical playground - the
 [devtools playground](../devtools-playground/README.md) is this scene plus
 the live-edit tooling.
 

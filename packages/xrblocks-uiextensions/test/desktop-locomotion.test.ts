@@ -46,7 +46,7 @@ describe('moveDirection', () => {
   });
 });
 
-describe('stepLocomotion — walking', () => {
+describe('stepLocomotion - walking', () => {
   it('moves at the configured speed', () => {
     const state = createLocomotionState();
     stepLocomotion(state, input({ forward: true }), 1, DEFAULT_LOCOMOTION, 0);
@@ -78,7 +78,7 @@ describe('stepLocomotion — walking', () => {
   });
 });
 
-describe('stepLocomotion — crouch', () => {
+describe('stepLocomotion - crouch', () => {
   it('eases down toward the crouch height and back up', () => {
     const state = createLocomotionState();
     for (let i = 0; i < 120; i += 1) {
@@ -102,7 +102,7 @@ describe('stepLocomotion — crouch', () => {
   });
 });
 
-describe('stepLocomotion — jump', () => {
+describe('stepLocomotion - jump', () => {
   it('leaves the ground, arcs, and lands back at stand height', () => {
     const state = createLocomotionState();
     stepLocomotion(state, input({ jump: true }), 1 / 60);

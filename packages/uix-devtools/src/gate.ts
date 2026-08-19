@@ -5,13 +5,13 @@
  * being reachable by players:
  *
  * 1. Production builds compile the whole gate call out behind a build flag
- *    (`if (import.meta.env.VITE_UIX_EDIT) installEditGate(...)`) — the
+ *    (`if (import.meta.env.VITE_UIX_EDIT) installEditGate(...)`) - the
  *    bundler removes the branch, so the code does not exist in player builds.
  * 2. Where the gate IS compiled in (dev / staging), it only opens when the
  *    page URL carries an explicit session token (`?uix-edit=<token>`) that
  *    matches one the developer minted (`uix-dev tunnel` prints the URL).
- * 3. The dev overlay itself is loaded through the `load` callback — always a
- *    `dynamic import()` — so it lives in a separate chunk that is never even
+ * 3. The dev overlay itself is loaded through the `load` callback - always a
+ *    `dynamic import()` - so it lives in a separate chunk that is never even
  *    downloaded for normal visitors.
  *
  * Everything here is DOM-optional and injectable so it is unit-testable in
@@ -48,7 +48,7 @@ export interface EditGateOptions {
   load: (session: EditSession) => void | Promise<unknown>;
   /**
    * Tokens that are allowed to open the gate. Typically
-   * `[import.meta.env.VITE_UIX_EDIT_TOKEN]` — minted per run by `uix-dev`.
+   * `[import.meta.env.VITE_UIX_EDIT_TOKEN]` - minted per run by `uix-dev`.
    * When omitted or empty, ANY non-empty token opens the gate; only do that
    * in local dev builds that never leave your machine.
    */
@@ -98,7 +98,7 @@ export function isTokenAccepted(
     return false;
   }
   if (!allowed || allowed.length === 0) {
-    return true; // open gate — local dev only, see EditGateOptions.tokens
+    return true; // open gate - local dev only, see EditGateOptions.tokens
   }
   return allowed.some((candidate) => candidate.length > 0 && candidate === token);
 }
@@ -112,14 +112,14 @@ function defaultStorage(): TokenStorage | undefined {
   try {
     return typeof window !== 'undefined' ? window.sessionStorage : undefined;
   } catch {
-    return undefined; // storage can throw in privacy modes — gate still works
+    return undefined; // storage can throw in privacy modes - gate still works
   }
 }
 /* v8 ignore stop */
 
 /**
  * Resolve the edit session for a page: URL token first, remembered token as
- * fallback. Does NOT invoke any loader — pure resolution, used by
+ * fallback. Does NOT invoke any loader - pure resolution, used by
  * {@link installEditGate} and directly testable.
  */
 export function resolveEditSession(options: {
@@ -167,7 +167,7 @@ export function clearEditSession(storage?: TokenStorage): void {
 
 /**
  * Install the gate: resolve the session and, when it opens, invoke `load`
- * exactly once. Never throws into the host app — a broken overlay must not
+ * exactly once. Never throws into the host app - a broken overlay must not
  * take the runtime down.
  */
 export function installEditGate(options: EditGateOptions): EditGateResult {

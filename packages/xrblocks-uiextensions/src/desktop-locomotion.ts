@@ -1,5 +1,5 @@
 /**
- * Desktop locomotion — WASD walking, jump and crouch for a first-person
+ * Desktop locomotion - WASD walking, jump and crouch for a first-person
  * camera, so a mouse-and-keyboard user can move around a scene that would
  * otherwise rely on a headset's room-scale tracking.
  *
@@ -17,7 +17,7 @@ export interface MoveInput {
   right: boolean;
   jump: boolean;
   crouch: boolean;
-  /** Shift — move faster. */
+  /** Shift - move faster. */
   sprint: boolean;
 }
 
@@ -116,7 +116,7 @@ export function targetStanceHeight(
 /**
  * Advance the locomotion state by `delta` seconds.
  *
- * Horizontal movement is direct (no inertia — precise for UI testing);
+ * Horizontal movement is direct (no inertia - precise for UI testing);
  * vertical motion is a simple ballistic arc over the stance height, so
  * jumping while crouched jumps from the lower stance as expected.
  * Mutates and returns `state`.

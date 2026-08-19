@@ -1,5 +1,5 @@
 /**
- * Playground behaviour — the demo logic behind each window, wired through
+ * Playground behaviour - the demo logic behind each window, wired through
  * the engine-free `WindowHost.onPanelReady` contract.
  *
  * No IWSDK, no XR Blocks, no three.js: every handler here talks to the core
@@ -28,7 +28,7 @@ export interface PlaygroundBehaviour {
 /**
  * Wire the playground's demo behaviour onto a host.
  *
- * Safe to call before or after windows spawn — `onPanelReady` replays
+ * Safe to call before or after windows spawn - `onPanelReady` replays
  * already-live panels.
  */
 export function installPlaygroundBehaviour(

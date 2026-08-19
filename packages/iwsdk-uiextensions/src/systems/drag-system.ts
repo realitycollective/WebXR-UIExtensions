@@ -1,5 +1,5 @@
 /**
- * UIDragSystem — drag windows by the title bar.
+ * UIDragSystem - drag windows by the title bar.
  *
  * Reuses `@pmndrs/handle` (the exact library behind the IWSDK's grab
  * systems): a `HandleStore` targets the window entity's object while being
@@ -95,7 +95,7 @@ export class UIDragSystem extends createSystem({
       multitouch: false,
       projectRays: false,
     }));
-    // The title-bar uikit element is an Object3D — bind it as the grab
+    // The title-bar uikit element is an Object3D - bind it as the grab
     // surface while the store's target stays the window root.
     store.bind(titlebar as unknown as Object3D<never>);
     this.states.set(entity, {
@@ -126,7 +126,7 @@ export class UIDragSystem extends createSystem({
       // (loose in hand) throughout the drag, not "UNPIN".
       manager.setDragging(id, true);
     }
-    // Grabbing takes the window out of any region and out of follow mode —
+    // Grabbing takes the window out of any region and out of follow mode -
     // the user is placing it by hand.
     if (entity.hasComponent(UIDockedTo)) {
       entity.removeComponent(UIDockedTo);
@@ -160,7 +160,7 @@ export class UIDragSystem extends createSystem({
     if (id && manager.has(id)) {
       manager.setDragging(id, false); // released → placed → label "UNPIN"
     }
-    // Settle facing the viewer at the drop spot — the window keeps the
+    // Settle facing the viewer at the drop spot - the window keeps the
     // orientation it was dragged in, not its pre-drag rotation.
     this.whileDragging(entity);
     const object = entity.object3D;

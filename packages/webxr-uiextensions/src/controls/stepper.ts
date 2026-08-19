@@ -1,5 +1,5 @@
 /**
- * Stepper control — `data-uix="stepper"`.
+ * Stepper control - `data-uix="stepper"`.
  *
  * Markup contract (roles are `data-uix-role` attributes on descendants):
  * ```html

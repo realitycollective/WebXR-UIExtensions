@@ -1,7 +1,7 @@
 /**
  * ECS components for UI Extensions.
  *
- * These compose with the IWSDK's own components — a window entity typically
+ * These compose with the IWSDK's own components - a window entity typically
  * carries `PanelUI` (the IWSDK loads/renders the panel), `UIWindow` (ours),
  * and the IWSDK interaction tags (`RayInteractable`, `PokeInteractable`).
  * The systems in this package add/remove the IWSDK `Follower` / `ScreenSpace`
@@ -67,7 +67,7 @@ export const UIWindow = createComponent(
 );
 
 /**
- * Internal bookkeeping the systems keep on window entities — which dock mode
+ * Internal bookkeeping the systems keep on window entities - which dock mode
  * has actually been applied to engine components, and whether chrome wiring
  * has run for the current PanelDocument.
  */
@@ -76,7 +76,7 @@ export const UIWindowState = createComponent(
   {
     appliedDockMode: { type: Types.String, default: '' },
     chromeWired: { type: Types.Boolean, default: false },
-    /** "Home" snapshot captured on adoption — the DOCK button returns here. */
+    /** "Home" snapshot captured on adoption - the DOCK button returns here. */
     homeDockMode: { type: Types.String, default: '' },
     homeRegion: { type: Types.String, default: '' },
     homePosition: { type: Types.Vec3, default: [0, 0, 0] },

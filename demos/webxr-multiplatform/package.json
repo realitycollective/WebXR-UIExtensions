@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Demo client for @realitycollective/webxr-uiextensions — ships BOTH platform adapters and activates the right pipeline (Meta IWSDK or Google XR Blocks) for the hardware it finds itself on.",
+  "description": "Demo client for @realitycollective/webxr-uiextensions - ships BOTH platform adapters and activates the right pipeline (Meta IWSDK or Google XR Blocks) for the hardware it finds itself on.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

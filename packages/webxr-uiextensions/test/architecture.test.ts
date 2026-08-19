@@ -2,7 +2,7 @@
  * Architectural gate: this ENTIRE package must stay engine-free.
  *
  * @realitycollective/webxr-uiextensions is the portable heart of the UI
- * Extensions — pure logic and interfaces with no runtime dependencies, so
+ * Extensions - pure logic and interfaces with no runtime dependencies, so
  * the same UX drives any three.js WebXR runtime through an adapter package
  * (IWSDK today, XR Blocks experimentally, others later). This test fails
  * the moment an engine import lands anywhere in src/.

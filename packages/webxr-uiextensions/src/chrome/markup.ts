@@ -1,7 +1,7 @@
 /**
  * Window chrome conventions.
  *
- * Windows are authored in UIKitML like any other IWSDK panel — the chrome is
+ * Windows are authored in UIKitML like any other IWSDK panel - the chrome is
  * plain markup discovered by well-known element ids, not a parallel widget
  * tree. Copy `WINDOW_CHROME_SNIPPET` into a `.uikitml` file and put the
  * window body inside the `uix-content` element.
@@ -26,7 +26,7 @@ export const WINDOW_CHROME_IDS = {
 } as const;
 
 /**
- * Reference chrome markup. The styles are intentionally minimal — restyle
+ * Reference chrome markup. The styles are intentionally minimal - restyle
  * freely, only the element ids are contractual.
  *
  * Notes:

@@ -1,5 +1,5 @@
 /**
- * UIControlsSystem — upgrades `data-uix` controls in every loaded panel.
+ * UIControlsSystem - upgrades `data-uix` controls in every loaded panel.
  *
  * Runs against ALL `PanelDocument` panels, not just windows: any IWSDK panel
  * gains steppers, toggles, expandable labels and log views by markup alone.

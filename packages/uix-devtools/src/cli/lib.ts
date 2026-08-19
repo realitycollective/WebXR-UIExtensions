@@ -1,5 +1,5 @@
 /**
- * Pure logic behind the `uix-dev` CLI — everything here is unit-testable in
+ * Pure logic behind the `uix-dev` CLI - everything here is unit-testable in
  * node with no processes spawned. The orchestration (spawning vite and
  * cloudflared, wiring stdio) lives in `main.ts` and stays intentionally thin.
  */

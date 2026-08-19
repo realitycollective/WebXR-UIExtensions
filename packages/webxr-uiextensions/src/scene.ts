@@ -1,8 +1,8 @@
 /**
  * Portable scene descriptors.
  *
- * A scene is plain DATA — which windows exist, where they sit, which dock
- * regions they can drop into — with no engine types anywhere. Each adapter
+ * A scene is plain DATA - which windows exist, where they sit, which dock
+ * regions they can drop into - with no engine types anywhere. Each adapter
  * knows how to apply the same descriptor through its own factories, so one
  * playground definition drives IWSDK, XR Blocks and plain three.js alike:
  *
@@ -10,7 +10,7 @@
  *   applyScene(vanillaHost, PLAYGROUND);   // three.js groups
  *
  * Panel config paths stay strings (`./ui/foo.json`) because every adapter
- * resolves them the same way — IWSDK fetches them itself, the vanilla host
+ * resolves them the same way - IWSDK fetches them itself, the vanilla host
  * is handed the parsed JSON by `applyScene`'s loader.
  */
 import type { DockModeValue } from './core/dock-state.js';

@@ -1,5 +1,5 @@
 /**
- * Panel fit math — mirrors the IWSDK adapter's behaviour exactly so the same
+ * Panel fit math - mirrors the IWSDK adapter's behaviour exactly so the same
  * UIKitML renders at the same world size on both platforms: UIKit units are
  * centimeters; the panel group is uniformly scaled to fit the requested
  * width × height (meters) while preserving aspect ratio.

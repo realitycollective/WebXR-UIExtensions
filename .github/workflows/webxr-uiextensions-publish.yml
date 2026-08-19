@@ -1,11 +1,11 @@
-# WebXR UI Extensions — package + publish ALL FOUR packages to GitHub
+# WebXR UI Extensions - package + publish ALL FOUR packages to GitHub
 # (Packages registry + a GitHub Release with the tarballs attached).
 #
 # Single-purpose repo: the root IS the npm workspace root, so every path below
 # is relative to it and `packages/*` are the publishable libraries.
 #
-# Publishing is limited to GitHub for now — no npmjs.com. When the packages
-# graduate to the public npm registry, add an npm job alongside these — same
+# Publishing is limited to GitHub for now - no npmjs.com. When the packages
+# graduate to the public npm registry, add an npm job alongside these - same
 # build/pack steps, plus `--provenance`.
 #
 # Manual dispatch only. Defaults to a DRY RUN (build + pack + artifacts, no
@@ -14,7 +14,7 @@
 # GitHub Packages scope constraint: the npm registry at npm.pkg.github.com
 # only accepts packages scoped to the repository owner. Under the
 # `realitycollective` org the packages already carry that scope, so the
-# re-scoping step below is a no-op — it stays so a fork or a personal-account
+# re-scoping step below is a no-op - it stays so a fork or a personal-account
 # run still publishes successfully.
 #
 # Consumers need a SCOPED registry entry, NOT `--registry=`: that flag
@@ -25,7 +25,7 @@
 #   //npm.pkg.github.com/:_authToken=<token with read:packages>
 # then:
 #   npm install @realitycollective/webxr-uiextensions
-# Note GitHub Packages requires a token to READ, even for public packages —
+# Note GitHub Packages requires a token to READ, even for public packages -
 # one reason the npmjs.com move is still on the table.
 #
 # The GitHub Release tarballs need no registry and no token:
@@ -37,7 +37,7 @@ on:
   workflow_dispatch:
     inputs:
       dryRun:
-        description: "Dry run (build + pack only — no registry publish, no release)"
+        description: "Dry run (build + pack only - no registry publish, no release)"
         type: boolean
         default: true
       createRelease:
@@ -78,7 +78,7 @@ jobs:
 
       # The demos and tests all resolve the libraries to packages/<name>/src,
       # so nothing above this line exercises the built artifact. This packs,
-      # installs into a clean project and imports — the gate that catches a
+      # installs into a clean project and imports - the gate that catches a
       # package which builds green but ships broken.
       - name: Verify the published artifact is consumable
         run: npm run verify:pack -- --skip-build
@@ -91,7 +91,7 @@ jobs:
             cp CHANGELOG.md "$dir/CHANGELOG.md" 2>/dev/null || true
           done
 
-      - name: Pack (always — the artifacts are the receipt)
+      - name: Pack (always - the artifacts are the receipt)
         run: |
           mkdir -p dist-tarballs
           npm pack --workspace @realitycollective/webxr-uiextensions --pack-destination dist-tarballs
@@ -147,12 +147,12 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('./packages/webxr-uiextensions/package.json').version")"
           TAG="uix-v${VERSION}"
-          NOTES="WebXR UI Extensions ${VERSION} — core + IWSDK/XR Blocks adapters + devtools.
+          NOTES="WebXR UI Extensions ${VERSION} - core + IWSDK/XR Blocks adapters + devtools.
 
           Install straight from this release:
           \`npm install <asset-url>.tgz\`
 
-          Or from GitHub Packages — add this line to your .npmrc first:
+          Or from GitHub Packages - add this line to your .npmrc first:
           \`@${{ github.repository_owner }}:registry=https://npm.pkg.github.com\`
           then \`npm install @${{ github.repository_owner }}/webxr-uiextensions\`"
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
@@ -182,7 +182,7 @@ jobs:
             echo "| @realitycollective/uix-devtools | ${DEV_VERSION} |"
             echo ""
             if [ "$DRY" = "true" ]; then
-              echo "**DRY RUN** — packed but not published. Re-run with dryRun=false to push to GitHub Packages and cut the release."
+              echo "**DRY RUN** - packed but not published. Re-run with dryRun=false to push to GitHub Packages and cut the release."
             else
               echo "Published to GitHub Packages (as @${{ github.repository_owner }}/*) and release \`uix-v${LIB_VERSION}\`."
             fi

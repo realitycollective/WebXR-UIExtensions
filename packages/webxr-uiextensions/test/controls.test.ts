@@ -147,7 +147,7 @@ describe('stepper control', () => {
     expect(value!.props['text']).toBe('2');
     expect(increment!.props['opacity']).toBeLessThan(1);
 
-    increment!.fire('click'); // clamped — no event
+    increment!.fire('click'); // clamped - no event
     expect(heard).toEqual([2]);
 
     decrement!.fire('click');
@@ -192,7 +192,7 @@ describe('toggle control', () => {
     expect(label.props['text']).toBe('OFF');
     root.fire('click');
     expect(label.props['text']).toBe('ON');
-    // No colors configured — background untouched.
+    // No colors configured - background untouched.
     expect(root.props['backgroundColor']).toBeUndefined();
   });
 });

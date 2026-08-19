@@ -1,5 +1,5 @@
 /**
- * WindowManager — pure window registry, focus ordering and minimize state.
+ * WindowManager - pure window registry, focus ordering and minimize state.
  *
  * The manager knows nothing about entities, three.js or uikit. It deals in
  * opaque window ids and answers two questions the ECS layer applies each
@@ -51,7 +51,7 @@ export function pinLabelFor(record: Pick<WindowRecord, 'dockMode' | 'dragging'>)
 }
 
 /**
- * What the minimize affordance should read for a window's current state —
+ * What the minimize affordance should read for a window's current state -
  * the label always names what the NEXT click does, matching `pinLabelFor`:
  * - open      → "MIN" (click collapses the content)
  * - minimized → "MAX" (click restores it)
@@ -198,7 +198,7 @@ export class WindowManager {
   }
 
   list(): WindowRecord[] {
-    // Top-of-stack first — the natural order for "window list" UIs.
+    // Top-of-stack first - the natural order for "window list" UIs.
     return [...this.focusStack]
       .reverse()
       .map((id) => this.windows.get(id))

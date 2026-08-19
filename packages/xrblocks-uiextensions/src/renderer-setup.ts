@@ -1,8 +1,8 @@
 /**
  * Renderer configuration required by uikit.
  *
- * uikit draws every panel — background plates, borders, images AND text
- * glyphs — as TRANSPARENT meshes, and relies on `renderOrder` to stack them
+ * uikit draws every panel - background plates, borders, images AND text
+ * glyphs - as TRANSPARENT meshes, and relies on `renderOrder` to stack them
  * correctly. three.js's default transparent sort orders by distance to the
  * camera, which is meaningless for coplanar UI layers: at grazing angles or
  * close range the panel background can sort in front of its own text, so
@@ -20,7 +20,7 @@
  */
 import { reversePainterSortStable } from '@pmndrs/uikit';
 
-/** The slice of `WebGLRenderer` this needs — keeps the helper testable. */
+/** The slice of `WebGLRenderer` this needs - keeps the helper testable. */
 export interface UikitRenderer {
   localClippingEnabled: boolean;
   setTransparentSort(method: (a: unknown, b: unknown) => number): void;

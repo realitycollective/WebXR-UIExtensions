@@ -1,5 +1,5 @@
 /**
- * UIDockSystem — realises dock modes by composing IWSDK components.
+ * UIDockSystem - realises dock modes by composing IWSDK components.
  *
  * `body-follow` and `head-locked` are implemented with the IWSDK's own
  * `Follower` / `ScreenSpace` components (reuse, not recreation); this system
@@ -153,7 +153,7 @@ export class UIDockSystem extends createSystem({
     entity.addComponent(Follower, {
       // The camera, not player.head: three.js syncs the camera to the
       // headset pose in-session, while the head rig sits at the origin
-      // outside XR (desktop) — following it would park windows at the floor.
+      // outside XR (desktop) - following it would park windows at the floor.
       target: this.camera,
       offsetPosition: offset,
       behavior: FollowBehavior.PivotY,

@@ -2,7 +2,7 @@
  * Runtime UIKitML compilation.
  *
  * The `@iwsdk/vite-plugin-uikitml` build step is literally
- * `JSON.stringify(parse(source))` — so the same `parse` from
+ * `JSON.stringify(parse(source))` - so the same `parse` from
  * `@pmndrs/uikitml` can compile panel markup live in the browser. IWSDK's
  * `PanelUI` loads its `config` with a plain `fetch()`, which accepts `blob:`
  * URLs, so a runtime-compiled panel is:
@@ -31,7 +31,7 @@ export interface CompiledPanel {
 
 export interface CompileOptions {
   /**
-   * Resolver for `<link ref="...">` stylesheet references in the source —
+   * Resolver for `<link ref="...">` stylesheet references in the source -
    * return the CSS text for a path, throw for unknown paths (reported as a
    * diagnostic). Omit to leave linked stylesheets unresolved (inline
    * `<style>` always works).

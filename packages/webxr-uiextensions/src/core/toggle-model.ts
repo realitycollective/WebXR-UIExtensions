@@ -1,5 +1,5 @@
 /**
- * Toggle model — pure boolean state for the `data-uix="toggle"` control.
+ * Toggle model - pure boolean state for the `data-uix="toggle"` control.
  */
 export class ToggleModel {
   private state: boolean;

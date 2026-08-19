@@ -1,5 +1,5 @@
 /**
- * Layout regions — pure slot math for docking windows into named regions.
+ * Layout regions - pure slot math for docking windows into named regions.
  *
  * A `DockRegion` is an anchor in space (an entity transform) that lays its
  * docked windows out in a row, column or grid of fixed-pitch slots. The math

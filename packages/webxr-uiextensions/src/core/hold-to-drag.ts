@@ -1,5 +1,5 @@
 /**
- * Hold-to-drag threshold — pure timing state for title-bar dragging.
+ * Hold-to-drag threshold - pure timing state for title-bar dragging.
  *
  * A press only becomes a drag after being held for `delaySeconds`. Anything
  * shorter is a click (pin/minimize/close and friends), so buttons on the

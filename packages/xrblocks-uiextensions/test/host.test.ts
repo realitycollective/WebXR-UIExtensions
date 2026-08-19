@@ -1,9 +1,9 @@
 /**
  * Headless host lifecycle test: real three.js scene graph, real interpreted
- * UIKitML panels (uikit components load fine in node — only rendering needs
+ * UIKitML panels (uikit components load fine in node - only rendering needs
  * a GPU), real core WindowManager. What is NOT covered headless: visual
  * layout (the size signal never fires without a renderer) and actual XR
- * input — those need the browser demo.
+ * input - those need the browser demo.
  */
 import { parse } from '@pmndrs/uikitml';
 import { Group } from 'three';

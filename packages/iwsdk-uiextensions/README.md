@@ -3,7 +3,7 @@
 Windowing, docking, layout regions and extra controls for
 [Meta's Immersive Web SDK](https://iwsdk.dev) (`@iwsdk/core`).
 
-**This is the Meta IWSDK adapter** — and the reference implementation — for
+**This is the Meta IWSDK adapter** - and the reference implementation - for
 the engine-free
 [`@realitycollective/webxr-uiextensions`](../webxr-uiextensions/README.md)
 core, which it re-exports in full: one dependency gets IWSDK apps the whole
@@ -12,7 +12,7 @@ surface. (A sibling
 adapter binds the same core to Google XR Blocks, experimentally.)
 
 **Reuse, not recreation.** The IWSDK already ships an excellent spatial UI
-stack — UIKitML markup, `@pmndrs/uikit` rendering, `Follower`/`ScreenSpace`
+stack - UIKitML markup, `@pmndrs/uikit` rendering, `Follower`/`ScreenSpace`
 anchoring, grab/ray/poke interaction. This package adds the missing layer
 above it:
 
@@ -22,9 +22,9 @@ above it:
 | **Dock states** | `world-locked` (place in space) ⇄ `body-follow` (lazy follow) ⇄ `head-locked`, realised with the IWSDK's own `Follower`/`ScreenSpace` |
 | **Manipulation** | Drag windows by the title bar (powered by `@pmndrs/handle`, the same library behind IWSDK grabbing), billboard-while-dragging, drop-to-dock |
 | **Layout regions** | Named regions (row / column / grid slots) windows snap into; regions can themselves follow the player |
-| **Controls** | `data-uix` markup upgrades: **stepper**, **toggle**, **expandable multi-line label**, **log/list view** — plus everything UIKitML already has (buttons, inputs, textareas, images, and the horizon kit's Slider/Checkbox/…) |
+| **Controls** | `data-uix` markup upgrades: **stepper**, **toggle**, **expandable multi-line label**, **log/list view** - plus everything UIKitML already has (buttons, inputs, textareas, images, and the horizon kit's Slider/Checkbox/…) |
 
-Everything is authored in plain UIKitML (HTML/CSS-like) — no new markup
+Everything is authored in plain UIKitML (HTML/CSS-like) - no new markup
 language, no custom renderer, no wrapper widgets around things the IWSDK
 already does.
 
@@ -67,7 +67,7 @@ windows.events.on('closed', (w) => console.log(`${w.title} closed`));
 ### Window markup
 
 Windows are ordinary UIKitML panels; the chrome is discovered by well-known
-element ids (only the ids are contractual — restyle freely):
+element ids (only the ids are contractual - restyle freely):
 
 ```html
 <div id="uix-window" class="my-window">
@@ -90,7 +90,7 @@ element ids (only the ids are contractual — restyle freely):
 
 ### Controls markup
 
-Annotate any element with `data-uix` and the `UIControlsSystem` upgrades it —
+Annotate any element with `data-uix` and the `UIControlsSystem` upgrades it -
 in any panel, not just windows:
 
 ```html
@@ -116,13 +116,13 @@ controls.stepper('health').events.on('change', (hp) => setHealth(hp));
 - **Drag** the title bar with the ray (or mouse on desktop) to move a window;
   it billboards toward you while dragging and settles facing you when
   released. A press only becomes a drag after `dragDelay` seconds (default
-  0.3, per-window on `UIWindow`) — shorter presses stay clicks, and the
+  0.3, per-window on `UIWindow`) - shorter presses stay clicks, and the
   chrome buttons swallow their presses entirely, so PIN/DOCK/MIN/X never
   fight the drag gesture.
 - **Drop** a window inside a region's snap radius to dock it into the next
   slot; drag it out again to undock.
 - **Pin** toggles `body-follow` ⇄ `world-locked` ("place in space").
-- Dragging a following window implicitly places it — pin re-attaches it.
+- Dragging a following window implicitly places it - pin re-attaches it.
 
 See `Examples/` (shipped in this package) and the deployable showcase client
 in the repository for complete, working demonstrations of every feature.
@@ -131,7 +131,7 @@ in the repository for complete, working demonstrations of every feature.
 
 All decision logic (window manager, dock state machine, region slot math,
 drag math, control models) lives in
-`@realitycollective/webxr-uiextensions` — pure TypeScript with no engine
+`@realitycollective/webxr-uiextensions` - pure TypeScript with no engine
 imports, tested at 100% coverage. The ECS systems in this package are thin
 appliers of that core onto `@iwsdk/core` components.
 

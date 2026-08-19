@@ -25,7 +25,7 @@
 
 ## Testing status
 <!-- Remove the options that do not apply. Coverage on the pure/headless
-     modules is gated at 100% — `npm test` must stay green. -->
+     modules is gated at 100% - `npm test` must stay green. -->
 
 - No tests have been added.
 - Includes unit tests.

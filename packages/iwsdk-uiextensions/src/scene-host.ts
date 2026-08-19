@@ -10,7 +10,7 @@
  *   host.onPanelReady(({ id, panel }) => wireMyPanel(id, panel));
  *
  * Readiness is detected with a single ECS query on `PanelUI + PanelDocument`
- * — the engine-specific mechanism stays here, behind the portable interface.
+ * - the engine-specific mechanism stays here, behind the portable interface.
  */
 import {
   PanelDocument,
@@ -91,7 +91,7 @@ export function createSceneHost(world: World): IwsdkSceneHost {
       ? (UIWindow.data.windowId[entity.index] as string)
       : '';
     if (!id) {
-      return; // a bare panel, not a managed window — nothing to wire by id
+      return; // a bare panel, not a managed window - nothing to wire by id
     }
     const panel = panelHandleFor(document);
     // Upgrade `data-uix` controls exactly as the ECS controls system does,
@@ -115,7 +115,7 @@ export function createSceneHost(world: World): IwsdkSceneHost {
 
     createPanel(): PanelHandle {
       throw new Error(
-        '[uix] createPanel() is not supported on the IWSDK host — spawn a window ' +
+        '[uix] createPanel() is not supported on the IWSDK host - spawn a window ' +
           '(spawnWindow/createUIWindow) so IWSDK owns the panel lifecycle.',
       );
     },

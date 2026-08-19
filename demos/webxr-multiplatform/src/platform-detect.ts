@@ -1,7 +1,7 @@
 /**
  * Engine selection.
  *
- * You cannot detect "IWSDK vs XR Blocks" — those are frameworks an app is
+ * You cannot detect "IWSDK vs XR Blocks" - those are frameworks an app is
  * BUILT with, not properties of the device. What you CAN detect is the
  * hardware/browser the page is running on, and choose which pipeline to
  * boot. This demo ships three pipelines (code-split) and picks by
@@ -13,7 +13,7 @@
  *    (mouse + orbit controls driving the engine-free core through the
  *    vanilla three.js host)
  *
- * The chosen pipeline is offered on a launch screen — nothing boots until
+ * The chosen pipeline is offered on a launch screen - nothing boots until
  * the user presses START, and any of the three modes can be selected
  * manually there. `?uix-engine=desktop|iwsdk|xrblocks` pre-selects a mode
  * (UA sniffing is best-effort by nature; the override is authoritative).
@@ -34,7 +34,7 @@ export function isEngine(value: string | null): value is UixEngine {
   return value !== null && (ENGINES as readonly string[]).includes(value);
 }
 
-/** Pure chooser — pass `navigator.userAgent` and `location.search`. */
+/** Pure chooser - pass `navigator.userAgent` and `location.search`. */
 export function chooseEngine(userAgent: string, search: string): EngineChoice {
   const params = new URLSearchParams(search);
   const override = params.get(ENGINE_PARAM);
@@ -64,7 +64,7 @@ export function chooseEngine(userAgent: string, search: string): EngineChoice {
 
   return {
     engine: 'desktop',
-    reason: 'no headset signature — plain three.js pipeline with mouse/orbit controls',
+    reason: 'no headset signature - plain three.js pipeline with mouse/orbit controls',
     overridden: false,
   };
 }

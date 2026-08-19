@@ -1,4 +1,4 @@
-# WebXR UI Extensions — build the demo clients and deploy them to
+# WebXR UI Extensions - build the demo clients and deploy them to
 # Cloudflare Pages. The repository root is the workspace root, so all paths
 # below are relative to it (`demos/*` are the clients).
 #
@@ -67,12 +67,12 @@ jobs:
           path: demos/showcase/dist
           if-no-files-found: error
 
-      # The "lab": the multiplatform demo — ships both engine adapters and
+      # The "lab": the multiplatform demo - ships both engine adapters and
       # switches pipeline by hardware (?uix-engine= overrides). Built twice:
       # production has NO edit gate compiled in; the staging build compiles
       # the gate in only when the UIX_EDIT_TOKEN secret exists (token still
       # required in the URL to activate anything).
-      - name: Build lab (production — no edit gate)
+      - name: Build lab (production - no edit gate)
         run: npm --workspace webxr-multiplatform-demo run build
 
       - name: Upload lab dist artifact (production)
@@ -82,7 +82,7 @@ jobs:
           path: demos/webxr-multiplatform/dist
           if-no-files-found: error
 
-      - name: Build lab (staging — edit gate behind team token, if configured)
+      - name: Build lab (staging - edit gate behind team token, if configured)
         env:
           VITE_UIX_EDIT: ${{ secrets.UIX_EDIT_TOKEN != '' && '1' || '' }}
           VITE_UIX_EDIT_TOKEN: ${{ secrets.UIX_EDIT_TOKEN }}
@@ -96,7 +96,7 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # PRODUCTION — push to `main` (a merged PR) or manual dispatch.
+  # PRODUCTION - push to `main` (a merged PR) or manual dispatch.
   # ---------------------------------------------------------------------------
   deploy-production:
     needs: build
@@ -126,12 +126,12 @@ jobs:
           code="$(curl -s -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "${api}/${PROJECT}")"
           if [ "$code" = "200" ]; then
-            echo "Project ${PROJECT} exists — pinning production branch to ${PROD_BRANCH}"
+            echo "Project ${PROJECT} exists - pinning production branch to ${PROD_BRANCH}"
             resp="$(curl -fsS -X PATCH "${api}/${PROJECT}" \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
               --data "{\"production_branch\":\"${PROD_BRANCH}\"}")"
           elif [ "$code" = "404" ]; then
-            echo "Project ${PROJECT} missing — creating with production branch ${PROD_BRANCH}"
+            echo "Project ${PROJECT} missing - creating with production branch ${PROD_BRANCH}"
             resp="$(curl -fsS -X POST "${api}" \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
               --data "{\"name\":\"${PROJECT}\",\"production_branch\":\"${PROD_BRANCH}\"}")"
@@ -220,13 +220,13 @@ jobs:
           if SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruix)"; then
             SRC="verified"
           else
-            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} - publishing the direct URL."
             SHORT="$APEX_URL"; SRC="unavailable"
           fi
           disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
           qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
           {
-            echo "## IWSDK UI Extensions showcase (PRODUCTION) — open on your Quest"
+            echo "## IWSDK UI Extensions showcase (PRODUCTION) - open on your Quest"
             echo ""
             echo "# \`$(disp "$SHORT")\`"
             echo ""
@@ -249,13 +249,13 @@ jobs:
           # Short links are VERIFIED (redirect followed and matched) before
           # being published; on failure the direct URL is used instead.
           if ! SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruixlab)"; then
-            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} - publishing the direct URL."
             SHORT="$APEX_URL"
           fi
           disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
           qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
           {
-            echo "## Multiplatform LAB (PRODUCTION) — engine picked by hardware"
+            echo "## Multiplatform LAB (PRODUCTION) - engine picked by hardware"
             echo ""
             echo "Quest → IWSDK pipeline · Android XR → XR Blocks pipeline · desktop → IWSDK."
             echo "Force either with \`?uix-engine=iwsdk\` / \`?uix-engine=xrblocks\`."
@@ -272,7 +272,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
-  # STAGING — pull_request only. Publishes to the ISOLATED test project.
+  # STAGING - pull_request only. Publishes to the ISOLATED test project.
   # ---------------------------------------------------------------------------
   deploy-staging:
     needs: build
@@ -393,7 +393,7 @@ jobs:
           for i in 1 2 3 4 5 6; do
             page="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${DEPLOY_URL}/" || echo "000")"
             [ "$page" = "200" ] && break
-            echo "  attempt ${i}: index HTTP ${page} — waiting for propagation…"
+            echo "  attempt ${i}: index HTTP ${page} - waiting for propagation…"
             sleep 5
           done
           if [ "$page" = "200" ]; then
@@ -412,13 +412,13 @@ jobs:
           # Short links are VERIFIED (redirect followed and matched) before
           # being published; on failure the direct URL is used instead.
           if ! SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruixtest)"; then
-            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} - publishing the direct URL."
             SHORT="$APEX_URL"
           fi
           disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
           qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
           {
-            echo "## IWSDK UI Extensions showcase (STAGING — webxr-uiextensions-test)"
+            echo "## IWSDK UI Extensions showcase (STAGING - webxr-uiextensions-test)"
             echo ""
             echo "> This PR deployed to the **isolated** \`webxr-uiextensions-test\` project."
             echo "> The live site \`webxr-uiextensions.pages.dev\` was **not** touched."
@@ -444,17 +444,17 @@ jobs:
           # Short links are VERIFIED (redirect followed and matched) before
           # being published; on failure the direct URL is used instead.
           if ! SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruixlabtest)"; then
-            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} - publishing the direct URL."
             SHORT="$APEX_URL"
           fi
           disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
           qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
           {
-            echo "## Multiplatform LAB (STAGING — webxr-uix-lab-test)"
+            echo "## Multiplatform LAB (STAGING - webxr-uix-lab-test)"
             echo ""
             echo "Engine picked by hardware; force with \`?uix-engine=iwsdk|xrblocks\`."
             echo "This build compiles the edit gate in ONLY if the \`UIX_EDIT_TOKEN\`"
-            echo "secret is configured — activate with \`?uix-edit=<that token>\`."
+            echo "secret is configured - activate with \`?uix-edit=<that token>\`."
             echo ""
             echo "# \`$(disp "$SHORT")\`"
             echo ""
