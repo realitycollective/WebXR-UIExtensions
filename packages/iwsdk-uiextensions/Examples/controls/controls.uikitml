@@ -1,0 +1,50 @@
+<style>
+  .panel {
+    display: flex;
+    flex-direction: column;
+    width: 300;
+    padding: 10;
+    background-color: #101a26;
+    background-opacity: 0.92;
+    border-radius: 12.5;
+  }
+  .row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 7; }
+  .label { font-size: 11; color: #9fb8d4; }
+  .stepper { display: flex; flex-direction: row; align-items: center; }
+  .stepper-button { padding: 4; font-size: 13; color: #eaf6ff; background-color: #2c4a6b; border-radius: 6; cursor: pointer; }
+  .stepper-value { font-size: 13; color: #ffffff; margin-left: 7; margin-right: 7; }
+  .toggle { padding: 5.5; border-radius: 7; cursor: pointer; }
+  .toggle-label { font-size: 11; font-weight: bold; color: #ffffff; }
+  .long { display: flex; flex-direction: column; width: 100%; margin-top: 8; }
+  .long-text { font-size: 9.5; color: #c4d6ea; }
+  .long-toggle { margin-top: 3; font-size: 9.5; color: #6fb4ff; cursor: pointer; }
+  .log { display: flex; flex-direction: column; width: 100%; margin-top: 8; }
+  .log-line { font-size: 9; color: #9fe0a8; margin-top: 2; }
+</style>
+<div class="panel">
+  <div class="row">
+    <span class="label">Volume</span>
+    <div data-uix="stepper" data-uix-id="volume" data-uix-min="0" data-uix-max="10" class="stepper">
+      <div data-uix-role="decrement" class="stepper-button">-</div>
+      <span data-uix-role="value" class="stepper-value">.</span>
+      <div data-uix-role="increment" class="stepper-button">+</div>
+    </div>
+  </div>
+  <div class="row">
+    <span class="label">Music</span>
+    <div data-uix="toggle" data-uix-id="music" data-uix-on-color="#1f6d3d" data-uix-off-color="#5a3037" class="toggle">
+      <span data-uix-role="label" class="toggle-label">.</span>
+    </div>
+  </div>
+  <div data-uix="expandable-label" data-uix-id="details" data-uix-lines="2" data-uix-chars-per-line="40"
+       data-uix-text="Long descriptive text collapses to two lines with an ellipsis, and the more/less affordance expands it in place - no scrolling, no clipping."
+       class="long">
+    <span data-uix-role="text" class="long-text">.</span>
+    <div data-uix-role="toggle" class="long-toggle">more</div>
+  </div>
+  <div data-uix="log-view" data-uix-id="log" class="log">
+    <span data-uix-role="line" class="log-line">.</span>
+    <span data-uix-role="line" class="log-line">.</span>
+    <span data-uix-role="line" class="log-line">.</span>
+  </div>
+</div>

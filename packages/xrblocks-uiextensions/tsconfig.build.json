@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // Builds resolve sibling packages through node_modules (their built
+    // dist + types), not the source-mapping paths used for dev/typecheck —
+    // the root build script builds webxr-uiextensions first.
+    "paths": {}
+  },
+  "include": ["src/**/*"],
+  "exclude": ["test/**/*"]
+}

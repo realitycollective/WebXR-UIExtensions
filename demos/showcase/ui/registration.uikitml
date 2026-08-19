@@ -1,0 +1,101 @@
+<style>
+  .uix-window {
+    display: flex;
+    flex-direction: column;
+    width: 350;
+    background-color: #101a26;
+    background-opacity: 0.92;
+    border-color: #2e4a66;
+    border-width: 0.75;
+    border-radius: 12.5;
+  }
+  .uix-titlebar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8;
+    background-color: #1b2c40;
+    border-top-left-radius: 12.5;
+    border-top-right-radius: 12.5;
+    cursor: pointer;
+  }
+  .uix-titlebar:hover { background-color: #24405e; }
+  .uix-title { flex-shrink: 1; font-size: 12; font-weight: bold; color: #dce9f7; }
+  .uix-titlebar-buttons { display: flex; flex-direction: row; flex-shrink: 0; }
+  .uix-titlebar-button {
+    width: 34;
+    height: 20;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin-left: 4;
+    font-size: 9;
+    color: #9fb8d4;
+    background-color: #223850;
+    border-radius: 6;
+    cursor: pointer;
+  }
+  .uix-titlebar-button:hover { background-color: #33547a; color: #ffffff; }
+  .uix-content { display: flex; flex-direction: column; width: 100%; padding: 10; }
+
+  .field-label { font-size: 10; color: #9fb8d4; margin-top: 8; }
+  .field {
+    width: 100%;
+    margin-top: 3;
+    padding: 6;
+    font-size: 11;
+    color: #ffffff;
+    background-color: #182a3d;
+    border-color: #2e4a66;
+    border-width: 0.5;
+    border-radius: 6;
+  }
+  .field:focus { border-color: #6fb4ff; }
+  .notes { height: 50; }
+  .slider-row { width: 100%; margin-top: 8; }
+  .submit {
+    width: 100%;
+    margin-top: 12;
+    padding: 7;
+    font-size: 12;
+    font-weight: bold;
+    text-align: center;
+    justify-content: center;
+    color: #ffffff;
+    background-color: #2563b0;
+    border-radius: 7;
+    cursor: pointer;
+  }
+  .submit:hover { background-color: #2f7ad6; }
+  .submit:active { background-color: #1d5090; }
+  .result { font-size: 10; color: #7ddba3; margin-top: 7; }
+</style>
+<div id="uix-window" class="uix-window">
+  <div id="uix-titlebar" class="uix-titlebar">
+    <span id="uix-title" class="uix-title">.</span>
+    <div class="uix-titlebar-buttons">
+      <div id="uix-pin" class="uix-titlebar-button">PIN</div>
+      <div id="uix-dock" class="uix-titlebar-button">DOCK</div>
+      <div id="uix-minimize" class="uix-titlebar-button">MIN</div>
+      <div id="uix-close" class="uix-titlebar-button">X</div>
+    </div>
+  </div>
+  <div id="uix-content" class="uix-content">
+    <span class="field-label">Call sign</span>
+    <input id="reg-name" class="field" type="text" />
+    <span class="field-label">Email</span>
+    <input id="reg-email" class="field" type="email" />
+    <span class="field-label">Notes</span>
+    <textarea id="reg-notes" class="field notes"></textarea>
+    <span class="field-label">Reaction speed</span>
+    <div class="slider-row">
+      <!-- default-value (kebab-case → defaultValue), NOT value: a value attr
+           makes the slider controlled and the knob can never move. -->
+      <Slider id="reg-speed" default-value="50" min="0" max="100" step="5"></Slider>
+    </div>
+    <button id="reg-submit" class="submit">Register</button>
+    <span id="reg-result" class="result">.</span>
+  </div>
+</div>

@@ -1,0 +1,59 @@
+{
+  "name": "@realitycollective/iwsdk-uiextensions",
+  "version": "0.1.0",
+  "description": "Meta IWSDK adapter for the Reality Collective UI Extensions — windowing, docking, layout regions and extra controls, binding the engine-free @realitycollective/webxr-uiextensions core onto IWSDK's ECS, UIKitML and interaction systems.",
+  "keywords": [
+    "realitycollective",
+    "iwsdk",
+    "webxr",
+    "vr",
+    "xr",
+    "ui",
+    "windowing",
+    "uikitml",
+    "spatial-ui"
+  ],
+  "license": "MIT",
+  "author": "Reality Collective",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "Examples",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@iwsdk/core": ">=0.4.0 <0.6.0"
+  },
+  "dependencies": {
+    "@pmndrs/handle": "^6.6.16",
+    "@realitycollective/webxr-uiextensions": "^0.1.0"
+  },
+  "devDependencies": {
+    "@iwsdk/core": "0.4.2",
+    "three": "npm:super-three@0.181.0",
+    "@types/three": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realitycollective/WebXR-UIExtensions.git",
+    "directory": "packages/iwsdk-uiextensions"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.19.0 <21.0.0-0 || >=22.12.0 <23.0.0-0 || >=24.0.0"
+  }
+}

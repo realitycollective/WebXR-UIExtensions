@@ -1,0 +1,38 @@
+{
+  "name": "webxr-uiextensions-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Workspace for the Reality Collective WebXR UI Extensions — an engine-free windowing, docking and control core for WebXR spatial UI, with Meta IWSDK and Google XR Blocks adapters, devtools and demo clients.",
+  "workspaces": [
+    "packages/*",
+    "demos/*"
+  ],
+  "overrides": {
+    "three": "npm:super-three@0.181.0"
+  },
+  "scripts": {
+    "build": "npm --workspace @realitycollective/webxr-uiextensions run build && npm --workspace @realitycollective/iwsdk-uiextensions run build && npm --workspace @realitycollective/xrblocks-uiextensions run build && npm --workspace @realitycollective/uix-devtools run build",
+    "typecheck": "npm --workspace @realitycollective/webxr-uiextensions run typecheck && npm --workspace @realitycollective/iwsdk-uiextensions run typecheck && npm --workspace @realitycollective/xrblocks-uiextensions run typecheck && npm --workspace @realitycollective/uix-devtools run typecheck && npm --workspace webxr-uiextensions-showcase run typecheck && npm --workspace uix-devtools-playground run typecheck && npm --workspace webxr-multiplatform-demo run typecheck",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "verify:pack": "node scripts/verify-pack.mjs",
+    "build:showcase": "npm run build && npm --workspace webxr-uiextensions-showcase run build",
+    "build:playground": "npm run build && npm --workspace uix-devtools-playground run build",
+    "build:demos": "npm run build && npm --workspace webxr-uiextensions-showcase run build && npm --workspace uix-devtools-playground run build && npm --workspace webxr-multiplatform-demo run build",
+    "dev:showcase": "npm --workspace webxr-uiextensions-showcase run dev",
+    "dev:playground": "npm --workspace uix-devtools-playground run dev",
+    "dev:multiplatform": "npm --workspace webxr-multiplatform-demo run dev",
+    "dev:live": "npm --workspace @realitycollective/uix-devtools run build && node packages/uix-devtools/bin/uix-dev.mjs tunnel --cwd demos/devtools-playground"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.8",
+    "jsdom": "^27.4.0",
+    "playwright-core": "^1.61.1",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.8"
+  },
+  "engines": {
+    "node": ">=20.19.0 <21.0.0-0 || >=22.12.0 <23.0.0-0 || >=24.0.0"
+  }
+}

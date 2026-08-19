@@ -1,0 +1,468 @@
+# WebXR UI Extensions — build the demo clients and deploy them to
+# Cloudflare Pages. The repository root is the workspace root, so all paths
+# below are relative to it (`demos/*` are the clients).
+#
+# Two ISOLATED Cloudflare Pages projects per site keep PR validation off the
+# live sites:
+#   - production → projects `webxr-uiextensions` + `webxr-uix-lab`
+#                  deployed ONLY on push to `main` or manual dispatch.
+#   - staging    → projects `webxr-uiextensions-test` + `webxr-uix-lab-test`
+#                  deployed ONLY on pull_request. A PR can NEVER touch production.
+#
+# Deploy needs the Cloudflare secrets (steps skip automatically when absent):
+#   - CLOUDFLARE_API_TOKEN   (token with "Cloudflare Pages: Edit")
+#   - CLOUDFLARE_ACCOUNT_ID
+
+name: WebXR UIExtensions Deploy
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build + gate. Produces the dist artifact the deploy jobs consume.
+  # ---------------------------------------------------------------------------
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build library
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build showcase (static Vite bundle → showcase/dist)
+        run: npm run build:showcase
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: uix-showcase-dist
+          path: demos/showcase/dist
+          if-no-files-found: error
+
+      # The "lab": the multiplatform demo — ships both engine adapters and
+      # switches pipeline by hardware (?uix-engine= overrides). Built twice:
+      # production has NO edit gate compiled in; the staging build compiles
+      # the gate in only when the UIX_EDIT_TOKEN secret exists (token still
+      # required in the URL to activate anything).
+      - name: Build lab (production — no edit gate)
+        run: npm --workspace webxr-multiplatform-demo run build
+
+      - name: Upload lab dist artifact (production)
+        uses: actions/upload-artifact@v7
+        with:
+          name: uix-lab-dist
+          path: demos/webxr-multiplatform/dist
+          if-no-files-found: error
+
+      - name: Build lab (staging — edit gate behind team token, if configured)
+        env:
+          VITE_UIX_EDIT: ${{ secrets.UIX_EDIT_TOKEN != '' && '1' || '' }}
+          VITE_UIX_EDIT_TOKEN: ${{ secrets.UIX_EDIT_TOKEN }}
+        run: npm --workspace webxr-multiplatform-demo run build
+
+      - name: Upload lab dist artifact (staging)
+        uses: actions/upload-artifact@v7
+        with:
+          name: uix-lab-staging-dist
+          path: demos/webxr-multiplatform/dist
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # PRODUCTION — push to `main` (a merged PR) or manual dispatch.
+  # ---------------------------------------------------------------------------
+  deploy-production:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: uix-showcase-dist
+          path: demos/showcase/dist
+
+      - name: Ensure the Cloudflare Pages project + production branch
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: webxr-uiextensions
+          PROD_BRANCH: main
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects"
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "${api}/${PROJECT}")"
+          if [ "$code" = "200" ]; then
+            echo "Project ${PROJECT} exists — pinning production branch to ${PROD_BRANCH}"
+            resp="$(curl -fsS -X PATCH "${api}/${PROJECT}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"production_branch\":\"${PROD_BRANCH}\"}")"
+          elif [ "$code" = "404" ]; then
+            echo "Project ${PROJECT} missing — creating with production branch ${PROD_BRANCH}"
+            resp="$(curl -fsS -X POST "${api}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"name\":\"${PROJECT}\",\"production_branch\":\"${PROD_BRANCH}\"}")"
+          else
+            echo "::error::Unexpected HTTP ${code} querying the Pages project."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$resp" | jq -r '.success')" != "true" ]; then
+            echo "::error::Cloudflare API call failed."
+            printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp"
+            exit 1
+          fi
+
+      - name: Deploy to Cloudflare Pages (production)
+        id: deploy
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: demos/showcase
+          command: >-
+            pages deploy dist
+            --project-name=webxr-uiextensions
+            --branch=${{ github.ref_name }}
+            --commit-dirty=true
+
+      - name: Download lab dist artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: uix-lab-dist
+          path: demos/webxr-multiplatform/dist
+
+      - name: Ensure the lab Pages project (webxr-uix-lab)
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: webxr-uix-lab
+          PROD_BRANCH: main
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects"
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "${api}/${PROJECT}")"
+          if [ "$code" = "200" ]; then
+            resp="$(curl -fsS -X PATCH "${api}/${PROJECT}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"production_branch\":\"${PROD_BRANCH}\"}")"
+          elif [ "$code" = "404" ]; then
+            resp="$(curl -fsS -X POST "${api}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"name\":\"${PROJECT}\",\"production_branch\":\"${PROD_BRANCH}\"}")"
+          else
+            echo "::error::Unexpected HTTP ${code} querying the lab Pages project."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$resp" | jq -r '.success')" != "true" ]; then
+            echo "::error::Cloudflare API call failed."
+            printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp"
+            exit 1
+          fi
+
+      - name: Deploy lab to Cloudflare Pages (production)
+        id: deploylab
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: demos/webxr-multiplatform
+          command: >-
+            pages deploy dist
+            --project-name=webxr-uix-lab
+            --branch=${{ github.ref_name }}
+            --commit-dirty=true
+
+      - name: Publish short code + QR for the Quest
+        if: steps.deploy.outcome == 'success'
+        env:
+          APEX_URL: https://webxr-uiextensions.pages.dev
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          set -uo pipefail
+          # Short links are VERIFIED (redirect followed and matched) before
+          # being published; on failure the direct URL is used instead.
+          if SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruix)"; then
+            SRC="verified"
+          else
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            SHORT="$APEX_URL"; SRC="unavailable"
+          fi
+          disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
+          qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
+          {
+            echo "## IWSDK UI Extensions showcase (PRODUCTION) — open on your Quest"
+            echo ""
+            echo "# \`$(disp "$SHORT")\`"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| **Short code** | [\`$(disp "$SHORT")\`](${SHORT}) (${SRC}) |"
+            echo "| **Stable URL** | [\`${APEX_URL}\`](${APEX_URL}) |"
+            echo "| **This build** | [\`${DEPLOY_URL}\`](${DEPLOY_URL}) |"
+            echo ""
+            echo "![QR code](https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${qrenc})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish lab short code + QR
+        if: steps.deploylab.outcome == 'success'
+        env:
+          APEX_URL: https://webxr-uix-lab.pages.dev
+          DEPLOY_URL: ${{ steps.deploylab.outputs.deployment-url }}
+        run: |
+          set -uo pipefail
+          # Short links are VERIFIED (redirect followed and matched) before
+          # being published; on failure the direct URL is used instead.
+          if ! SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruixlab)"; then
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            SHORT="$APEX_URL"
+          fi
+          disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
+          qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
+          {
+            echo "## Multiplatform LAB (PRODUCTION) — engine picked by hardware"
+            echo ""
+            echo "Quest → IWSDK pipeline · Android XR → XR Blocks pipeline · desktop → IWSDK."
+            echo "Force either with \`?uix-engine=iwsdk\` / \`?uix-engine=xrblocks\`."
+            echo ""
+            echo "# \`$(disp "$SHORT")\`"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| **Short code** | [\`$(disp "$SHORT")\`](${SHORT}) |"
+            echo "| **Stable URL** | [\`${APEX_URL}\`](${APEX_URL}) |"
+            echo "| **This build** | [\`${DEPLOY_URL}\`](${DEPLOY_URL}) |"
+            echo ""
+            echo "![QR code](https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${qrenc})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # STAGING — pull_request only. Publishes to the ISOLATED test project.
+  # ---------------------------------------------------------------------------
+  deploy-staging:
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: uix-showcase-dist
+          path: demos/showcase/dist
+
+      - name: Ensure the staging Pages project (webxr-uiextensions-test)
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: webxr-uiextensions-test
+          PROD_BRANCH: staging
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects"
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "${api}/${PROJECT}")"
+          if [ "$code" = "200" ]; then
+            resp="$(curl -fsS -X PATCH "${api}/${PROJECT}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"production_branch\":\"${PROD_BRANCH}\"}")"
+          elif [ "$code" = "404" ]; then
+            resp="$(curl -fsS -X POST "${api}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"name\":\"${PROJECT}\",\"production_branch\":\"${PROD_BRANCH}\"}")"
+          else
+            echo "::error::Unexpected HTTP ${code} querying the staging Pages project."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$resp" | jq -r '.success')" != "true" ]; then
+            echo "::error::Cloudflare API call failed."
+            printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp"
+            exit 1
+          fi
+
+      - name: Deploy to Cloudflare Pages (staging)
+        id: deploy
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: demos/showcase
+          command: >-
+            pages deploy dist
+            --project-name=webxr-uiextensions-test
+            --branch=staging
+            --commit-dirty=true
+
+      - name: Download lab staging dist artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: uix-lab-staging-dist
+          path: demos/webxr-multiplatform/dist
+
+      - name: Ensure the lab staging Pages project (webxr-uix-lab-test)
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: webxr-uix-lab-test
+          PROD_BRANCH: staging
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects"
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "${api}/${PROJECT}")"
+          if [ "$code" = "200" ]; then
+            resp="$(curl -fsS -X PATCH "${api}/${PROJECT}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"production_branch\":\"${PROD_BRANCH}\"}")"
+          elif [ "$code" = "404" ]; then
+            resp="$(curl -fsS -X POST "${api}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"name\":\"${PROJECT}\",\"production_branch\":\"${PROD_BRANCH}\"}")"
+          else
+            echo "::error::Unexpected HTTP ${code} querying the lab staging Pages project."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$resp" | jq -r '.success')" != "true" ]; then
+            echo "::error::Cloudflare API call failed."
+            printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp"
+            exit 1
+          fi
+
+      - name: Deploy lab to Cloudflare Pages (staging)
+        id: deploylab
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: demos/webxr-multiplatform
+          command: >-
+            pages deploy dist
+            --project-name=webxr-uix-lab-test
+            --branch=staging
+            --commit-dirty=true
+
+      - name: Smoke check
+        if: steps.deploy.outcome == 'success'
+        continue-on-error: true
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          set -u
+          page="000"
+          for i in 1 2 3 4 5 6; do
+            page="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${DEPLOY_URL}/" || echo "000")"
+            [ "$page" = "200" ] && break
+            echo "  attempt ${i}: index HTTP ${page} — waiting for propagation…"
+            sleep 5
+          done
+          if [ "$page" = "200" ]; then
+            echo "✅ staging deploy healthy"
+          else
+            echo "::warning title=Staging smoke check::index=${page} (expected 200). Likely first-deploy propagation lag."
+          fi
+
+      - name: Publish staging short code + QR
+        if: steps.deploy.outcome == 'success'
+        env:
+          APEX_URL: https://webxr-uiextensions-test.pages.dev
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          set -uo pipefail
+          # Short links are VERIFIED (redirect followed and matched) before
+          # being published; on failure the direct URL is used instead.
+          if ! SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruixtest)"; then
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            SHORT="$APEX_URL"
+          fi
+          disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
+          qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
+          {
+            echo "## IWSDK UI Extensions showcase (STAGING — webxr-uiextensions-test)"
+            echo ""
+            echo "> This PR deployed to the **isolated** \`webxr-uiextensions-test\` project."
+            echo "> The live site \`webxr-uiextensions.pages.dev\` was **not** touched."
+            echo ""
+            echo "# \`$(disp "$SHORT")\`"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| **Short code** | [\`$(disp "$SHORT")\`](${SHORT}) |"
+            echo "| **Staging URL** | [\`${APEX_URL}\`](${APEX_URL}) |"
+            echo "| **This build** | [\`${DEPLOY_URL}\`](${DEPLOY_URL}) |"
+            echo ""
+            echo "![QR code](https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${qrenc})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish lab staging short code + QR
+        if: steps.deploylab.outcome == 'success'
+        env:
+          APEX_URL: https://webxr-uix-lab-test.pages.dev
+          DEPLOY_URL: ${{ steps.deploylab.outputs.deployment-url }}
+        run: |
+          set -uo pipefail
+          # Short links are VERIFIED (redirect followed and matched) before
+          # being published; on failure the direct URL is used instead.
+          if ! SHORT="$("${GITHUB_WORKSPACE}/.github/scripts/publish-shortlink.sh" "$APEX_URL" webxruixlabtest)"; then
+            echo "::warning title=Short link::No da.gd short link could be verified for ${APEX_URL} — publishing the direct URL."
+            SHORT="$APEX_URL"
+          fi
+          disp() { local u="$1"; u="${u#https://}"; printf '%s' "${u#http://}"; }
+          qrenc="$(jq -rn --arg u "$SHORT" '$u|@uri')"
+          {
+            echo "## Multiplatform LAB (STAGING — webxr-uix-lab-test)"
+            echo ""
+            echo "Engine picked by hardware; force with \`?uix-engine=iwsdk|xrblocks\`."
+            echo "This build compiles the edit gate in ONLY if the \`UIX_EDIT_TOKEN\`"
+            echo "secret is configured — activate with \`?uix-edit=<that token>\`."
+            echo ""
+            echo "# \`$(disp "$SHORT")\`"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| **Short code** | [\`$(disp "$SHORT")\`](${SHORT}) |"
+            echo "| **Staging URL** | [\`${APEX_URL}\`](${APEX_URL}) |"
+            echo "| **This build** | [\`${DEPLOY_URL}\`](${DEPLOY_URL}) |"
+            echo ""
+            echo "![QR code](https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${qrenc})"
+          } >> "$GITHUB_STEP_SUMMARY"

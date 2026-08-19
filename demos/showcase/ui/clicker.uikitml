@@ -1,0 +1,92 @@
+<style>
+  .uix-window {
+    display: flex;
+    flex-direction: column;
+    width: 280;
+    background-color: #101a26;
+    background-opacity: 0.92;
+    border-color: #2e4a66;
+    border-width: 0.75;
+    border-radius: 12.5;
+  }
+  .uix-titlebar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8;
+    background-color: #1b2c40;
+    border-top-left-radius: 12.5;
+    border-top-right-radius: 12.5;
+    cursor: pointer;
+  }
+  .uix-titlebar:hover { background-color: #24405e; }
+  .uix-title { flex-shrink: 1; font-size: 12; font-weight: bold; color: #dce9f7; }
+  .uix-titlebar-buttons { display: flex; flex-direction: row; flex-shrink: 0; }
+  .uix-titlebar-button {
+    width: 34;
+    height: 20;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin-left: 4;
+    font-size: 9;
+    color: #9fb8d4;
+    background-color: #223850;
+    border-radius: 6;
+    cursor: pointer;
+  }
+  .uix-titlebar-button:hover { background-color: #33547a; color: #ffffff; }
+  .uix-content { display: flex; flex-direction: column; width: 100%; padding: 10; }
+
+  .big-button {
+    width: 100%;
+    padding: 10;
+    font-size: 14;
+    font-weight: bold;
+    text-align: center;
+    justify-content: center;
+    color: #ffffff;
+    background-color: #8a3ab5;
+    border-radius: 8;
+    cursor: pointer;
+  }
+  .big-button:hover { background-color: #a44fd4; }
+  .big-button:active { background-color: #6d2b90; }
+  .click-list { display: flex; flex-direction: column; width: 100%; margin-top: 8; }
+  .click-rows {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 6;
+    background-color: #0a1119;
+    border-radius: 6;
+  }
+  .click-line { font-size: 9.5; color: #d9c1ef; margin-top: 2.5; }
+  .click-status { font-size: 9; color: #7d94ad; margin-top: 5; }
+</style>
+<div id="uix-window" class="uix-window">
+  <div id="uix-titlebar" class="uix-titlebar">
+    <span id="uix-title" class="uix-title">.</span>
+    <div class="uix-titlebar-buttons">
+      <div id="uix-pin" class="uix-titlebar-button">PIN</div>
+      <div id="uix-dock" class="uix-titlebar-button">DOCK</div>
+      <div id="uix-minimize" class="uix-titlebar-button">MIN</div>
+      <div id="uix-close" class="uix-titlebar-button">X</div>
+    </div>
+  </div>
+  <div id="uix-content" class="uix-content">
+    <button id="click-me" class="big-button">CLICK ME</button>
+    <div data-uix="log-view" data-uix-id="clicks" data-uix-capacity="50" class="click-list">
+      <div class="click-rows">
+        <span data-uix-role="line" class="click-line">.</span>
+        <span data-uix-role="line" class="click-line">.</span>
+        <span data-uix-role="line" class="click-line">.</span>
+        <span data-uix-role="line" class="click-line">.</span>
+        <span data-uix-role="line" class="click-line">.</span>
+      </div>
+      <span data-uix-role="status" class="click-status">.</span>
+    </div>
+  </div>
+</div>

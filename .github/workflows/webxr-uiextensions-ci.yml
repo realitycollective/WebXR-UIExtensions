@@ -1,0 +1,71 @@
+# WebXR UI Extensions — CI gate for all packages + all demo clients.
+#
+# The repository root is the workspace root: `packages/*` holds the libraries,
+# `demos/*` the clients. Work branches off `main` and opens PRs against it.
+#
+# Validates on every PR/push:
+#   1. package builds  (tsc → dist: webxr/iwsdk/xrblocks-uiextensions + uix-devtools)
+#   2. strict typecheck (all packages + all demos)
+#   3. vitest with 100% coverage thresholds on the pure/headless modules
+#   4. demo static builds (showcase + devtools playground, incl. UIKitML)
+
+name: WebXR UIExtensions CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uix-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Typecheck (packages + demos)
+        run: npm run typecheck
+
+      - name: Test (vitest + coverage gates)
+        run: npm test
+
+      - name: Verify the published artifact is consumable
+        run: npm run verify:pack -- --skip-build
+
+      - name: Build demos (vite + UIKitML)
+        run: npm run build:demos
+
+      - name: Upload showcase dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: uix-showcase-dist
+          path: demos/showcase/dist
+          if-no-files-found: error
+
+      - name: Upload devtools playground dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: uix-devtools-playground-dist
+          path: demos/devtools-playground/dist
+          if-no-files-found: error
