@@ -1,15 +1,8 @@
 # @realitycollective/uix-devtools
 
-Developer tooling for
-[`@realitycollective/iwsdk-uiextensions`](../iwsdk-uiextensions/README.md):
-an edit-session **launch gate**, **runtime UIKitML compilation** for live UX
-editing, and the **`uix-dev` CLI** that gets a local build onto a headset in
-one command via a Cloudflare quick tunnel.
+Developer tooling for [`@realitycollective/iwsdk-uiextensions`](../iwsdk-uiextensions/README.md): an edit-session **launch gate**, **runtime UIKitML compilation** for live UX editing, and the **`uix-dev` CLI** that gets a local build onto a headset in one command via a Cloudflare quick tunnel.
 
-> **This package is dev tooling. Never ship it in a player-facing bundle.**
-> Install it as a `devDependency`, guard every use behind a build flag, and
-> load overlays through dynamic import. The design makes the safe path the
-> easy path - see [Safety model](#safety-model).
+> **This package is dev tooling. Never ship it in a player-facing bundle.** Install it as a `devDependency`, guard every use behind a build flag, and load overlays through dynamic import. The design makes the safe path the easy path - see [Safety model](#safety-model).
 
 ## Install
 
@@ -33,16 +26,11 @@ if (import.meta.env.DEV || import.meta.env.VITE_UIX_EDIT) {
 }
 ```
 
-- The gate opens only when the page URL carries `?uix-edit=<token>` and the
-  token is accepted. Accepted tokens are remembered in `sessionStorage`
-  (override with `remember: false`) so in-headset reloads keep the session.
-- `load` is invoked exactly once, and a throwing/rejecting overlay is
-  contained - it can never take the host app down.
-- `clearEditSession()` forgets a remembered token (an "exit edit mode"
-  affordance).
+- The gate opens only when the page URL carries `?uix-edit=<token>` and the token is accepted. Accepted tokens are remembered in `sessionStorage` (override with `remember: false`) so in-headset reloads keep the session.
+- `load` is invoked exactly once, and a throwing/rejecting overlay is contained - it can never take the host app down.
+- `clearEditSession()` forgets a remembered token (an "exit edit mode" affordance).
 
-All parts are individually exported (`readEditToken`, `isTokenAccepted`,
-`resolveEditSession`) and unit-tested - see `test/gate.test.ts`.
+All parts are individually exported (`readEditToken`, `isTokenAccepted`, `resolveEditSession`) and unit-tested - see `test/gate.test.ts`.
 
 ## Runtime UIKitML compilation
 
@@ -56,12 +44,7 @@ if (compiled.errors.length === 0) {
 }
 ```
 
-`compilePanelSource` runs the same `parse` the build-time Vite plugin uses
-and serves the JSON through a `blob:` URL, which IWSDK's `PanelUI` fetches
-like any file - so panels can be authored, edited and respawned entirely at
-runtime (desktop workbench or in-headset editor). Parse problems land in
-`errors` instead of throwing; linked stylesheets can be resolved via the
-`resolveFile` option.
+`compilePanelSource` runs the same `parse` the build-time Vite plugin uses and serves the JSON through a `blob:` URL, which IWSDK's `PanelUI` fetches like any file - so panels can be authored, edited and respawned entirely at runtime (desktop workbench or in-headset editor). Parse problems land in `errors` instead of throwing; linked stylesheets can be resolved via the `resolveFile` option.
 
 ## The `uix-dev` CLI
 
@@ -71,15 +54,9 @@ uix-dev doctor
 uix-dev qr <url>
 ```
 
-`tunnel` mints a per-run edit token, starts the demo's dev server with
-`VITE_UIX_EDIT`/`VITE_UIX_EDIT_TOKEN` exported, opens a Cloudflare quick
-tunnel (`cloudflared tunnel --url`) and prints QR codes for both the plain
-and the edit-mode URL. HTTPS + WSS means WebXR and Vite HMR both work from
-the headset. `doctor` checks node/cloudflared/adb with install hints.
+`tunnel` mints a per-run edit token, starts the demo's dev server with `VITE_UIX_EDIT`/`VITE_UIX_EDIT_TOKEN` exported, opens a Cloudflare quick tunnel (`cloudflared tunnel --url`) and prints QR codes for both the plain and the edit-mode URL. HTTPS + WSS means WebXR and Vite HMR both work from the headset. `doctor` checks node/cloudflared/adb with install hints.
 
-The demo's `vite.config.ts` must allow the tunnel host and, when driven by
-the CLI (`UIX_DEV_TUNNEL=1`), point HMR at wss:443 - see
-`demos/devtools-playground/vite.config.ts` for the reference snippet.
+The demo's `vite.config.ts` must allow the tunnel host and, when driven by the CLI (`UIX_DEV_TUNNEL=1`), point HMR at wss:443 - see `demos/devtools-playground/vite.config.ts` for the reference snippet.
 
 ## Safety model
 
@@ -91,9 +68,12 @@ the CLI (`UIX_DEV_TUNNEL=1`), point HMR at wss:443 - see
 
 ## Demo
 
-[`demos/devtools-playground`](../../demos/devtools-playground/README.md) -
-the shared showcase scene plus this package's gate and a live in-headset
-UIKitML editor window.
+[`demos/devtools-playground`](../../demos/devtools-playground/README.md) - the shared showcase scene plus this package's gate and a live in-headset UIKitML editor window.
+
+## Live demos
+
+- Showcase: **[webxr-uiextensions.pages.dev](https://webxr-uiextensions.pages.dev)**
+- Multiplatform lab: **[webxr-uix-lab.pages.dev](https://webxr-uix-lab.pages.dev)**
 
 ## License
 

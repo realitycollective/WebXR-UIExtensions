@@ -1,6 +1,6 @@
 {
   "name": "@realitycollective/uix-devtools",
-  "version": "0.1.0",
+  "version": "0.1.0-preview.0",
   "description": "Developer tooling for @realitycollective/iwsdk-uiextensions - edit-session launch gate, runtime UIKitML compilation, and the uix-dev CLI (Cloudflare quick tunnel + QR onboarding for headset testing). Never ship this in a player-facing bundle.",
   "keywords": [
     "realitycollective",
@@ -9,7 +9,8 @@
     "devtools",
     "uikitml",
     "cloudflared",
-    "quest"
+    "quest",
+    "typescript"
   ],
   "license": "MIT",
   "author": "Reality Collective",
@@ -29,6 +30,7 @@
   "bin": {
     "uix-dev": "./bin/uix-dev.mjs"
   },
+  "sideEffects": false,
   "files": [
     "dist",
     "bin",
@@ -50,6 +52,10 @@
     "type": "git",
     "url": "git+https://github.com/realitycollective/WebXR-UIExtensions.git",
     "directory": "packages/uix-devtools"
+  },
+  "homepage": "https://github.com/realitycollective/WebXR-UIExtensions#readme",
+  "bugs": {
+    "url": "https://github.com/realitycollective/WebXR-UIExtensions/issues"
   },
   "publishConfig": {
     "access": "public"

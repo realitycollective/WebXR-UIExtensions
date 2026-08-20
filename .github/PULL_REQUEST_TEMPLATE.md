@@ -10,7 +10,7 @@
 
 ## Breaking Changes
 <!-- Any changes to the published package surface that would break existing
-     consumers? Include the migration step if so. -->
+consumers? Include the migration step if so. -->
 
 - Breaks
 
@@ -25,7 +25,7 @@
 
 ## Testing status
 <!-- Remove the options that do not apply. Coverage on the pure/headless
-     modules is gated at 100% - `npm test` must stay green. -->
+modules is gated at 100% - `npm test` must stay green. -->
 
 - No tests have been added.
 - Includes unit tests.
@@ -33,5 +33,4 @@
 
 ### Manual testing status
 <!-- In-headset behaviour is not covered by CI. If this touches drag, docking,
-     follow mode, the system keyboard or anything spatial, say what you tested
-     on device and on which hardware. -->
+follow mode, the system keyboard or anything spatial, say what you tested on device and on which hardware. -->

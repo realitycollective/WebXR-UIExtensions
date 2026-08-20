@@ -1,39 +1,51 @@
-# WebXR UI Extensions - build the demo clients and deploy them to
-# Cloudflare Pages. The repository root is the workspace root, so all paths
-# below are relative to it (`demos/*` are the clients).
+# WebXR UI Extensions - gate and deploy.
 #
-# Two ISOLATED Cloudflare Pages projects per site keep PR validation off the
-# live sites:
-#   - production → projects `webxr-uiextensions` + `webxr-uix-lab`
-#                  deployed ONLY on push to `main` or manual dispatch.
-#   - staging    → projects `webxr-uiextensions-test` + `webxr-uix-lab-test`
-#                  deployed ONLY on pull_request. A PR can NEVER touch production.
+# ONE workflow gates and deploys. The build job runs the full gate once and
+# uploads the dists; the deploy jobs consume those artifacts through `needs`,
+# so nothing is installed, built or tested twice.
 #
-# Deploy needs the Cloudflare secrets (steps skip automatically when absent):
+# Gate (every push and EVERY pull request - no branch filter, so a PR into
+# `development` is gated exactly like a PR into `main`):
+#   1. package builds  (tsc -> dist: webxr/iwsdk/xrblocks-uiextensions + uix-devtools)
+#   2. strict typecheck (all packages + all demos)
+#   3. vitest with 100% coverage thresholds on the pure/headless modules
+#   4. verify:pack      - packs, installs into a clean project and imports
+#   5. demo builds      (showcase, devtools playground, multiplatform lab)
+#
+# Deploy:
+#   - production -> ONLY on push to `main` or a manual dispatch from `main`.
+#   - staging    -> ONLY on pull_request, into isolated `-test` projects.
+#     A PR can never touch production.
+#
+# The deploy steps need the Cloudflare secrets and skip automatically when they
+# are absent, which leaves this workflow as a pure build gate.
 #   - CLOUDFLARE_API_TOKEN   (token with "Cloudflare Pages: Edit")
 #   - CLOUDFLARE_ACCOUNT_ID
 
-name: WebXR UIExtensions Deploy
+name: CI
 
 on:
-  pull_request:
-    branches: [main]
-    paths-ignore:
-      - "**/*.md"
   push:
-    branches: [main]
-    paths-ignore:
-      - "**/*.md"
+    branches:
+      - main
+      - development
+  # No branch filter: run on every pull request, whatever its target branch.
+  pull_request:
+  # Allow required-check status to be reported through merge queues, if enabled.
+  merge_group:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # ---------------------------------------------------------------------------
-  # Build + gate. Produces the dist artifact the deploy jobs consume.
-  # ---------------------------------------------------------------------------
-  build:
+  build-test:
+    name: Build, typecheck & test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -41,14 +53,14 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build library
+      - name: Build packages
         run: npm run build
 
       - name: Typecheck
@@ -57,14 +69,30 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build showcase (static Vite bundle → showcase/dist)
+      # The demos and tests all resolve the libraries to packages/<name>/src, so
+      # nothing above this line exercises the built artifact. This packs,
+      # installs into a clean project and imports.
+      - name: Verify the published artifact is consumable
+        run: npm run verify:pack -- --skip-build
+
+      - name: Build showcase (static Vite bundle)
         run: npm run build:showcase
 
-      - name: Upload dist artifact
+      - name: Upload showcase dist
         uses: actions/upload-artifact@v7
         with:
           name: uix-showcase-dist
           path: demos/showcase/dist
+          if-no-files-found: error
+
+      - name: Build devtools playground
+        run: npm --workspace uix-devtools-playground run build
+
+      - name: Upload devtools playground dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: uix-devtools-playground-dist
+          path: demos/devtools-playground/dist
           if-no-files-found: error
 
       # The "lab": the multiplatform demo - ships both engine adapters and
@@ -99,8 +127,8 @@ jobs:
   # PRODUCTION - push to `main` (a merged PR) or manual dispatch.
   # ---------------------------------------------------------------------------
   deploy-production:
-    needs: build
-    if: github.event_name != 'pull_request'
+    needs: build-test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -271,11 +299,38 @@ jobs:
             echo "![QR code](https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${qrenc})"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # ---- post-deploy verification -------------------------------------
+      # A build passing proves the code compiles, not that the page runs. A
+      # duplicate React, a bad asset path or a throw on mount all build green
+      # and white-screen in a browser. This loads what was ACTUALLY deployed
+      # and fails on uncaught exceptions, console errors, failed requests or an
+      # empty mount point.
+      - name: Setup Node.js for the smoke test
+        if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      # Only the browser driver, not the whole dependency tree - this job does
+      # not build anything. playwright-core drives the Chrome that the runner
+      # image already ships, so no browser is downloaded.
+      - name: Install the smoke-test driver
+        if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
+        run: npm install --no-save --no-audit --no-fund playwright-core@1.61.1
+
+      - name: Smoke test the deployed site
+        if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
+        run: |
+          node scripts/smoke-deploy.mjs \
+            "${{ steps.deploy.outputs.deployment-url }}" \
+            "${{ steps.deploylab.outputs.deployment-url }}" \
+            --mount "#scene-container"
+
   # ---------------------------------------------------------------------------
   # STAGING - pull_request only. Publishes to the ISOLATED test project.
   # ---------------------------------------------------------------------------
   deploy-staging:
-    needs: build
+    needs: build-test
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -466,3 +521,31 @@ jobs:
             echo ""
             echo "![QR code](https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${qrenc})"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # ---- post-deploy verification -------------------------------------
+      # A build passing proves the code compiles, not that the page runs. A
+      # duplicate React, a bad asset path or a throw on mount all build green
+      # and white-screen in a browser. This loads what was ACTUALLY deployed
+      # and fails on uncaught exceptions, console errors, failed requests or an
+      # empty mount point.
+      - name: Setup Node.js for the smoke test
+        if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      # Only the browser driver, not the whole dependency tree - this job does
+      # not build anything. playwright-core drives the Chrome that the runner
+      # image already ships, so no browser is downloaded.
+      - name: Install the smoke-test driver
+        if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
+        run: npm install --no-save --no-audit --no-fund playwright-core@1.61.1
+
+      - name: Smoke test the deployed site
+        if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
+        run: |
+          node scripts/smoke-deploy.mjs \
+            "${{ steps.deploy.outputs.deployment-url }}" \
+            "${{ steps.deploylab.outputs.deployment-url }}" \
+            --mount "#scene-container"
+

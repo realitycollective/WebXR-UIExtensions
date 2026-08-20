@@ -7,7 +7,7 @@
  * provide for itself, and drives the core from its own frame loop:
  *
  *  - {@link PanelHost}: turn compiled UIKitML JSON into a live spatial panel
- *  - {@link PointerInputSource}: deliver ray/pointer press–move–release
+ *  - {@link PointerInputSource}: deliver ray/pointer press-move-release
  *  - {@link HeadPoseSource}: the viewer pose, for follow mode & body-lock
  *
  * Known adapters:
@@ -104,7 +104,7 @@ export interface PointerSample {
 }
 
 /**
- * Delivers press–move–release for one interaction source (a controller ray,
+ * Delivers press-move-release for one interaction source (a controller ray,
  * a hand pinch, a mouse). The core's `hold-to-drag` and `drag-math` consume
  * these; the adapter decides what constitutes press/release.
  */

@@ -23,7 +23,8 @@
     "dev:showcase": "npm --workspace webxr-uiextensions-showcase run dev",
     "dev:playground": "npm --workspace uix-devtools-playground run dev",
     "dev:multiplatform": "npm --workspace webxr-multiplatform-demo run dev",
-    "dev:live": "npm --workspace @realitycollective/uix-devtools run build && node packages/uix-devtools/bin/uix-dev.mjs tunnel --cwd demos/devtools-playground"
+    "dev:live": "npm --workspace @realitycollective/uix-devtools run build && node packages/uix-devtools/bin/uix-dev.mjs tunnel --cwd demos/devtools-playground",
+    "smoke": "node scripts/smoke-deploy.mjs"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.8",
