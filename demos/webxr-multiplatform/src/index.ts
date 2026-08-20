@@ -124,7 +124,12 @@ function showLaunchScreen(): void {
   });
 
   overlay.append(heading, detected, cards, start);
-  document.body.appendChild(overlay);
+  // Parented to the mount point rather than <body>. Fixed positioning makes the
+  // parent irrelevant to layout, but it keeps everything this app draws inside
+  // #scene-container - so "did the page render anything" stays answerable by
+  // looking at the mount point, both for the post-deploy smoke test and for a
+  // human. Booting removes this overlay; the pipelines only append.
+  container.appendChild(overlay);
 }
 
 showLaunchScreen();
