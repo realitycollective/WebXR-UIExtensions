@@ -1,6 +1,6 @@
 {
   "name": "@realitycollective/xrblocks-uiextensions",
-  "version": "0.1.0-preview.0",
+  "version": "0.1.0-preview.1",
   "description": "EXPERIMENTAL Google XR Blocks / plain three.js adapter for the Reality Collective UI Extensions - hosts the engine-free @realitycollective/webxr-uiextensions windowing core (UIKitML panels, window chrome, follow mode) in any three.js WebXR scene, including XR Blocks Scripts.",
   "keywords": [
     "realitycollective",
@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@pmndrs/uikitml": "^0.1.12",
-    "@realitycollective/webxr-uiextensions": "^0.1.0-preview.0"
+    "@realitycollective/webxr-uiextensions": "^0.1.0-preview.1"
   },
   "peerDependencies": {
     "three": ">=0.170.0"
