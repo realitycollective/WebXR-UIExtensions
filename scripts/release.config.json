@@ -1,0 +1,22 @@
+{
+  "core": "webxr-uiextensions",
+  "packages": [
+    "webxr-uiextensions",
+    "iwsdk-uiextensions",
+    "xrblocks-uiextensions",
+    "uix-devtools"
+  ],
+  "importCheck": [
+    "webxr-uiextensions"
+  ],
+  "binSmoke": [
+    {
+      "package": "uix-devtools",
+      "bin": "uix-dev",
+      "args": ["help"],
+      "match": "uix-dev"
+    }
+  ],
+  "legacyPeerDeps": true,
+  "preid": "preview"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "uix-devtools-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Demo client for @realitycollective/uix-devtools - the showcase scene plus the edit-session gate and a live in-headset UIKitML editor. Nothing here is reachable without an edit token.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@iwsdk/core": "0.4.2",
+    "@pmndrs/uikit-horizon": "^1.0.74",
+    "@realitycollective/iwsdk-uiextensions": "*",
+    "@realitycollective/uix-devtools": "*",
+    "webxr-uiextensions-showcase": "*",
+    "three": "npm:super-three@0.181.0"
+  },
+  "devDependencies": {
+    "@iwsdk/vite-plugin-uikitml": "0.4.2",
+    "@types/three": "*",
+    "typescript": "^5.5.0",
+    "vite": "^7.1.4"
+  },
+  "engines": {
+    "node": ">=20.19.0 <21.0.0-0 || >=22.12.0 <23.0.0-0 || >=24.0.0"
+  }
+}

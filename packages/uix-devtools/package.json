@@ -1,0 +1,66 @@
+{
+  "name": "@realitycollective/uix-devtools",
+  "version": "0.1.0-preview.0",
+  "description": "Developer tooling for @realitycollective/iwsdk-uiextensions - edit-session launch gate, runtime UIKitML compilation, and the uix-dev CLI (Cloudflare quick tunnel + QR onboarding for headset testing). Never ship this in a player-facing bundle.",
+  "keywords": [
+    "realitycollective",
+    "iwsdk",
+    "webxr",
+    "devtools",
+    "uikitml",
+    "cloudflared",
+    "quest",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Reality Collective",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/lib.d.ts",
+      "default": "./dist/cli/lib.js"
+    }
+  },
+  "bin": {
+    "uix-dev": "./bin/uix-dev.mjs"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "bin",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@pmndrs/uikitml": "^0.1.12",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realitycollective/WebXR-UIExtensions.git",
+    "directory": "packages/uix-devtools"
+  },
+  "homepage": "https://github.com/realitycollective/WebXR-UIExtensions#readme",
+  "bugs": {
+    "url": "https://github.com/realitycollective/WebXR-UIExtensions/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.19.0 <21.0.0-0 || >=22.12.0 <23.0.0-0 || >=24.0.0"
+  }
+}

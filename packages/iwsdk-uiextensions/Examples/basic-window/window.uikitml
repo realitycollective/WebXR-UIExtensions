@@ -1,0 +1,59 @@
+<style>
+  .uix-window {
+    display: flex;
+    flex-direction: column;
+    width: 300;
+    background-color: #101a26;
+    background-opacity: 0.92;
+    border-radius: 12.5;
+    border-color: #2e4a66;
+    border-width: 0.75;
+  }
+  .uix-titlebar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8;
+    background-color: #1b2c40;
+    border-top-left-radius: 12.5;
+    border-top-right-radius: 12.5;
+    cursor: pointer;
+  }
+  .uix-title { flex-shrink: 1; font-size: 12; font-weight: bold; color: #dce9f7; }
+  .uix-titlebar-buttons { display: flex; flex-direction: row; flex-shrink: 0; }
+  .uix-titlebar-button {
+    width: 34;
+    height: 20;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin-left: 4;
+    font-size: 9;
+    color: #9fb8d4;
+    background-color: #223850;
+    border-radius: 6;
+    cursor: pointer;
+  }
+  .uix-titlebar-button:hover { background-color: #33547a; color: #ffffff; }
+  .uix-content { display: flex; flex-direction: column; width: 100%; padding: 10; }
+  .body-text { font-size: 11; color: #c4d6ea; }
+</style>
+<div id="uix-window" class="uix-window">
+  <div id="uix-titlebar" class="uix-titlebar">
+    <span id="uix-title" class="uix-title">.</span>
+    <div class="uix-titlebar-buttons">
+      <div id="uix-pin" class="uix-titlebar-button">PIN</div>
+      <div id="uix-dock" class="uix-titlebar-button">DOCK</div>
+      <div id="uix-minimize" class="uix-titlebar-button">MIN</div>
+      <div id="uix-close" class="uix-titlebar-button">X</div>
+    </div>
+  </div>
+  <div id="uix-content" class="uix-content">
+    <span class="body-text">
+      Drag my title bar to move me. PIN toggles between following you and
+      staying put. MIN collapses me to the title bar.
+    </span>
+  </div>
+</div>

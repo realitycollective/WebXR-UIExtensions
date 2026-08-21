@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vite/client", "vitest/globals"],
+    "paths": {
+      "@realitycollective/webxr-uiextensions": [
+        "../../packages/webxr-uiextensions/src/index.ts"
+      ],
+      "@realitycollective/iwsdk-uiextensions": [
+        "../../packages/iwsdk-uiextensions/src/index.ts"
+      ],
+      "@realitycollective/xrblocks-uiextensions": [
+        "../../packages/xrblocks-uiextensions/src/index.ts"
+      ]
+    }
+  },
+  "include": ["src/**/*", "test/**/*", "vite.config.ts"]
+}

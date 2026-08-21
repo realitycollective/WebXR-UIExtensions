@@ -1,0 +1,106 @@
+<style>
+  .uix-window {
+    display: flex;
+    flex-direction: column;
+    width: 320;
+    background-color: #101a26;
+    background-opacity: 0.92;
+    border-color: #2e4a66;
+    border-width: 0.75;
+    border-radius: 12.5;
+  }
+  .uix-titlebar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8;
+    background-color: #1b2c40;
+    border-top-left-radius: 12.5;
+    border-top-right-radius: 12.5;
+    cursor: pointer;
+  }
+  .uix-titlebar:hover { background-color: #24405e; }
+  .uix-title { flex-shrink: 1; font-size: 12; font-weight: bold; color: #dce9f7; }
+  .uix-titlebar-buttons { display: flex; flex-direction: row; flex-shrink: 0; }
+  .uix-titlebar-button {
+    width: 34;
+    height: 20;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin-left: 4;
+    font-size: 9;
+    color: #9fb8d4;
+    background-color: #223850;
+    border-radius: 6;
+    cursor: pointer;
+  }
+  .uix-titlebar-button:hover { background-color: #33547a; color: #ffffff; }
+  .uix-content { display: flex; flex-direction: column; width: 100%; padding: 10; }
+
+  .row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 8; }
+  .label { font-size: 11; color: #9fb8d4; }
+  .stepper { display: flex; flex-direction: row; align-items: center; }
+  .stepper-button {
+    padding: 4;
+    font-size: 13;
+    color: #eaf6ff;
+    background-color: #2c4a6b;
+    border-radius: 6;
+    cursor: pointer;
+  }
+  .stepper-button:hover { background-color: #3d648e; }
+  .stepper-value { font-size: 13; color: #ffffff; margin-left: 7; margin-right: 7; }
+  .toggle {
+    padding: 5.5;
+    border-radius: 7;
+    cursor: pointer;
+  }
+  .toggle-label { font-size: 11; font-weight: bold; color: #ffffff; }
+  .bio { display: flex; flex-direction: column; width: 100%; margin-top: 10; }
+  .bio-text { font-size: 9.5; color: #c4d6ea; }
+  .bio-toggle {
+    margin-top: 4;
+    font-size: 9.5;
+    color: #6fb4ff;
+    cursor: pointer;
+  }
+</style>
+<div id="uix-window" class="uix-window">
+  <div id="uix-titlebar" class="uix-titlebar">
+    <span id="uix-title" class="uix-title">.</span>
+    <div class="uix-titlebar-buttons">
+      <div id="uix-pin" class="uix-titlebar-button">PIN</div>
+      <div id="uix-dock" class="uix-titlebar-button">DOCK</div>
+      <div id="uix-minimize" class="uix-titlebar-button">MIN</div>
+      <div id="uix-close" class="uix-titlebar-button">X</div>
+    </div>
+  </div>
+  <div id="uix-content" class="uix-content">
+    <div class="row">
+      <span class="label">Health</span>
+      <div data-uix="stepper" data-uix-id="health" data-uix-min="0" data-uix-max="100"
+           data-uix-step="10" data-uix-value="80" class="stepper">
+        <div data-uix-role="decrement" class="stepper-button">-</div>
+        <span data-uix-role="value" class="stepper-value">.</span>
+        <div data-uix-role="increment" class="stepper-button">+</div>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">Shield</span>
+      <div data-uix="toggle" data-uix-id="shield" data-uix-on="true"
+           data-uix-on-text="SHIELD ON" data-uix-off-text="SHIELD OFF"
+           data-uix-on-color="#1f6d3d" data-uix-off-color="#5a3037" class="toggle">
+        <span data-uix-role="label" class="toggle-label">.</span>
+      </div>
+    </div>
+    <div data-uix="expandable-label" data-uix-id="bio" data-uix-lines="2" data-uix-chars-per-line="38"
+         data-uix-text="Ranger unit 7 has been on patrol since dawn. Suit integrity nominal, shield capacitors trickle-charging, morale improved by the discovery of a functioning coffee dispenser on deck 3. Next rotation due at sundown."
+         class="bio">
+      <span data-uix-role="text" class="bio-text">.</span>
+      <div data-uix-role="toggle" class="bio-toggle">more</div>
+    </div>
+  </div>
+</div>

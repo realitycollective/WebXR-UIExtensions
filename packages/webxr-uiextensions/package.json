@@ -1,0 +1,51 @@
+{
+  "name": "@realitycollective/webxr-uiextensions",
+  "version": "0.1.0-preview.0",
+  "description": "Engine-free core of the Reality Collective UI Extensions: windowing, docking, layout regions and control models for WebXR spatial UI, driven through platform-adapter interfaces. Pair with an engine adapter - @realitycollective/iwsdk-uiextensions (Meta IWSDK) or @realitycollective/xrblocks-uiextensions (Google XR Blocks).",
+  "keywords": [
+    "realitycollective",
+    "webxr",
+    "vr",
+    "xr",
+    "ui",
+    "windowing",
+    "spatial-ui",
+    "uikitml",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Reality Collective",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realitycollective/WebXR-UIExtensions.git",
+    "directory": "packages/webxr-uiextensions"
+  },
+  "homepage": "https://github.com/realitycollective/WebXR-UIExtensions#readme",
+  "bugs": {
+    "url": "https://github.com/realitycollective/WebXR-UIExtensions/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.19.0 <21.0.0-0 || >=22.12.0 <23.0.0-0 || >=24.0.0"
+  }
+}
