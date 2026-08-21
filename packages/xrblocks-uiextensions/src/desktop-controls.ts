@@ -35,6 +35,31 @@ export interface DesktopControlsOptions {
 
 const MAX_PITCH = Math.PI / 2 - 0.05;
 
+/**
+ * True when a key event is being typed into a DOM text field - `<input>`,
+ * `<textarea>`, `<select>` or anything contenteditable.
+ *
+ * Overlays share the page with the scene (the devtools playground puts a
+ * source editor over it), and their keystrokes are theirs alone: WASD must
+ * not walk the camera mid-word, and Space must reach the field instead of
+ * being swallowed as a jump.
+ *
+ * A structural check rather than `instanceof HTMLElement`, so it stays
+ * unit-testable with no DOM.
+ */
+export function isTextEntryTarget(target: unknown): boolean {
+  if (target === null || typeof target !== 'object') {
+    return false;
+  }
+  const element = target as { tagName?: unknown; isContentEditable?: unknown };
+  if (element.isContentEditable === true) {
+    return true;
+  }
+  const tag =
+    typeof element.tagName === 'string' ? element.tagName.toUpperCase() : '';
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
 export class DesktopControls {
   readonly state: LocomotionState;
   readonly options: LocomotionOptions;
@@ -79,6 +104,11 @@ export class DesktopControls {
     const onKey = (down: boolean) => (event: KeyboardEvent) => {
       const intent = intentForKey(event.code);
       if (intent === undefined) {
+        return;
+      }
+      // Only keydown is filtered: a keyup always releases, so a key held
+      // before focus moved into a field can never stick on.
+      if (down && isTextEntryTarget(event.target)) {
         return;
       }
       // Space would otherwise scroll the page.

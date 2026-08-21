@@ -13,6 +13,10 @@ export default defineConfig({
       "@realitycollective/iwsdk-uiextensions": fileURLToPath(
         new URL("../../packages/iwsdk-uiextensions/src/index.ts", import.meta.url),
       ),
+      // The desktop build's adapter - IWSDK is the headset half only.
+      "@realitycollective/xrblocks-uiextensions": fileURLToPath(
+        new URL("../../packages/xrblocks-uiextensions/src/index.ts", import.meta.url),
+      ),
     },
   },
   server: {

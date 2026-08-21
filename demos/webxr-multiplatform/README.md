@@ -6,7 +6,7 @@ It is also the **single encompassing demo**: it exercises all four packages in o
 
 ## Can it detect IWSDK vs XR Blocks?
 
-Not directly - those are frameworks an app is *built with*, not properties of the device. What is detectable is the **browser/hardware**, and that pre-selects one of **three modes** on the launch screen (`src/platform-detect.ts`, unit-tested):
+Not directly - those are frameworks an app is *built with*, not properties of the device. What is detectable is the **browser/hardware**, and that pre-selects one of **three modes** on the launch screen (`@showcase/platform-detect.ts`, unit-tested - the showcase boots the same detection directly):
 
 | Signature | Pre-selected mode |
 | --- | --- |

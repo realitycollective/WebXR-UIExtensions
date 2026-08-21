@@ -42,17 +42,21 @@ WebXR-UIExtensions/
 │       ├── src/runtime-compile.ts  live UIKitML → panel compilation
 │       └── src/cli/            the `uix-dev` CLI (quick tunnel, QR, doctor)
 ├── demos/
-│   ├── showcase/               demo for the IWSDK adapter (full feature tour)
+│   ├── showcase/               the feature tour, on whichever runtime fits
 │   │   ├── ui/*.uikitml        the five windows, authored in UIKitML
 │   │   ├── src/playground-scene.ts      THE playground, as portable data
 │   │   ├── src/playground-behaviour.ts  its demo logic, engine-free
-│   │   └── src/world.ts        IWSDK bootstrap + stage dressing
+│   │   ├── src/platform-detect.ts       UA → runtime, shared with the lab
+│   │   ├── src/world.ts        IWSDK bootstrap + stage dressing (Horizon OS)
+│   │   └── src/desktop-world.ts plain three.js bootstrap (everywhere else)
 │   ├── devtools-playground/    demo for uix-devtools - reuses the showcase
 │   │                           world, adds the edit gate + live UX editor
 │   └── webxr-multiplatform/    "the lab" - the single encompassing demo:
-│       └── src/pipelines/      iwsdk / xrblocks / desktop, picked by hardware
-│                               (UA detection + ?uix-engine override); edit gate
-│                               on the IWSDK pipeline; own Pages projects
+│       └── src/pipelines/      iwsdk / xrblocks / desktop, offered on a launch
+│                               screen (same detection + ?uix-engine override);
+│                               the iwsdk and desktop pipelines wrap the
+│                               showcase's own bootstraps rather than copying
+│                               them; edit gate on IWSDK; own Pages projects
 ├── scripts/verify-pack.mjs     consumer check - packs, installs, imports
 ├── docs/developer-cycle.md     the four development loops, terminal to deploy
 ├── CHANGELOG.md                shared across all four packages
@@ -105,7 +109,7 @@ Deployed from `main` by the **Deploy** workflow. Pull requests deploy to the iso
 | Showcase | [`webxr-uiextensions.pages.dev`](https://webxr-uiextensions.pages.dev) | `webxr-uiextensions-test.pages.dev` |
 | Multiplatform lab | [`webxr-uix-lab.pages.dev`](https://webxr-uix-lab.pages.dev) | `webxr-uix-lab-test.pages.dev` |
 
-Open either on a headset - each production deploy also prints a short code and a QR code to the workflow's step summary. The lab picks its pipeline from the hardware (Quest → IWSDK, Android XR → XR Blocks, desktop → IWSDK); force it with `?uix-engine=iwsdk` or `?uix-engine=xrblocks`.
+Open either on a headset - each production deploy also prints a short code and a QR code to the workflow's step summary. Both demos pick their runtime from the hardware, through the same detection (`demos/showcase/src/platform-detect.ts`): Quest → IWSDK, Android XR → XR Blocks, anything else → plain three.js. The lab offers all three on a launch screen; the showcase ships two of them and boots the choice directly, because IWSDK takes the view pose from the headset and has no desktop camera. Force either with `?uix-engine=iwsdk`, `?uix-engine=xrblocks` or `?uix-engine=desktop`.
 
 ## Automation (`.github/workflows/`)
 

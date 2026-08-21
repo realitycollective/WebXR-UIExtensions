@@ -6,7 +6,11 @@
  * chosen implementation actually runs on this browser. All three pipelines
  * are dynamic imports, so a session only downloads the engine it launches.
  */
-import { ENGINE_PARAM, chooseEngine, type UixEngine } from './platform-detect.js';
+import {
+  ENGINE_PARAM,
+  chooseEngine,
+  type UixEngine,
+} from '@showcase/platform-detect.js';
 
 interface ModeInfo {
   title: string;

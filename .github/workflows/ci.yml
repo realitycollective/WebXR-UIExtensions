@@ -285,7 +285,7 @@ jobs:
           {
             echo "## Multiplatform LAB (PRODUCTION) - engine picked by hardware"
             echo ""
-            echo "Quest → IWSDK pipeline · Android XR → XR Blocks pipeline · desktop → IWSDK."
+            echo "Quest → IWSDK pipeline · Android XR → XR Blocks pipeline · desktop → plain three.js."
             echo "Force either with \`?uix-engine=iwsdk\` / \`?uix-engine=xrblocks\`."
             echo ""
             echo "# \`$(disp "$SHORT")\`"
@@ -305,6 +305,10 @@ jobs:
       # and white-screen in a browser. This loads what was ACTUALLY deployed
       # and fails on uncaught exceptions, console errors, failed requests or an
       # empty mount point.
+      #
+      # The showcase ships two builds behind hardware detection, and a runner
+      # is always desktop, so the IWSDK half would never be exercised. The
+      # second URL forces it with ?uix-engine=iwsdk.
       - name: Setup Node.js for the smoke test
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         uses: actions/setup-node@v6
@@ -323,6 +327,7 @@ jobs:
         run: |
           node scripts/smoke-deploy.mjs \
             "${{ steps.deploy.outputs.deployment-url }}" \
+            "${{ steps.deploy.outputs.deployment-url }}/?uix-engine=iwsdk" \
             "${{ steps.deploylab.outputs.deployment-url }}" \
             --mount "#scene-container"
 
@@ -528,6 +533,10 @@ jobs:
       # and white-screen in a browser. This loads what was ACTUALLY deployed
       # and fails on uncaught exceptions, console errors, failed requests or an
       # empty mount point.
+      #
+      # The showcase ships two builds behind hardware detection, and a runner
+      # is always desktop, so the IWSDK half would never be exercised. The
+      # second URL forces it with ?uix-engine=iwsdk.
       - name: Setup Node.js for the smoke test
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         uses: actions/setup-node@v6
@@ -546,6 +555,7 @@ jobs:
         run: |
           node scripts/smoke-deploy.mjs \
             "${{ steps.deploy.outputs.deployment-url }}" \
+            "${{ steps.deploy.outputs.deployment-url }}/?uix-engine=iwsdk" \
             "${{ steps.deploylab.outputs.deployment-url }}" \
             --mount "#scene-container"
 
