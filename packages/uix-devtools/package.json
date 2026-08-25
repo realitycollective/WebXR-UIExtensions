@@ -1,6 +1,6 @@
 {
   "name": "@realitycollective/uix-devtools",
-  "version": "0.1.0-preview.1",
+  "version": "0.1.0-preview.2",
   "description": "Developer tooling for @realitycollective/iwsdk-uiextensions - edit-session launch gate, runtime UIKitML compilation, and the uix-dev CLI (Cloudflare quick tunnel + QR onboarding for headset testing). Never ship this in a player-facing bundle.",
   "keywords": [
     "realitycollective",

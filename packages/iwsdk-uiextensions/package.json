@@ -1,6 +1,6 @@
 {
   "name": "@realitycollective/iwsdk-uiextensions",
-  "version": "0.1.0-preview.1",
+  "version": "0.1.0-preview.2",
   "description": "Meta IWSDK adapter for the Reality Collective UI Extensions - windowing, docking, layout regions and extra controls, binding the engine-free @realitycollective/webxr-uiextensions core onto IWSDK's ECS, UIKitML and interaction systems.",
   "keywords": [
     "realitycollective",
@@ -39,7 +39,7 @@
     "@drawcall/uikitml": "0.1.8",
     "zod": "^4.4.3",
     "@pmndrs/handle": "^6.6.16",
-    "@realitycollective/webxr-uiextensions": "^0.1.0-preview.1"
+    "@realitycollective/webxr-uiextensions": "^0.1.0-preview.2"
   },
   "peerDependencies": {
     "@iwsdk/core": ">=0.5.0 <0.6.0"
