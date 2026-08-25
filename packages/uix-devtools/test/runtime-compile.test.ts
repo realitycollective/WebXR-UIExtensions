@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import {
+  htmlComponentSet,
+  type ComponentDefinition,
+  type ComponentSet,
+} from '@drawcall/uikitml';
 import { compilePanelSource } from '../src/runtime-compile.js';
 
 // `<span>` rather than `<text>`: IWSDK 0.5's parser has no `<text>` component.
@@ -36,6 +41,21 @@ describe('compilePanelSource', () => {
   it('reports unknown components as diagnostics', () => {
     const compiled = compilePanelSource('<div><text>x</text></div>');
     expect(compiled.errors.some((e) => e.includes('text'))).toBe(true);
+  });
+
+  it('validates against supplied component sets', () => {
+    // The editor validates against whatever the world was configured with. A
+    // kit tag is an unknown component on its own and a valid one once its set
+    // is passed, so this is the difference the option actually makes.
+    const KIT = '<uix-panel><span>x</span></uix-panel>';
+    // Cast rather than a runtime guard: a guard would add a branch nothing
+    // exercises, and the coverage gate is at 100%.
+    const kitSet: ComponentSet = {
+      'uix-panel': htmlComponentSet.div as ComponentDefinition,
+    };
+
+    expect(compilePanelSource(KIT).errors.length).toBeGreaterThan(0);
+    expect(compilePanelSource(KIT, { componentSets: [kitSet] }).errors).toEqual([]);
   });
 
   it('reports unknown properties as diagnostics', () => {
