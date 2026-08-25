@@ -2,9 +2,8 @@
   .uix-window {
     display: flex;
     flex-direction: column;
-    width: 260;
-    background-color: #101a26;
-    background-opacity: 0.92;
+    width: 280;
+    background-color: rgba(16, 26, 38, 0.92);
     border-color: #2e4a66;
     border-width: 0.75;
     border-radius: 12.5;
@@ -38,10 +37,33 @@
     cursor: pointer;
   }
   .uix-titlebar-button:hover { background-color: #33547a; color: #ffffff; }
-  .uix-content { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 10; }
+  .uix-content { display: flex; flex-direction: column; width: 100%; padding: 10; }
 
-  .photo { width: 200; border-radius: 8; margin-top: 2.5; }
-  .caption { font-size: 9.5; color: #9fb8d4; margin-top: 6; text-align: center; }
+  .big-button {
+    width: 100%;
+    padding: 10;
+    font-size: 14;
+    font-weight: bold;
+    text-align: center;
+    justify-content: center;
+    color: #ffffff;
+    background-color: #8a3ab5;
+    border-radius: 8;
+    cursor: pointer;
+  }
+  .big-button:hover { background-color: #a44fd4; }
+  .big-button:active { background-color: #6d2b90; }
+  .click-list { display: flex; flex-direction: column; width: 100%; margin-top: 8; }
+  .click-rows {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 6;
+    background-color: #0a1119;
+    border-radius: 6;
+  }
+  .click-line { font-size: 9.5; color: #d9c1ef; margin-top: 2.5; }
+  .click-status { font-size: 9; color: #7d94ad; margin-top: 5; }
 </style>
 <div id="uix-window" class="uix-window">
   <div id="uix-titlebar" class="uix-titlebar">
@@ -54,7 +76,16 @@
     </div>
   </div>
   <div id="uix-content" class="uix-content">
-    <img class="photo" src="./images/nebula.png" />
-    <span class="caption">Images render through the native UIKitML img element - no extra code.</span>
+    <button id="click-me" class="big-button">CLICK ME</button>
+    <uix-log-view data-uix-id="clicks" data-uix-capacity="50" class="click-list">
+      <div class="click-rows">
+        <uix-line class="click-line">.</uix-line>
+        <uix-line class="click-line">.</uix-line>
+        <uix-line class="click-line">.</uix-line>
+        <uix-line class="click-line">.</uix-line>
+        <uix-line class="click-line">.</uix-line>
+      </div>
+      <uix-status class="click-status">.</uix-status>
+    </uix-log-view>
   </div>
 </div>

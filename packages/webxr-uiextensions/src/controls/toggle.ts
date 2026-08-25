@@ -1,5 +1,5 @@
 /**
- * Toggle control - `data-uix="toggle"`.
+ * Toggle control - `<uix-toggle>`.
  *
  * The whole control is the click target. Optional attributes:
  * `data-uix-on` (initial state), `data-uix-on-text` / `data-uix-off-text`
@@ -7,11 +7,11 @@
  * `data-uix-off-color` (background color applied to the control root).
  *
  * ```html
- * <div data-uix="toggle" data-uix-id="shield" data-uix-on="true"
- *      data-uix-on-text="SHIELD ON" data-uix-off-text="SHIELD OFF"
- *      data-uix-on-color="#2e7d32" data-uix-off-color="#5d4037" class="my-toggle">
- *   <span data-uix-role="label">.</span>
- * </div>
+ * <uix-toggle data-uix-id="shield" data-uix-on="true"
+ *             data-uix-on-text="SHIELD ON" data-uix-off-text="SHIELD OFF"
+ *             data-uix-on-color="#2e7d32" data-uix-off-color="#5d4037" class="my-toggle">
+ *   <uix-label>.</uix-label>
+ * </uix-toggle>
  * ```
  */
 import { Emitter } from '../core/events.js';

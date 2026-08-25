@@ -1,14 +1,14 @@
 /**
- * Stepper control - `data-uix="stepper"`.
+ * Stepper control - `<uix-stepper>`.
  *
- * Markup contract (roles are `data-uix-role` attributes on descendants):
+ * Markup contract (parts are `<uix-*>` elements; params are `data-uix-*`):
  * ```html
- * <div data-uix="stepper" data-uix-id="count" data-uix-min="0" data-uix-max="10"
- *      data-uix-step="1" data-uix-value="5" class="my-stepper">
- *   <button data-uix-role="decrement">-</button>
- *   <span data-uix-role="value">.</span>
- *   <button data-uix-role="increment">+</button>
- * </div>
+ * <uix-stepper data-uix-id="count" data-uix-min="0" data-uix-max="10"
+ *              data-uix-step="1" data-uix-value="5" class="my-stepper">
+ *   <uix-decrement>-</uix-decrement>
+ *   <uix-value>.</uix-value>
+ *   <uix-increment>+</uix-increment>
+ * </uix-stepper>
  * ```
  */
 import { Emitter } from '../core/events.js';

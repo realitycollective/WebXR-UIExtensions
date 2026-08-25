@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import { compileUIKit } from "@iwsdk/vite-plugin-uikitml";
 import { defineConfig } from "vite";
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -8,13 +7,6 @@ const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 // demo clients exercise the same panels; both engine pipelines are code-split
 // and only the detected one is loaded at runtime.
 export default defineConfig({
-  plugins: [
-    compileUIKit({
-      sourceDir: "../showcase/ui",
-      outputDir: "../showcase/public/ui",
-      verbose: true,
-    }),
-  ],
   resolve: {
     alias: {
       "@realitycollective/webxr-uiextensions": here(

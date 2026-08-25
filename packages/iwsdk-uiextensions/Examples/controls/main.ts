@@ -17,16 +17,20 @@ export async function start(container: HTMLDivElement) {
   });
   registerUIExtensions(world);
 
+  // `config` is the only field PanelUI carries in IWSDK 0.5. maxWidth/maxHeight
+  // were removed from the schema; ECS ignores unknown fields silently, so
+  // writing them here would mis-size the panel with no error. Size a panel
+  // through createUIWindow instead, which routes to UIWindow.targetWidth/Height.
   const panel = world
     .createTransformEntity()
-    .addComponent(PanelUI, { config: './ui/controls.json', maxWidth: 0.8, maxHeight: 1 });
+    .addComponent(PanelUI, { config: './ui/controls.uikitml' });
   panel.object3D!.position.set(0, 1.5, -1.2);
 
   // Wire the handles once the panel loads.
   class WireSystem extends createSystem({
     panel: {
       required: [PanelUI, PanelDocument],
-      where: [eq(PanelUI, 'config', './ui/controls.json')],
+      where: [eq(PanelUI, 'config', './ui/controls.uikitml')],
     },
   }) {
     override init(): void {

@@ -32,19 +32,23 @@ if (import.meta.env.DEV || import.meta.env.VITE_UIX_EDIT) {
 
 All parts are individually exported (`readEditToken`, `isTokenAccepted`, `resolveEditSession`) and unit-tested - see `test/gate.test.ts`.
 
-## Runtime UIKitML compilation
+## Runtime panel sources
 
 ```ts
 import { compilePanelSource } from '@realitycollective/uix-devtools';
 import { createUIWindow } from '@realitycollective/iwsdk-uiextensions';
 
-const compiled = compilePanelSource(source); // same JSON the Vite plugin emits
-if (compiled.errors.length === 0) {
-  createUIWindow(world, { id: 'live', title: 'Live', config: compiled.configUrl });
+const panel = compilePanelSource(source); // validates, then wraps in a blob: URL
+if (panel.errors.length === 0) {
+  createUIWindow(world, { id: 'live', title: 'Live', config: panel.configUrl });
 }
 ```
 
-`compilePanelSource` runs the same `parse` the build-time Vite plugin uses and serves the JSON through a `blob:` URL, which IWSDK's `PanelUI` fetches like any file - so panels can be authored, edited and respawned entirely at runtime (desktop workbench or in-headset editor). Parse problems land in `errors` instead of throwing; linked stylesheets can be resolved via the `resolveFile` option.
+`compilePanelSource` validates UIKitML with the same parser IWSDK loads (`@drawcall/uikitml`, pinned to the version `@iwsdk/core` depends on) and serves the **source** through a `blob:` URL, which `PanelUI` fetches like any file - so panels can be authored, edited and respawned entirely at runtime. Diagnostics land in `errors` instead of throwing, and a source with errors still gets a `configUrl` so the failure is visible in-world rather than silent.
+
+Pass `componentSets` to validate against the same application-defined components the world was created with; otherwise markup using them reports unknown-component diagnostics here even though it loads correctly at runtime.
+
+> **Changed in IWSDK 0.5.** On 0.4.x `PanelUI.config` pointed at JSON emitted by `@iwsdk/vite-plugin-uikitml`; that plugin was discontinued at 0.4.2. On 0.5.x `PanelUISystem` fetches `config` as text and parses the UIKitML itself, so there is no compile step left. `CompiledPanel.json` is now `CompiledPanel.source`, and the `resolveFile` option is gone - the 0.5 parser has no `<link ref>` stylesheet resolution. Put shared rules in a `<style>` block; multiple `<style>` elements are allowed and merge.
 
 ## The `uix-dev` CLI
 

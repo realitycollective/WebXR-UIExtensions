@@ -41,7 +41,7 @@ export async function start(container: HTMLDivElement) {
   createUIWindow(world, {
     id: 'docked',
     title: 'Docked Window',
-    config: './ui/window.json',
+    config: './ui/window.uikitml',
     region: 'wall',
   });
 
@@ -49,7 +49,7 @@ export async function start(container: HTMLDivElement) {
   createUIWindow(world, {
     id: 'floating',
     title: 'Drag Me Into A Region',
-    config: './ui/window.json',
+    config: './ui/window.uikitml',
     position: [0, 1.5, -1.4],
   });
 }

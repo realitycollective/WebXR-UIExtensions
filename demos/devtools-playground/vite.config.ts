@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import { compileUIKit } from "@iwsdk/vite-plugin-uikitml";
 import { defineConfig } from "vite";
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -8,13 +7,6 @@ const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 // plus the uix-devtools edit gate. It deliberately has no panels of its own:
 // the editor window is compiled AT RUNTIME by @realitycollective/uix-devtools.
 export default defineConfig({
-  plugins: [
-    compileUIKit({
-      sourceDir: "../showcase/ui",
-      outputDir: "../showcase/public/ui",
-      verbose: true,
-    }),
-  ],
   resolve: {
     alias: {
       // Consume the libraries from source so dev/build never need a dist.

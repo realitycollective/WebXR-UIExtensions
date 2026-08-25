@@ -12,7 +12,22 @@
  * portable `SceneDescriptor` builds the same playground here as on IWSDK).
  */
 import { Group, type Object3D } from 'three';
-import type { Kit } from '@pmndrs/uikitml';
+import { parse, type Kit } from '@pmndrs/uikitml';
+
+/**
+ * Default `config` resolver: fetch UIKitML source and parse it.
+ *
+ * IWSDK 0.5 dropped the build-time compile step and parses `PanelUI.config`
+ * as source at runtime, so descriptors carry `.uikitml` paths. This parses the
+ * same file for the three.js and XR Blocks hosts, which interpret an AST.
+ */
+async function loadUikitmlSource(path: string): Promise<unknown> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`UIKitML source ${path} -> HTTP ${response.status}`);
+  }
+  return parse(await response.text());
+}
 import {
   DockMode,
   RegionRegistry,
@@ -88,7 +103,12 @@ export interface UixWindowHostOptions {
   kit?: Kit;
   /**
    * Resolver for a window's `config` when it arrives as a string path (as
-   * portable `SceneDescriptor`s carry it). Defaults to `fetch(path).json()`.
+   * portable `SceneDescriptor`s carry it).
+   *
+   * Defaults to fetching the `.uikitml` source and parsing it, which is the
+   * same artefact IWSDK loads - so one markup file serves every adapter and
+   * no build step is required. Override only for an unusual transport; you do
+   * not need to supply this to load a normal panel.
    */
   loadConfig?: (path: string) => Promise<unknown>;
 }
@@ -133,9 +153,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
     this.scene = options.scene;
     this.headPose = options.headPose;
     this.kit = options.kit;
-    this.loadConfig =
-      options.loadConfig ??
-      ((path: string) => fetch(path).then((response) => response.json()));
+    this.loadConfig = options.loadConfig ?? loadUikitmlSource;
 
     this.manager.events.on('closed', (record) => {
       const state = this.states.get(record.id);

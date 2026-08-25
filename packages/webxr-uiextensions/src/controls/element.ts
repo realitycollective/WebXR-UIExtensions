@@ -1,10 +1,17 @@
 /**
  * Structural view of a uikit element as the controls layer needs it.
  *
- * UIKitML preserves `data-*` attributes into `element.userData` (camelCased,
- * `data-` stripped): `data-uix="stepper"` → `userData.uix`. Controls are
- * discovered by traversing a panel's object tree for those markers - no
- * custom uikit component classes, so any markup (or kit) works.
+ * Controls and their parts are declared as CUSTOM ELEMENTS - `<uix-stepper>`,
+ * `<uix-value>` - rather than as attributes on a `<div>`. That is what makes
+ * one markup file portable across every adapter: the IWSDK 0.5 parser rejects
+ * unknown attributes on built-in tags, but accepts a custom tag declared in a
+ * component set, and the three.js / XR Blocks parser accepts custom tags with
+ * no registration at all.
+ *
+ * Both paths expose the declared tag the same way, on
+ * `userData.customElement.componentName`. Parameters stay `data-uix-*`
+ * attributes, which land in `userData` camelCased with `data-` stripped:
+ * `data-uix-min="0"` → `userData.uixMin`.
  */
 export interface UixElement {
   userData: Record<string, unknown>;
@@ -21,11 +28,24 @@ export function walk(element: UixElement, visit: (element: UixElement) => void):
   }
 }
 
-/** All descendants (including self) with `data-uix-role="<role>"`. */
+/**
+ * The custom-element tag this element was declared with, lowercased, or
+ * undefined for a plain built-in element.
+ */
+export function tagOf(element: UixElement): string | undefined {
+  const custom = element.userData?.['customElement'] as
+    | { componentName?: unknown }
+    | undefined;
+  const name = custom?.componentName;
+  return typeof name === 'string' && name.length > 0 ? name.toLowerCase() : undefined;
+}
+
+/** All descendants (including self) declared as `<uix-{role}>`. */
 export function findRoles(root: UixElement, role: string): UixElement[] {
+  const tag = `uix-${role}`;
   const found: UixElement[] = [];
   walk(root, (element) => {
-    if (element.userData?.['uixRole'] === role) {
+    if (tagOf(element) === tag) {
       found.push(element);
     }
   });

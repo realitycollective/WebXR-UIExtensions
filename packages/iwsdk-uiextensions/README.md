@@ -20,7 +20,7 @@ Everything is authored in plain UIKitML (HTML/CSS-like) - no new markup language
 
 ```bash
 npm install @realitycollective/iwsdk-uiextensions
-# peer: @iwsdk/core >= 0.4
+# peer: @iwsdk/core >=0.5.0 <0.6.0
 ```
 
 ## Quick start
@@ -45,7 +45,7 @@ createDockRegion(world, { id: 'wall', flow: 'column', position: [1.5, 1.8, -1.5]
 createUIWindow(world, {
   id: 'status',
   title: 'Player Status',
-  config: './ui/status.json',      // compiled UIKitML
+  config: './ui/status.uikitml', // UIKitML source; IWSDK 0.5 parses it at runtime
   dockMode: DockMode.BodyFollow,   // follows until the user pins it
 });
 
