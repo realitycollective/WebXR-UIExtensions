@@ -41,7 +41,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@pmndrs/uikitml": "^0.1.12",
+    "@drawcall/uikitml": "0.1.8",
     "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {

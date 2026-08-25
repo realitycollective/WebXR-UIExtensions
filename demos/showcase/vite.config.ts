@@ -1,9 +1,7 @@
 import { fileURLToPath } from "node:url";
-import { compileUIKit } from "@iwsdk/vite-plugin-uikitml";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [compileUIKit({ sourceDir: "ui", outputDir: "public/ui", verbose: true })],
   resolve: {
     alias: {
       // Consume the library from source so dev/build never need a prebuilt dist.

@@ -3,8 +3,7 @@
     display: flex;
     flex-direction: column;
     width: 320;
-    background-color: #101a26;
-    background-opacity: 0.92;
+    background-color: rgba(16, 26, 38, 0.92);
     border-color: #2e4a66;
     border-width: 0.75;
     border-radius: 12.5;
@@ -81,26 +80,21 @@
   <div id="uix-content" class="uix-content">
     <div class="row">
       <span class="label">Health</span>
-      <div data-uix="stepper" data-uix-id="health" data-uix-min="0" data-uix-max="100"
-           data-uix-step="10" data-uix-value="80" class="stepper">
-        <div data-uix-role="decrement" class="stepper-button">-</div>
-        <span data-uix-role="value" class="stepper-value">.</span>
-        <div data-uix-role="increment" class="stepper-button">+</div>
-      </div>
+      <uix-stepper data-uix-id="health" data-uix-min="0" data-uix-max="100" data-uix-step="10" data-uix-value="80" class="stepper">
+        <uix-decrement class="stepper-button">-</uix-decrement>
+        <uix-value class="stepper-value">.</uix-value>
+        <uix-increment class="stepper-button">+</uix-increment>
+      </uix-stepper>
     </div>
     <div class="row">
       <span class="label">Shield</span>
-      <div data-uix="toggle" data-uix-id="shield" data-uix-on="true"
-           data-uix-on-text="SHIELD ON" data-uix-off-text="SHIELD OFF"
-           data-uix-on-color="#1f6d3d" data-uix-off-color="#5a3037" class="toggle">
-        <span data-uix-role="label" class="toggle-label">.</span>
-      </div>
+      <uix-toggle data-uix-id="shield" data-uix-on="true" data-uix-on-text="SHIELD ON" data-uix-off-text="SHIELD OFF" data-uix-on-color="#1f6d3d" data-uix-off-color="#5a3037" class="toggle">
+        <uix-label class="toggle-label">.</uix-label>
+      </uix-toggle>
     </div>
-    <div data-uix="expandable-label" data-uix-id="bio" data-uix-lines="2" data-uix-chars-per-line="38"
-         data-uix-text="Ranger unit 7 has been on patrol since dawn. Suit integrity nominal, shield capacitors trickle-charging, morale improved by the discovery of a functioning coffee dispenser on deck 3. Next rotation due at sundown."
-         class="bio">
-      <span data-uix-role="text" class="bio-text">.</span>
-      <div data-uix-role="toggle" class="bio-toggle">more</div>
-    </div>
+    <uix-expandable-label data-uix-id="bio" data-uix-lines="2" data-uix-chars-per-line="38" data-uix-text="Ranger unit 7 has been on patrol since dawn. Suit integrity nominal, shield capacitors trickle-charging, morale improved by the discovery of a functioning coffee dispenser on deck 3. Next rotation due at sundown." class="bio">
+      <uix-text class="bio-text">.</uix-text>
+      <uix-more class="bio-toggle">more</uix-more>
+    </uix-expandable-label>
   </div>
 </div>

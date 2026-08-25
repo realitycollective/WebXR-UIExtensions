@@ -3,8 +3,7 @@
     display: flex;
     flex-direction: column;
     width: 360;
-    background-color: #0d141c;
-    background-opacity: 0.94;
+    background-color: rgba(13, 20, 28, 0.94);
     border-color: #2e4a66;
     border-width: 0.75;
     border-radius: 12.5;
@@ -74,23 +73,23 @@
     </div>
   </div>
   <div id="uix-content" class="uix-content">
-    <div data-uix="log-view" data-uix-id="events" data-uix-capacity="200" class="log">
+    <uix-log-view data-uix-id="events" data-uix-capacity="200" class="log">
       <div class="log-rows">
-        <span data-uix-role="line" class="log-line">.</span>
-        <span data-uix-role="line" class="log-line">.</span>
-        <span data-uix-role="line" class="log-line">.</span>
-        <span data-uix-role="line" class="log-line">.</span>
-        <span data-uix-role="line" class="log-line">.</span>
-        <span data-uix-role="line" class="log-line">.</span>
-        <span data-uix-role="line" class="log-line">.</span>
-        <span data-uix-role="line" class="log-line">.</span>
+        <uix-line class="log-line">.</uix-line>
+        <uix-line class="log-line">.</uix-line>
+        <uix-line class="log-line">.</uix-line>
+        <uix-line class="log-line">.</uix-line>
+        <uix-line class="log-line">.</uix-line>
+        <uix-line class="log-line">.</uix-line>
+        <uix-line class="log-line">.</uix-line>
+        <uix-line class="log-line">.</uix-line>
       </div>
       <div class="log-controls">
-        <div data-uix-role="up" class="log-button">UP</div>
-        <div data-uix-role="down" class="log-button">DOWN</div>
-        <div data-uix-role="clear" class="log-button">CLEAR</div>
-        <span data-uix-role="status" class="log-status">.</span>
+        <uix-up class="log-button">UP</uix-up>
+        <uix-down class="log-button">DOWN</uix-down>
+        <uix-clear class="log-button">CLEAR</uix-clear>
+        <uix-status class="log-status">.</uix-status>
       </div>
-    </div>
+    </uix-log-view>
   </div>
 </div>

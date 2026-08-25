@@ -22,11 +22,11 @@ import {
   SessionMode,
   World,
 } from '@iwsdk/core';
-import * as horizonKit from '@pmndrs/uikit-horizon';
 import {
   applyScene,
   createSceneHost,
   registerUIExtensions,
+  uixComponentSet,
   type WindowManager,
 } from '@realitycollective/iwsdk-uiextensions';
 import { installEnterVROverlay } from './enter-vr.js';
@@ -51,7 +51,10 @@ export async function bootstrapShowcase(
       locomotion: false,
       grabbing: false, // the library's drag system is self-contained
       physics: false,
-      spatialUI: { kits: [horizonKit] },
+      // The kit is selected by NAME ('default' | 'horizon'); `uixComponentSet`
+      // teaches the parser the `<uix-*>` control elements. Without it a panel
+      // using any control fails to parse and never attaches.
+      spatialUI: { kit: 'horizon', componentSets: [uixComponentSet] },
     },
   });
   const { scene } = world;

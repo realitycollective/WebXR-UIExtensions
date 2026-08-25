@@ -1,25 +1,25 @@
 /**
- * Log view - `data-uix="log-view"`.
+ * Log view - `<uix-log-view>`.
  *
  * A console-style scrolling list rendered into a fixed pool of row elements
  * (UIKitML's text rule: each row needs a literal placeholder child). Rows
- * are the descendants with role `line`, in document order; their count is
- * the viewport height.
+ * are the `<uix-line>` descendants, in document order; their count is the
+ * viewport height.
  *
  * ```html
- * <div data-uix="log-view" data-uix-id="combat" data-uix-capacity="200">
+ * <uix-log-view data-uix-id="combat" data-uix-capacity="200">
  *   <div class="rows">
- *     <span data-uix-role="line">.</span>
- *     <span data-uix-role="line">.</span>
- *     <span data-uix-role="line">.</span>
+ *     <uix-line>.</uix-line>
+ *     <uix-line>.</uix-line>
+ *     <uix-line>.</uix-line>
  *   </div>
  *   <div class="log-buttons">
- *     <button data-uix-role="up">▲</button>
- *     <button data-uix-role="down">▼</button>
- *     <button data-uix-role="clear">clear</button>
+ *     <uix-up>▲</uix-up>
+ *     <uix-down>▼</uix-down>
+ *     <uix-clear>clear</uix-clear>
  *   </div>
- *   <span data-uix-role="status">.</span>
- * </div>
+ *   <uix-status>.</uix-status>
+ * </uix-log-view>
  * ```
  */
 import { LogModel } from '../core/log-model.js';

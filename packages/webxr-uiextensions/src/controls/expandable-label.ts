@@ -1,16 +1,16 @@
 /**
- * Expandable label - `data-uix="expandable-label"`.
+ * Expandable label - `<uix-expandable-label>`.
  *
  * A multi-line label that collapses to a character budget with an ellipsis
  * and an inline more/less affordance.
  *
  * ```html
- * <div data-uix="expandable-label" data-uix-id="lore"
- *      data-uix-lines="2" data-uix-chars-per-line="40"
- *      data-uix-text="Long text..." class="my-label">
- *   <span data-uix-role="text">.</span>
- *   <button data-uix-role="toggle">more</button>
- * </div>
+ * <uix-expandable-label data-uix-id="lore"
+ *                       data-uix-lines="2" data-uix-chars-per-line="40"
+ *                       data-uix-text="Long text..." class="my-label">
+ *   <uix-text>.</uix-text>
+ *   <uix-more>more</uix-more>
+ * </uix-expandable-label>
  * ```
  */
 import { Emitter } from '../core/events.js';
@@ -60,7 +60,7 @@ export function upgradeExpandableLabel(root: UixElement): ExpandableLabelHandle 
     ...(lines !== undefined && { collapsedLines: lines }),
     ...(charsPerLine !== undefined && { charsPerLine }),
   });
-  const toggle = findRole(root, 'toggle');
+  const toggle = findRole(root, 'more');
   const handle = new ExpandableLabelHandle(model, findRole(root, 'text'), toggle);
   toggle?.addEventListener('click', () => handle.toggle());
   return handle;

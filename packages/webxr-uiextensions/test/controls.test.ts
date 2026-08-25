@@ -41,11 +41,11 @@ class FakeElement implements UixElement {
 }
 
 function stepperMarkup(attrs: Record<string, unknown> = {}): FakeElement {
-  const root = new FakeElement({ uix: 'stepper', uixId: 'count', ...attrs });
+  const root = new FakeElement({ customElement: { componentName: 'uix-stepper' }, uixId: 'count', ...attrs });
   root
-    .add(new FakeElement({ uixRole: 'decrement' }))
-    .add(new FakeElement({ uixRole: 'value' }))
-    .add(new FakeElement({ uixRole: 'increment' }));
+    .add(new FakeElement({ customElement: { componentName: 'uix-decrement' } }))
+    .add(new FakeElement({ customElement: { componentName: 'uix-value' } }))
+    .add(new FakeElement({ customElement: { componentName: 'uix-increment' } }));
   return root;
 }
 
@@ -53,7 +53,7 @@ describe('element helpers', () => {
   it('walks depth-first and finds roles at any depth', () => {
     const root = new FakeElement();
     const wrapper = new FakeElement();
-    const deep = new FakeElement({ uixRole: 'value' });
+    const deep = new FakeElement({ customElement: { componentName: 'uix-value' } });
     wrapper.add(deep);
     root.add(wrapper);
     const seen: UixElement[] = [];
@@ -79,8 +79,8 @@ describe('upgradePanel', () => {
     const doc = {};
     const root = new FakeElement();
     root.add(stepperMarkup({ uixMin: '0', uixMax: '3', uixValue: '1' }));
-    const toggle = new FakeElement({ uix: 'toggle', uixId: 'shield', uixOn: 'true' });
-    toggle.add(new FakeElement({ uixRole: 'label' }));
+    const toggle = new FakeElement({ customElement: { componentName: 'uix-toggle' }, uixId: 'shield', uixOn: 'true' });
+    toggle.add(new FakeElement({ customElement: { componentName: 'uix-label' } }));
     root.add(toggle);
 
     const controls = upgradePanel(doc, root);
@@ -103,8 +103,8 @@ describe('upgradePanel', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const doc = {};
     const root = new FakeElement();
-    root.add(new FakeElement({ uix: 'flux-capacitor' }));
-    const anonymous = new FakeElement({ uix: 'toggle' });
+    root.add(new FakeElement({ customElement: { componentName: 'uix-flux-capacitor' } }));
+    const anonymous = new FakeElement({ customElement: { componentName: 'uix-toggle' } });
     root.add(anonymous);
     const controls = upgradePanel(doc, root);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('flux-capacitor'));
@@ -161,14 +161,14 @@ describe('stepper control', () => {
 describe('toggle control', () => {
   it('click toggles, writes label text and colors, fires change', () => {
     const root = new FakeElement({
-      uix: 'toggle',
+      customElement: { componentName: 'uix-toggle' },
       uixId: 'shield',
       uixOnText: 'SHIELD ON',
       uixOffText: 'SHIELD OFF',
       uixOnColor: '#00ff00',
       uixOffColor: '#333333',
     });
-    const label = new FakeElement({ uixRole: 'label' });
+    const label = new FakeElement({ customElement: { componentName: 'uix-label' } });
     root.add(label);
     const handle = upgradePanel({}, wrap(root)).toggle('shield');
     expect(handle).toBeInstanceOf(ToggleHandle);
@@ -185,8 +185,8 @@ describe('toggle control', () => {
   });
 
   it('falls back to ON/OFF labels without attributes', () => {
-    const root = new FakeElement({ uix: 'toggle', uixId: 't' });
-    const label = new FakeElement({ uixRole: 'label' });
+    const root = new FakeElement({ customElement: { componentName: 'uix-toggle' }, uixId: 't' });
+    const label = new FakeElement({ customElement: { componentName: 'uix-label' } });
     root.add(label);
     upgradePanel({}, wrap(root));
     expect(label.props['text']).toBe('OFF');
@@ -202,14 +202,14 @@ describe('expandable label control', () => {
 
   it('renders collapsed text, toggles on click, hides affordance when it fits', () => {
     const root = new FakeElement({
-      uix: 'expandable-label',
+      customElement: { componentName: 'uix-expandable-label' },
       uixId: 'lore',
       uixText: LONG,
       uixLines: '1',
       uixCharsPerLine: '20',
     });
-    const text = new FakeElement({ uixRole: 'text' });
-    const toggle = new FakeElement({ uixRole: 'toggle' });
+    const text = new FakeElement({ customElement: { componentName: 'uix-text' } });
+    const toggle = new FakeElement({ customElement: { componentName: 'uix-more' } });
     root.add(text).add(toggle);
     const handle = upgradePanel({}, wrap(root)).expandableLabel('lore');
     expect(handle).toBeInstanceOf(ExpandableLabelHandle);
@@ -230,15 +230,15 @@ describe('expandable label control', () => {
 
 describe('log view control', () => {
   it('renders into the row pool, scrolls, clears and reports status', () => {
-    const root = new FakeElement({ uix: 'log-view', uixId: 'log', uixCapacity: '10' });
+    const root = new FakeElement({ customElement: { componentName: 'uix-log-view' }, uixId: 'log', uixCapacity: '10' });
     const rows = [
-      new FakeElement({ uixRole: 'line' }),
-      new FakeElement({ uixRole: 'line' }),
+      new FakeElement({ customElement: { componentName: 'uix-line' } }),
+      new FakeElement({ customElement: { componentName: 'uix-line' } }),
     ];
-    const up = new FakeElement({ uixRole: 'up' });
-    const down = new FakeElement({ uixRole: 'down' });
-    const clear = new FakeElement({ uixRole: 'clear' });
-    const status = new FakeElement({ uixRole: 'status' });
+    const up = new FakeElement({ customElement: { componentName: 'uix-up' } });
+    const down = new FakeElement({ customElement: { componentName: 'uix-down' } });
+    const clear = new FakeElement({ customElement: { componentName: 'uix-clear' } });
+    const status = new FakeElement({ customElement: { componentName: 'uix-status' } });
     rows.forEach((row) => root.add(row));
     root.add(up).add(down).add(clear).add(status);
 

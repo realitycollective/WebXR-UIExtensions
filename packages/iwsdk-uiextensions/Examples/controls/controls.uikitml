@@ -4,8 +4,7 @@
     flex-direction: column;
     width: 300;
     padding: 10;
-    background-color: #101a26;
-    background-opacity: 0.92;
+    background-color: rgba(16, 26, 38, 0.92);
     border-radius: 12.5;
   }
   .row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; width: 100%; margin-top: 7; }

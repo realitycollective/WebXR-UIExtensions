@@ -17,6 +17,7 @@ export * from '@realitycollective/webxr-uiextensions';
 export * from './components.js';
 export * from './manager-registry.js';
 export * from './region-registry-store.js';
+export * from './component-set.js';
 export * from './factory.js';
 export * from './scene-host.js';
 export * from './register.js';

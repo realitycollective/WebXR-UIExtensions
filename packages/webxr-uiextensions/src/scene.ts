@@ -9,9 +9,11 @@
  *   applyScene(iwsdkTarget, PLAYGROUND);   // ECS entities
  *   applyScene(vanillaHost, PLAYGROUND);   // three.js groups
  *
- * Panel config paths stay strings (`./ui/foo.json`) because every adapter
- * resolves them the same way - IWSDK fetches them itself, the vanilla host
- * is handed the parsed JSON by `applyScene`'s loader.
+ * Panel config paths stay opaque strings (`./ui/foo.uikitml`) because each
+ * adapter resolves them its own way. IWSDK 0.5 fetches the source and parses
+ * it inside PanelUI; the vanilla and XR Blocks hosts parse it through the
+ * `loadConfig` resolver and are handed the resulting AST. The descriptor makes
+ * no claim about the artefact behind the path.
  */
 import type { DockModeValue } from './core/dock-state.js';
 import type { RegionFlow, Vec3 } from './core/region-layout.js';
@@ -20,7 +22,7 @@ import type { RegionFlow, Vec3 } from './core/region-layout.js';
 export interface SceneWindow {
   id: string;
   title: string;
-  /** Path to the compiled UIKitML JSON, e.g. `./ui/clicker.json`. */
+  /** Path to the UIKitML source, e.g. `./ui/clicker.uikitml`. */
   config: string;
   /** World position for world-locked windows. */
   position?: Vec3;

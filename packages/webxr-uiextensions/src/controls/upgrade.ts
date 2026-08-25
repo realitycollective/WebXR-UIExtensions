@@ -1,9 +1,9 @@
 /**
- * Panel upgrade - scans a loaded panel for `data-uix` markers and wires the
- * matching control behaviour. App code retrieves the resulting handles via
+ * Panel upgrade - scans a loaded panel for `<uix-*>` control elements and
+ * wires the matching behaviour. App code retrieves the resulting handles via
  * `panelControlsFor(document)` and the control's `data-uix-id`.
  */
-import { UixElement, attrString, walk } from './element.js';
+import { UixElement, attrString, tagOf, walk } from './element.js';
 import { StepperHandle, upgradeStepper } from './stepper.js';
 import { ToggleHandle, upgradeToggle } from './toggle.js';
 import { ExpandableLabelHandle, upgradeExpandableLabel } from './expandable-label.js';
@@ -67,12 +67,36 @@ export class PanelControls {
   }
 }
 
+/**
+ * Control tags. These are the custom elements an author writes; every part
+ * inside them (`<uix-value>`, `<uix-line>`, …) is a role, resolved by the
+ * individual upgraders through `findRole`.
+ */
 const UPGRADERS: Record<string, (root: UixElement) => ControlHandle> = {
-  stepper: upgradeStepper,
-  toggle: upgradeToggle,
-  'expandable-label': upgradeExpandableLabel,
-  'log-view': upgradeLogView,
+  'uix-stepper': upgradeStepper,
+  'uix-toggle': upgradeToggle,
+  'uix-expandable-label': upgradeExpandableLabel,
+  'uix-log-view': upgradeLogView,
 };
+
+/**
+ * Parts claimed by the control that owns them, resolved through `findRole`.
+ * Listed here only so a genuine typo in a control tag still gets a warning
+ * instead of being silently mistaken for a role.
+ */
+const ROLE_TAGS = new Set([
+  'uix-decrement',
+  'uix-value',
+  'uix-increment',
+  'uix-label',
+  'uix-line',
+  'uix-up',
+  'uix-down',
+  'uix-clear',
+  'uix-status',
+  'uix-text',
+  'uix-more',
+]);
 
 const registry = new WeakMap<object, PanelControls>();
 
@@ -87,13 +111,15 @@ export function upgradePanel(documentKey: object, root: UixElement): PanelContro
   }
   const controls = new PanelControls();
   walk(root, (element) => {
-    const marker = attrString(element, 'uix');
-    if (marker === undefined) {
+    const tag = tagOf(element);
+    if (tag === undefined || !tag.startsWith('uix-')) {
       return;
     }
-    const upgrader = UPGRADERS[marker];
+    const upgrader = UPGRADERS[tag];
     if (!upgrader) {
-      console.warn(`[uix] unknown control type data-uix="${marker}" - skipped`);
+      if (!ROLE_TAGS.has(tag)) {
+        console.warn(`[uix] unknown control element <${tag}> - skipped`);
+      }
       return;
     }
     controls.add(attrString(element, 'uixId'), upgrader(element));
