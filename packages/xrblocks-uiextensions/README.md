@@ -17,7 +17,8 @@
 | Desktop mouse input (hover, click, drag-to-look) | ✅ | ✅ via `@pmndrs/pointer-events` |
 | Desktop locomotion (WASD, jump, crouch, sprint) | n/a | ✅ `DesktopControls` |
 | XR select-ray click forwarding | ✅ | ✅ minimal (`forwardClick`) |
-| Title-bar ray drag (`@pmndrs/handle`) | ✅ | ⬜ roadmap |
+| Bare panels (`createPanel`) | ⬜ ECS owns the lifecycle | ✅ `supportsStandalonePanels` is `true` |
+| Title-bar ray drag (`@pmndrs/handle`) | ✅ | ⬜ roadmap (`movable` is accepted and ignored) |
 | Drop-to-dock by dragging | ✅ | ⬜ roadmap (needs drag) |
 | System keyboard text input | ✅ | ⬜ untested on Android XR |
 
@@ -71,6 +72,26 @@ await xb.init();
 ```
 
 Nothing here imports `xrblocks` - the glue binds to plain three.js shapes (`scene: Object3D`, `camera`), so the same host works in a hand-rolled three.js WebXR app.
+
+### Window options and handles
+
+`createWindow` takes the portable `WindowOptionsBase` fields plus `config`, so an option means here what it means on the IWSDK adapter. Two notes specific to this host:
+
+- `id` is optional. Omit it and the window is named `uix-window-<n>`.
+- `movable` is accepted and recorded, but nothing acts on it yet: this host has no title-bar drag of its own, so there is no gate to close. It is in the options so a scene descriptor written for IWSDK loads here unchanged.
+
+The handle it returns satisfies the core `WindowHandle` and adds the three.js specifics:
+
+```ts
+const handle = host.createWindow({ title: 'Status', config });
+handle.id;        // 'uix-window-1'
+handle.group;     // the scene-graph node - position and rotate freely
+handle.document;  // the UixPanelDocument
+handle.panel;     // the same document, under the portable name
+handle.onReady((panel) => wire(panel));   // fires straight away here
+```
+
+`onReady` fires synchronously because uikitml interprets the markup during `createWindow`; only LAYOUT is async. It still returns an unsubscribe function, so code that runs on both adapters has one shape. `supportsStandalonePanels` is `true`: `createPanel(config)` gives an unmanaged panel with no chrome and no window record.
 
 ## Known constraint: three versions
 

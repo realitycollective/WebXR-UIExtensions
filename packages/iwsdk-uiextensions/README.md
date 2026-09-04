@@ -103,6 +103,44 @@ controls.stepper('health').events.on('change', (hp) => setHealth(hp));
 
 See `Examples/` (shipped in this package) and the deployable showcase client in the repository for complete, working demonstrations of every feature.
 
+## Windows and panel readiness
+
+`createUIWindow` returns the ECS entity, which is what you want when you are going to add components to it. When you want the PANEL, use the scene host: `createWindow` gives you a handle that resolves itself.
+
+```ts
+import { createSceneHost, getPanelHandle } from '@realitycollective/iwsdk-uiextensions';
+
+const host = createSceneHost(world);          // call after registerUIExtensions(world)
+
+const status = host.createWindow({
+  id: 'status',                                // optional - omit and you get uix-window-<n>
+  title: 'Player Status',
+  config: './ui/status.uikitml',
+});
+
+status.panel;                                  // undefined until IWSDK attaches the document
+status.onReady((panel) => {                    // runs once, immediately if it is already there
+  panel.getElementById('uix-title');
+});
+status.entity;                                 // still the entity, for ECS work
+```
+
+`getPanelHandle(entity)` does the same lookup for an entity you already hold, and returns `undefined` while the document is still loading.
+
+Across a whole scene, subscribe to the host instead:
+
+```ts
+host.onPanelReady(({ id, panel, kind }) => {
+  if (kind === 'panel') {
+    // A bare PanelUI entity with no UIWindow: `id` is its config path.
+    return;
+  }
+  wireMyWindow(id, panel);
+});
+```
+
+Bare panels are announced as well as managed windows, which is how devtools and hand-built `PanelUI` entities show up in the same stream. `supportsStandalonePanels` is `false` on this host: IWSDK owns panel lifecycles through the ECS, so `createPanel()` throws rather than half-working. Spawn a window instead.
+
 ## Headless core
 
 All decision logic (window manager, dock state machine, region slot math, drag math, control models) lives in `@realitycollective/webxr-uiextensions` - pure TypeScript with no engine imports, tested at 100% coverage. The ECS systems in this package are thin appliers of that core onto `@iwsdk/core` components.

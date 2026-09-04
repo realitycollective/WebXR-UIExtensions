@@ -9,7 +9,8 @@ import { parse } from '@pmndrs/uikitml';
 import { Group } from 'three';
 import { describe, expect, it } from 'vitest';
 import { DockMode } from '@realitycollective/webxr-uiextensions';
-import type { HeadPoseSource } from '@realitycollective/webxr-uiextensions';
+import type { HeadPoseSource, PanelHandle } from '@realitycollective/webxr-uiextensions';
+import { windowHostContract } from '../../webxr-uiextensions/test/helpers/window-host-contract.js';
 import { UixWindowHost } from '../src/host.js';
 
 const PANEL_SOURCE = `
@@ -114,8 +115,55 @@ describe('UixWindowHost', () => {
 
   it('createPanel returns an unmanaged panel handle (PanelHost contract)', () => {
     const { host } = makeHost();
+    expect(host.supportsStandalonePanels).toBe(true);
     const panel = host.createPanel(config());
     expect(panel.getElementById('uix-window')).toBeDefined();
     panel.dispose();
   });
+
+  it('names a window uix-window-<n> when the caller gives no id', () => {
+    const { host } = makeHost();
+    expect(host.createWindow({ config: config() }).id).toBe('uix-window-1');
+    expect(host.createWindow({ config: config() }).id).toBe('uix-window-2');
+    // The generated id is the one the manager and the ready stream use.
+    expect(host.window('uix-window-2')).toBeDefined();
+    expect(host.manager.get('uix-window-1')).toBeDefined();
+  });
+
+  it('exposes the document as the portable panel, ready immediately', () => {
+    const { host } = makeHost();
+    const handle = host.createWindow({ id: 'w1', config: config() });
+    expect(handle.panel).toBe(handle.document);
+
+    const seen: PanelHandle[] = [];
+    const stop = handle.onReady((panel) => seen.push(panel));
+    expect(seen).toEqual([handle.document]);
+    // uikitml interprets synchronously, so there is nothing to unsubscribe
+    // from; the function is returned anyway so callers write one shape.
+    expect(() => stop()).not.toThrow();
+  });
+
+  it('announces created windows with kind "window"', () => {
+    const { host } = makeHost();
+    const kinds: Array<string | undefined> = [];
+    host.onPanelReady((event) => kinds.push(event.kind));
+    host.createWindow({ id: 'w1', config: config() });
+    expect(kinds).toEqual(['window']);
+  });
+
+  it('accepts movable without acting on it (no drag path here yet)', () => {
+    const { host } = makeHost();
+    const handle = host.createWindow({ id: 'w1', config: config(), movable: false });
+    expect(handle.id).toBe('w1');
+    expect(host.window('w1')).toBe(handle);
+  });
+});
+
+windowHostContract('XR Blocks window host', () => {
+  const { host } = makeHost();
+  return {
+    host,
+    createWindow: (id: string) => host.createWindow({ id, config: config() }),
+    panelConfig: config(),
+  };
 });

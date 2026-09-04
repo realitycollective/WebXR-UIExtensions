@@ -136,3 +136,11 @@ Five windows + two dock regions demonstrating the whole surface:
 The devtools playground adds the **UX Editor** window on top: UIKitML source in a textarea, compiled at runtime to a live panel - see [demos/devtools-playground](./demos/devtools-playground/README.md). The multiplatform lab runs the same scene through whichever pipeline the hardware calls for - see [demos/webxr-multiplatform](./demos/webxr-multiplatform/README.md).
 
 Known verification gap: everything headless is CI-tested, but in-headset behaviours (title-bar `HandleStore` drag, system keyboard on Quest) still need a manual pass on device - see the PR/commit notes.
+
+## What this stack is and is not
+
+The Reality Collective WebXR packages aim at one outcome: an app's logic, input handling, interactions and UI should not care which engine hosts them. Each family ships an engine-free core and thin adapters for Meta IWSDK, plain three.js and WebXR, and Google XR Blocks. When an app still has to reach into the host, either a contract is missing, which is a bug to report, or the app is overreaching.
+
+Portable world-building is not a current promise. Scene content (meshes, prefabs, placement) is built by the app, ideally behind a factory interface the app owns, so that a second host can implement the same factories. A shared content descriptor, following the shape of the UI family's `SceneDescriptor`, will be considered only when a second host is actually targeted. Meta's `iwsdk.scene.v1` format is an acceptable authoring interchange in the meantime.
+
+Position recorded on 2026-09-03 from the Pale Signal client's gaps report.

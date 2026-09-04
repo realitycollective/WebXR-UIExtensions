@@ -32,7 +32,8 @@ src/controls/   data-uix markup upgraders, driven through the structural
 src/chrome/     window chrome conventions: contractual element ids
                 (uix-titlebar, uix-pin, ...) + reference UIKitML snippet
 src/adapter.ts  the platform-adapter contract: PanelHost, PanelHandle,
-                HeadPoseSource, PointerInputSource (plain tuples, no engine)
+                WindowHost, WindowHandle, WindowOptionsBase, HeadPoseSource,
+                PointerInputSource (plain tuples, no engine)
 ```
 
 ## Writing an adapter
@@ -44,6 +45,18 @@ An adapter supplies three capabilities and drives the core from its frame loop:
 3. **Viewer pose** - implement `HeadPoseSource` for follow mode and body-locked regions.
 
 The IWSDK adapter is the reference implementation; the XR Blocks adapter shows the same contract bound without an ECS.
+
+### The window surface
+
+`WindowHost` is what app code writes against once panels exist. Four members carry the whole contract, and both shipped adapters honour all four:
+
+- `supportsStandalonePanels: boolean` - whether `createPanel` works here. IWSDK reports `false` because the ECS owns panel lifecycles and `createPanel` throws; the three.js host reports `true`. Check it rather than guessing, and spawn a window when it is `false`.
+- `onPanelReady(listener)` - fires as each panel becomes wireable and replays the ones already live, so wiring order never matters. The event's `kind` says what became ready: `window` for one created through the window factory, `panel` for a bare panel the adapter noticed. A bare panel's `id` is the adapter's best stable identifier for it, which on IWSDK is the config path. Only a host that discovers panels the app created outside the window factory ever reports `panel`; the three.js and XR Blocks host reports `window` only, because a standalone `createPanel` document is handed back to the caller and never announced.
+- `createWindow(options)` - adapter-specific, because the `config` payload differs per engine, but it always returns a `WindowHandle`.
+- `WindowHandle` - `id`, `panel` (`undefined` until the document is attached) and `onReady(listener)`, which runs once and fires immediately if the panel is already there. It is the per-window form of `onPanelReady`, for when you hold a handle and want only that window.
+- Getting the panel later, when you did not keep the handle - on IWSDK call `getPanelHandle(entity)` with the window's entity; on the three.js and XR Blocks host call `host.window(id)?.panel`. Both return the same `PanelHandle`.
+
+Options are shared even though `createWindow` is not: every adapter's option type extends `WindowOptionsBase` (`id`, `title`, `dockMode`, `position`, `maxWidth`/`maxHeight`, `movable`, `closable`, `minimizable`, `pinnable`, `followOffset`/`followSpeed`/`followTolerance`, `region`). An option means the same thing everywhere, so one `SceneWindow` maps onto every adapter with no translation table.
 
 ## Testing
 

@@ -13,36 +13,28 @@ import {
   type World,
 } from '@iwsdk/core';
 import { UIDockRegion, UIDockedTo, UIWindow, RegionFlowType } from './components.js';
-import { DockMode, type DockModeValue } from '@realitycollective/webxr-uiextensions';
+import {
+  DockMode,
+  type WindowOptionsBase,
+} from '@realitycollective/webxr-uiextensions';
 
-export interface CreateWindowOptions {
+/**
+ * Options for {@link createUIWindow}.
+ *
+ * Everything but `config` comes from the portable {@link WindowOptionsBase},
+ * so the same option names mean the same thing on every adapter. `maxWidth`
+ * and `maxHeight` route to `UIWindow.targetWidth/Height` here, because IWSDK
+ * 0.5 removed those fields from `PanelUI`; omit them to keep the markup's
+ * intrinsic size and scale through the entity transform.
+ */
+export interface CreateWindowOptions extends WindowOptionsBase {
   /**
    * URL of the UIKitML source (e.g. "/ui/my-window.uikitml"). IWSDK 0.5 parses
    * UIKitML at runtime - the build-time plugin and its generated JSON are gone.
    */
   config: string;
-  id?: string;
-  title?: string;
-  dockMode?: DockModeValue;
-  /** World position for world-locked windows. */
-  position?: [number, number, number];
-  /**
-   * Fit the panel into this world-space box (meters), preserving aspect ratio.
-   * Replaces the `PanelUI.maxWidth/maxHeight` fields removed in IWSDK 0.5.
-   * Omit to keep the markup's intrinsic size and scale via the entity transform.
-   */
-  maxWidth?: number;
-  maxHeight?: number;
-  movable?: boolean;
-  closable?: boolean;
-  minimizable?: boolean;
-  pinnable?: boolean;
+  /** Keep the window yawed toward the viewer while it is being dragged. */
   billboardWhileDragging?: boolean;
-  followOffset?: [number, number, number];
-  followSpeed?: number;
-  followTolerance?: number;
-  /** Dock straight into this region on spawn. */
-  region?: string;
 }
 
 export function createUIWindow(world: World, options: CreateWindowOptions): Entity {

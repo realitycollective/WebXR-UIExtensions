@@ -22,3 +22,9 @@ export * from './xrblocks.js';
 // Desktop (mouse + keyboard) support
 export * from './desktop-locomotion.js';
 export * from './desktop-controls.js';
+
+// `WindowHandle` is declared twice above - once as the core's portable
+// interface, once as this host's richer handle. Name the winner explicitly,
+// or both star exports drop it. The host's handle satisfies the core one, so
+// code written against either keeps compiling.
+export type { XrBlocksWindowHandle as WindowHandle } from './host.js';

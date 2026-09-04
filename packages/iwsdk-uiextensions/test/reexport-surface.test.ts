@@ -30,6 +30,7 @@ describe('adapter re-export surface', () => {
       './manager-registry.js',
       './region-registry-store.js',
       './factory.js',
+      './scene-host.js',
       './register.js',
       './systems/window-system.js',
       './systems/dock-system.js',

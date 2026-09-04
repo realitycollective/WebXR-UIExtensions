@@ -15,6 +15,9 @@ export default defineConfig({
       "@realitycollective/xrblocks-uiextensions": pkg(
         "./packages/xrblocks-uiextensions/src/index.ts",
       ),
+      // The multiplatform demo reads the showcase's scene descriptor under
+      // this alias, matching its own vite and tsconfig paths.
+      "@showcase": pkg("./demos/showcase/src"),
     },
   },
   test: {
@@ -24,13 +27,18 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       all: true,
-      // Coverage is gated on the pure, headless-testable modules:
-      //  - the library's core/ (ECS systems + widget upgraders are exercised
-      //    through the same core but need a live IWSDK world, which CI lacks)
+      // Coverage is gated on the modules that can be driven headlessly:
+      //  - the library's core/
+      //  - the IWSDK adapter's factories and scene host. `new World()` from
+      //    @iwsdk/core constructs with no renderer and no WebGL, so their
+      //    entities, components and ECS query all run for real in node. The
+      //    per-frame ECS SYSTEMS still need a live world and stay out.
       //  - the devtools' gate, runtime compiler and CLI logic (process
       //    orchestration in cli/main.ts is intentionally thin and excluded).
       include: [
         "packages/webxr-uiextensions/src/core/**/*.ts",
+        "packages/iwsdk-uiextensions/src/factory.ts",
+        "packages/iwsdk-uiextensions/src/scene-host.ts",
         "packages/uix-devtools/src/gate.ts",
         "packages/uix-devtools/src/runtime-compile.ts",
         "packages/uix-devtools/src/cli/lib.ts",

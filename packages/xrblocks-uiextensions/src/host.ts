@@ -36,8 +36,8 @@ import {
   minimizeLabelFor,
   pinLabelFor,
   slotOffset,
-  type DockModeValue,
   type HeadPoseSource,
+  type PanelHandle,
   type PanelReadyEvent,
   type RegionDefinition,
   type SceneRegion,
@@ -45,7 +45,9 @@ import {
   type SceneWindow,
   type UixElement,
   type Vec3Tuple,
+  type WindowHandle as CoreWindowHandle,
   type WindowHost,
+  type WindowOptionsBase,
 } from '@realitycollective/webxr-uiextensions';
 import {
   approach,
@@ -55,23 +57,20 @@ import {
 } from './follow-math.js';
 import { UixPanelDocument } from './panel-document.js';
 
-export interface CreateWindowOptions {
-  id: string;
+/**
+ * Options for {@link UixWindowHost.createWindow}.
+ *
+ * Everything but `config` comes from the portable {@link WindowOptionsBase},
+ * so an option means the same thing here as on the IWSDK adapter. `id` is
+ * optional: leave it out and the host names the window `uix-window-<n>`.
+ *
+ * One option is accepted but not acted on: `movable`. This host has no
+ * title-bar drag of its own yet - dragging comes from the XR Blocks / desktop
+ * input layer above it - so the flag is recorded and otherwise ignored.
+ */
+export interface CreateWindowOptions extends WindowOptionsBase {
   /** Compiled UIKitML JSON (the `{ element, classes }` shape). */
   config: unknown;
-  title?: string;
-  dockMode?: DockModeValue;
-  position?: Vec3Tuple;
-  maxWidth?: number;
-  maxHeight?: number;
-  closable?: boolean;
-  minimizable?: boolean;
-  pinnable?: boolean;
-  followOffset?: Vec3Tuple;
-  followSpeed?: number;
-  followTolerance?: number;
-  /** Dock straight into this region on spawn. */
-  region?: string;
 }
 
 export interface CreateRegionOptions extends Partial<RegionDefinition> {
@@ -82,12 +81,26 @@ export interface CreateRegionOptions extends Partial<RegionDefinition> {
   followOffset?: Vec3Tuple;
 }
 
-export interface WindowHandle {
-  id: string;
+/**
+ * A window spawned by {@link UixWindowHost.createWindow}.
+ *
+ * Satisfies the core {@link CoreWindowHandle} and adds the three.js specifics.
+ * `panel` is the document itself, which already implements `PanelHandle`, and
+ * is never `undefined` here: uikitml interprets the markup synchronously, so
+ * the panel exists the moment `createWindow` returns.
+ */
+export interface XrBlocksWindowHandle extends CoreWindowHandle {
+  readonly id: string;
   /** The scene-graph node - position/rotate freely. */
   group: Group;
   document: UixPanelDocument;
+  /** Same object as {@link document}, under the portable name. */
+  readonly panel: UixPanelDocument;
+  onReady(listener: (panel: PanelHandle) => void): () => void;
 }
+
+/** Back-compatible name for {@link XrBlocksWindowHandle}. */
+export type WindowHandle = XrBlocksWindowHandle;
 
 export interface RegionHandle {
   id: string;
@@ -120,7 +133,13 @@ interface FollowOptions {
 }
 
 interface WindowState {
-  handle: WindowHandle;
+  handle: XrBlocksWindowHandle;
+  /**
+   * Recorded from the create options and not acted on - see
+   * {@link CreateWindowOptions}. Kept so a future drag path here, or a caller
+   * inspecting the host, reads the value the scene descriptor asked for.
+   */
+  movable: boolean;
   options: FollowOptions;
   content: UixElement | undefined;
   pin: UixElement | undefined;
@@ -137,6 +156,8 @@ const DEFAULT_FOLLOW_OFFSET: Vec3Tuple = [0, -0.15, -1.2];
 const DEFAULT_REGION_FOLLOW_OFFSET: Vec3Tuple = [0, -0.2, -1.4];
 
 export class UixWindowHost implements WindowHost, SceneTarget {
+  /** Bare panels work here - the host does not own a panel lifecycle. */
+  readonly supportsStandalonePanels: boolean = true;
   readonly manager = new WindowManager();
   readonly regions = new RegionRegistry();
   private readonly scene: Object3D;
@@ -148,6 +169,8 @@ export class UixWindowHost implements WindowHost, SceneTarget {
   private readonly readyListeners = new Set<(event: PanelReadyEvent) => void>();
   /** Panels already live - replayed to late `onPanelReady` subscribers. */
   private readonly ready = new Map<string, PanelReadyEvent>();
+  /** Feeds `uix-window-<n>` ids to windows created without one. */
+  private windowSequence = 0;
 
   constructor(options: UixWindowHostOptions) {
     this.scene = options.scene;
@@ -181,7 +204,10 @@ export class UixWindowHost implements WindowHost, SceneTarget {
 
   // --- WindowHost -----------------------------------------------------------
 
-  /** PanelHost - bare panel, unmanaged (used by devtools and tests). */
+  /**
+   * PanelHost - bare panel, unmanaged (used by devtools and tests). Always
+   * available here, which is what `supportsStandalonePanels` reports.
+   */
   createPanel(configJson: unknown): UixPanelDocument {
     return new UixPanelDocument(configJson, this.kit);
   }
@@ -246,6 +272,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
           ...(window.followTolerance !== undefined
             ? { followTolerance: window.followTolerance }
             : {}),
+          ...(window.movable !== undefined ? { movable: window.movable } : {}),
           ...(window.closable !== undefined ? { closable: window.closable } : {}),
           ...(window.minimizable !== undefined
             ? { minimizable: window.minimizable }
@@ -299,21 +326,35 @@ export class UixWindowHost implements WindowHost, SceneTarget {
   // --- Windows --------------------------------------------------------------
 
   /** Spawn a managed window from compiled UIKitML JSON. */
-  createWindow(options: CreateWindowOptions): WindowHandle {
+  createWindow(options: CreateWindowOptions): XrBlocksWindowHandle {
+    const id = options.id ?? `uix-window-${(this.windowSequence += 1)}`;
     const document = new UixPanelDocument(options.config, this.kit);
     document.setTargetDimensions(options.maxWidth ?? 1, options.maxHeight ?? 1);
 
     const group = new Group();
-    group.name = `uix-window:${options.id}`;
+    group.name = `uix-window:${id}`;
     group.add(document);
     if (options.position) {
       group.position.set(...options.position);
     }
     this.scene.add(group);
 
-    const handle: WindowHandle = { id: options.id, group, document };
-    this.states.set(options.id, {
+    const handle: XrBlocksWindowHandle = {
+      id,
+      group,
+      document,
+      panel: document,
+      // The panel exists already, so readiness is immediate. The unsubscribe
+      // is returned anyway, so callers can write one shape of code for both
+      // adapters.
+      onReady(listener: (panel: PanelHandle) => void): () => void {
+        listener(document);
+        return () => {};
+      },
+    };
+    this.states.set(id, {
       handle,
+      movable: options.movable ?? true,
       options: {
         followOffset: options.followOffset ?? DEFAULT_FOLLOW_OFFSET,
         followSpeed: options.followSpeed ?? 3,
@@ -324,33 +365,33 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       minimize: undefined,
     });
 
-    this.manager.open(options.id, {
+    this.manager.open(id, {
       title: options.title ?? '',
       dockMode: options.dockMode ?? DockMode.WorldLocked,
     });
     this.wireChrome(options, handle);
 
     if (options.region !== undefined) {
-      this.dock(options.id, options.region);
+      this.dock(id, options.region);
     }
 
     // The panel's element tree exists synchronously (uikitml interprets on
     // construction); only its LAYOUT is async. Announce readiness now so
     // wiring can attach handlers immediately.
-    const event: PanelReadyEvent = { id: options.id, panel: handle.document };
-    this.ready.set(options.id, event);
+    const event: PanelReadyEvent = { id, panel: document, kind: 'window' };
+    this.ready.set(id, event);
     for (const listener of this.readyListeners) {
       try {
         listener(event);
       } catch (error) {
-        console.error(`[uix] panel-ready listener failed for "${options.id}":`, error);
+        console.error(`[uix] panel-ready listener failed for "${id}":`, error);
       }
     }
 
     return handle;
   }
 
-  window(id: string): WindowHandle | undefined {
+  window(id: string): XrBlocksWindowHandle | undefined {
     return this.states.get(id)?.handle;
   }
 
@@ -440,9 +481,12 @@ export class UixWindowHost implements WindowHost, SceneTarget {
     });
   }
 
-  private wireChrome(options: CreateWindowOptions, handle: WindowHandle): void {
+  private wireChrome(
+    options: CreateWindowOptions,
+    handle: XrBlocksWindowHandle,
+  ): void {
     const element = (id: string) => handle.document.getElementById(id);
-    const id = options.id;
+    const id = handle.id;
 
     const title = element(WINDOW_CHROME_IDS.title);
     if (title && options.title) {
