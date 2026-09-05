@@ -25,27 +25,33 @@
  *  - `@realitycollective/xrblocks-uiextensions` - Google XR Blocks / plain
  *    three.js (experimental)
  *
- * The interfaces use plain tuples/records only - no engine, no three.js.
+ * The interfaces use plain tuples/records only - no engine, no three.js. The
+ * geometry vocabulary itself comes from `@realitycollective/webxr-input`, the
+ * engine-free contracts package both extension families share, so a pose or a
+ * ray means the same thing to Interactions and to UI Extensions and one input
+ * stack drives both. The names below are re-exported, so importing them from
+ * this package keeps working.
  */
+import type { RayTuple, Vec3Tuple } from '@realitycollective/webxr-input';
 import type { DockModeValue } from './core/dock-state.js';
 import type { UixElement } from './controls/element.js';
 
-/** Position as [x, y, z] in meters, world space unless stated otherwise. */
-export type Vec3Tuple = [number, number, number];
-
-/** Orientation quaternion as [x, y, z, w]. */
-export type QuatTuple = [number, number, number, number];
-
-/** A viewer (head) pose sample. */
-export interface HeadPose {
-  position: Vec3Tuple;
-  quaternion: QuatTuple;
-}
-
-/** Supplies the viewer pose each frame - camera on desktop, HMD in XR. */
-export interface HeadPoseSource {
-  getHeadPose(): HeadPose;
-}
+/**
+ * The shared geometry vocabulary, re-exported so this package stays the one
+ * import an adapter needs:
+ *
+ *  - `Vec3Tuple` - position as [x, y, z] in meters, world space unless stated
+ *  - `QuatTuple` - orientation quaternion as [x, y, z, w]
+ *  - `HeadPose` - a viewer (head) pose sample
+ *  - `HeadPoseSource` - supplies that pose each frame, camera on desktop and
+ *    HMD in XR
+ */
+export type {
+  HeadPose,
+  HeadPoseSource,
+  QuatTuple,
+  Vec3Tuple,
+} from '@realitycollective/webxr-input';
 
 /**
  * A live spatial panel created from compiled UIKitML JSON.
@@ -181,13 +187,13 @@ export interface WindowOptionsBase {
   region?: string;
 }
 
-/** One pointer/ray interaction stream, engine-normalised. */
-export interface PointerSample {
-  /** Pointer world position (ray origin or touch point). */
-  origin: Vec3Tuple;
-  /** Normalised pointing direction. */
-  direction: Vec3Tuple;
-}
+/**
+ * One pointer/ray interaction stream, engine-normalised: a world-space
+ * `origin` (ray origin or touch point) and a normalised `direction`. It is
+ * the Input package's `RayTuple`, which is what lets a provider written
+ * against `@realitycollective/webxr-input` feed this contract unchanged.
+ */
+export type PointerSample = RayTuple;
 
 /**
  * Delivers press-move-release for one interaction source (a controller ray,

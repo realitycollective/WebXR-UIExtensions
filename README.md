@@ -122,6 +122,12 @@ Two workflows ship in every Reality Collective TypeScript repository, with the s
 
 A PR can never touch production - staging lives in its own isolated Pages projects.
 
+### Publish order
+
+`@realitycollective/webxr-uiextensions` depends on `@realitycollective/webxr-input`, which is published from the [WebXR-Input](https://github.com/realitycollective/WebXR-Input) repository. That package must be on npmjs.com **first**, or `npm ci` cannot resolve it and CI fails at install. After it publishes, run `npm install` once to regenerate `package-lock.json` against the registry version and commit the result.
+
+To develop against an unreleased `webxr-input`, use `npm link` rather than editing `package.json` - a `file:` link committed to this repository breaks CI, which has no sibling checkout.
+
 ## The showcase scene
 
 Five windows + two dock regions demonstrating the whole surface:

@@ -28,7 +28,8 @@ export default defineConfig({
       provider: "v8",
       all: true,
       // Coverage is gated on the modules that can be driven headlessly:
-      //  - the library's core/
+      //  - the library's core/, plus the shipped WindowHost conformance
+      //    cases, which are ordinary engine-free logic and public API
       //  - the IWSDK adapter's factories and scene host. `new World()` from
       //    @iwsdk/core constructs with no renderer and no WebGL, so their
       //    entities, components and ECS query all run for real in node. The
@@ -37,6 +38,7 @@ export default defineConfig({
       //    orchestration in cli/main.ts is intentionally thin and excluded).
       include: [
         "packages/webxr-uiextensions/src/core/**/*.ts",
+        "packages/webxr-uiextensions/src/contract-cases.ts",
         "packages/iwsdk-uiextensions/src/factory.ts",
         "packages/iwsdk-uiextensions/src/scene-host.ts",
         "packages/uix-devtools/src/gate.ts",

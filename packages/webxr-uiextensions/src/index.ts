@@ -34,3 +34,6 @@ export * from './controls/upgrade.js';
 // Platform-adapter contract + portable scene descriptors
 export * from './adapter.js';
 export * from './scene.js';
+
+// The WindowHost conformance suite, as data an adapter runs in its own runner
+export * from './contract-cases.js';

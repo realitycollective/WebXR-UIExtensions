@@ -10,7 +10,9 @@ The core of the Reality Collective UI Extensions. It provides:
 - **Markup upgrading** - code that turns a plain element carrying a `data-uix` attribute into a working control, so you write markup rather than components.
 - **Adapter interfaces** - what an engine package must implement to host all of the above.
 
-**This package has zero runtime dependencies and imports no 3D engine.** A test, `test/architecture.test.ts`, fails the moment `three`, `@iwsdk/*`, `@pmndrs/*` or `xrblocks` appears anywhere in `src/`. That is what lets the same interface run unchanged on every three.js WebXR runtime.
+**This package imports no 3D engine.** A test, `test/architecture.test.ts`, fails the moment `three`, `@iwsdk/*`, `@pmndrs/*` or `xrblocks` appears anywhere in `src/`. That is what lets the same interface run unchanged on every three.js WebXR runtime.
+
+It carries exactly one runtime dependency, [`@realitycollective/webxr-input`](https://www.npmjs.com/package/@realitycollective/webxr-input), and the same test fails on any other. That package is the shared contracts vocabulary: plain tuples and records, no engine imports and no dependencies of its own. `Vec3Tuple`, `QuatTuple`, `HeadPose`, `HeadPoseSource` and `PointerSample` come from there rather than being redeclared here, so a pose or a ray means the same thing to the Interactions family and to this one, and one input stack drives both. All five are re-exported from this package, so importing them from here keeps working.
 
 ## You probably want an adapter, not this package
 
@@ -34,6 +36,9 @@ src/chrome/     window chrome conventions: contractual element ids
 src/adapter.ts  the platform-adapter contract: PanelHost, PanelHandle,
                 WindowHost, WindowHandle, WindowOptionsBase, HeadPoseSource,
                 PointerInputSource (plain tuples, no engine)
+src/contract-cases.ts
+                windowHostContractCases() - the WindowHost conformance suite
+                as data, for an adapter to run in its own test runner
 ```
 
 ## Writing an adapter
@@ -44,7 +49,7 @@ An adapter supplies three capabilities and drives the core from its frame loop:
 2. **Input** - deliver press/move/release into the core's `HoldToDrag` + drag math, or wire chrome clicks straight to `WindowManager`.
 3. **Viewer pose** - implement `HeadPoseSource` for follow mode and body-locked regions.
 
-The IWSDK adapter is the reference implementation; the XR Blocks adapter shows the same contract bound without an ECS.
+The IWSDK adapter is the reference implementation; the XR Blocks adapter shows the same contract bound without an ECS. When yours runs, prove it with the shipped conformance suite below.
 
 ### The window surface
 
@@ -57,6 +62,35 @@ The IWSDK adapter is the reference implementation; the XR Blocks adapter shows t
 - Getting the panel later, when you did not keep the handle - on IWSDK call `getPanelHandle(entity)` with the window's entity; on the three.js and XR Blocks host call `host.window(id)?.panel`. Both return the same `PanelHandle`.
 
 Options are shared even though `createWindow` is not: every adapter's option type extends `WindowOptionsBase` (`id`, `title`, `dockMode`, `position`, `maxWidth`/`maxHeight`, `movable`, `closable`, `minimizable`, `pinnable`, `followOffset`/`followSpeed`/`followTolerance`, `region`). An option means the same thing everywhere, so one `SceneWindow` maps onto every adapter with no translation table.
+
+### Proving a new adapter conforms
+
+`windowHostContractCases()` is the `WindowHost` conformance suite, shipped as data rather than as tests. Each case is a `name` plus a `run(setup)` that returns silently on success and throws an `Error` describing the failure otherwise, so an adapter runs them in whatever test runner it already has. It ships runner-free because an adapter written outside this repository cannot reach into this one's `test/` folder, and because no adapter should have to install this repo's runner to prove itself.
+
+An adapter's test file is a loop:
+
+```ts
+import { windowHostContractCases } from '@realitycollective/webxr-uiextensions';
+import type { WindowHostContractSetup } from '@realitycollective/webxr-uiextensions';
+
+function makeSetup(): WindowHostContractSetup {
+  const host = createMyHost();
+  return {
+    host,
+    createWindow: (id) => host.createWindow({ id, config: myConfig() }),
+    // Only where the panel arrives after the window does:
+    attach: (id) => deliverThePanelFor(id),
+    // Only where supportsStandalonePanels is true:
+    panelConfig: myConfig(),
+  };
+}
+
+for (const contractCase of windowHostContractCases()) {
+  it(contractCase.name, () => contractCase.run(makeSetup()));
+}
+```
+
+`makeSetup()` runs once per case, because the cases spawn windows of their own and do not clean up after themselves. `attach` and `panelConfig` are both optional: leave `attach` out when a window's panel exists as soon as the window does, and `panelConfig` out when the host reports `supportsStandalonePanels: false`. Both shipped adapters run this suite, so a case failing on yours is a real difference in behaviour, not a difference in test style.
 
 ## Testing
 
