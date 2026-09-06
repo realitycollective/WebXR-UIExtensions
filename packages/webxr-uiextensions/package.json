@@ -1,6 +1,6 @@
 {
   "name": "@realitycollective/webxr-uiextensions",
-  "version": "0.1.0-preview.4",
+  "version": "0.1.0-preview.5",
   "description": "Engine-free core of the Reality Collective UI Extensions: windowing, docking, layout regions and control models for WebXR spatial UI, driven through platform-adapter interfaces. Pair with an engine adapter - @realitycollective/iwsdk-uiextensions (Meta IWSDK) or @realitycollective/xrblocks-uiextensions (Google XR Blocks).",
   "keywords": [
     "realitycollective",
