@@ -192,6 +192,12 @@ export interface WindowOptionsBase {
  * `origin` (ray origin or touch point) and a normalised `direction`. It is
  * the Input package's `RayTuple`, which is what lets a provider written
  * against `@realitycollective/webxr-input` feed this contract unchanged.
+ *
+ * Once delivered, a sample belongs to the listener: the source never writes
+ * to it again, so `hold-to-drag` and `drag-math` may keep a press-time
+ * sample without copying it. This is the rule `@realitycollective/webxr-input`
+ * states on `InputSourceSnapshot`, so a provider feeding both contracts has
+ * one promise to keep.
  */
 export type PointerSample = RayTuple;
 
