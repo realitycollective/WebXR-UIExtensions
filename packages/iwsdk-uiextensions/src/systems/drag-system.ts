@@ -15,11 +15,10 @@ import { HandleStore } from '@pmndrs/handle';
 import {
   PanelDocument,
   UIKitDocument,
-  Object3D,
-  Vector3,
   createSystem,
   type Entity,
 } from '@iwsdk/core';
+import { Vector3, type Object3D } from 'three';
 import { UIDockRegion, UIDockedTo, UIWindow, UIWindowState } from '../components.js';
 import { WINDOW_CHROME_IDS } from '@realitycollective/webxr-uiextensions';
 import { DockMode } from '@realitycollective/webxr-uiextensions';

@@ -102,10 +102,29 @@ export interface IwsdkSceneHost extends WindowHost, SceneTarget {
   createWindow(options: CreateWindowOptions): IwsdkWindowHandle;
 }
 
+const hosts = new WeakMap<World, IwsdkSceneHost>();
+
 /**
- * Create the host for a world. Call AFTER `registerUIExtensions(world)`.
+ * The host for a world: built on the first call, and the same instance every
+ * call after that. Call AFTER `registerUIExtensions(world)`.
+ *
+ * One host per world is deliberate. A host owns an ECS system, the record of
+ * which documents it has already announced, and the panel upgrade pass, so a
+ * second independent host on the same world would run a second copy of all
+ * three. Two modules can each ask for the host without coordinating, exactly
+ * as they do for the window manager registry.
  */
 export function createSceneHost(world: World): IwsdkSceneHost {
+  const existing = hosts.get(world);
+  if (existing) {
+    return existing;
+  }
+  const host = buildSceneHost(world);
+  hosts.set(world, host);
+  return host;
+}
+
+function buildSceneHost(world: World): IwsdkSceneHost {
   const readyListeners = new Set<(event: PanelReadyEvent) => void>();
   const ready = new Map<string, PanelReadyEvent>();
   const seen = new WeakSet<object>();

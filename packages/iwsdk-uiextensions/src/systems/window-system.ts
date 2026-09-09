@@ -10,10 +10,10 @@ import {
   PanelDocument,
   PanelUI,
   UIKitDocument,
-  Vector3,
   createSystem,
   type Entity,
 } from '@iwsdk/core';
+import { Vector3 } from 'three';
 import { UIDockedTo, UIWindow, UIWindowState } from '../components.js';
 import { WINDOW_CHROME_IDS } from '@realitycollective/webxr-uiextensions';
 import { windowManagerFor } from '../manager-registry.js';

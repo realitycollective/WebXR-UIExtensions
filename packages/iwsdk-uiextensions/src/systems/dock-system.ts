@@ -6,15 +6,13 @@
  * only plans and applies transitions with the pure dock state machine.
  */
 import {
-  Euler,
   Follower,
   FollowBehavior,
-  Quaternion,
   ScreenSpace,
-  Vector3,
   createSystem,
   type Entity,
 } from '@iwsdk/core';
+import { Euler, Quaternion, Vector3 } from 'three';
 import { UIWindow, UIWindowState } from '../components.js';
 import {
   DockMode,

@@ -35,6 +35,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@pmndrs/uikit": "^1.0.76",
     "@pmndrs/uikitml": "^0.1.12",
     "@realitycollective/webxr-uiextensions": "^0.1.0-preview.5"
   },
@@ -43,7 +44,7 @@
   },
   "devDependencies": {
     "three": "npm:super-three@0.181.0",
-    "@types/three": "*",
+    "@types/three": "0.184.0",
     "typescript": "^5.5.0"
   },
   "repository": {

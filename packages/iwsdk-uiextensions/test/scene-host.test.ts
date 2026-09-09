@@ -380,6 +380,37 @@ describe('createSceneHost as a SceneTarget', () => {
   });
 });
 
+describe('one host per world', () => {
+  it('returns the same host and registers the readiness system once', () => {
+    const world = makeWorld();
+    const registerSystem = vi.spyOn(world, 'registerSystem');
+
+    const first = createSceneHost(world);
+    const second = createSceneHost(world);
+
+    expect(second).toBe(first);
+    expect(registerSystem).toHaveBeenCalledTimes(1);
+  });
+
+  it('announces a panel once when two modules each ask for the host', () => {
+    const world = makeWorld();
+    const events: PanelReadyEvent[] = [];
+    // Two unrelated call sites, neither aware of the other.
+    createSceneHost(world).onPanelReady((event) => events.push(event));
+    createSceneHost(world);
+
+    const entity = createUIWindow(world, { config: '/ui/a.uikitml', id: 'a' });
+    attachDocument(entity, makeDocument());
+
+    expect(events).toHaveLength(1);
+  });
+
+  it('gives a separate world its own host', () => {
+    const host = createSceneHost(makeWorld());
+    expect(createSceneHost(makeWorld())).not.toBe(host);
+  });
+});
+
 windowHostContract('IWSDK scene host', () => {
   const world = makeWorld();
   const host = createSceneHost(world);

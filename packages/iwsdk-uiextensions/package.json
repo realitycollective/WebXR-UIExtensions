@@ -42,7 +42,8 @@
     "@realitycollective/webxr-uiextensions": "^0.1.0-preview.5"
   },
   "peerDependencies": {
-    "@iwsdk/core": ">=0.5.0 <0.6.0"
+    "@iwsdk/core": ">=0.5.0 <0.6.0",
+    "three": ">=0.170.0"
   },
   "devDependencies": {
     "@iwsdk/core": "0.5.3",

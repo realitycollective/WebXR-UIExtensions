@@ -27,6 +27,11 @@
       "default": "./dist/cli/lib.js"
     }
   },
+  "typesVersions": {
+    "*": {
+      "cli": ["./dist/cli/lib.d.ts"]
+    }
+  },
   "bin": {
     "uix-dev": "./bin/uix-dev.mjs"
   },

@@ -20,7 +20,7 @@ Everything is authored in plain UIKitML (HTML/CSS-like) - no new markup language
 
 ```bash
 npm install @realitycollective/iwsdk-uiextensions
-# peer: @iwsdk/core >=0.5.0 <0.6.0
+# peers: @iwsdk/core >=0.5.0 <0.6.0 and three >=0.170.0 (every IWSDK app already has both)
 ```
 
 ## Quick start
@@ -127,6 +127,8 @@ status.entity;                                 // still the entity, for ECS work
 
 `getPanelHandle(entity)` does the same lookup for an entity you already hold, and returns `undefined` while the document is still loading.
 
+**Do not poll `getPanelHandle` on a timer.** It is a single synchronous read, not a wait, and there is no deadline you can safely guess: the markup is fetched over the network and parsed over later frames, so a cold cache on a headset takes far longer than a warm one on a desktop. A poll that gives up early leaves a window that draws correctly and responds to nothing, with no error and no log line, which is close to undiagnosable from the outside. Every window has a readiness signal already, so use one.
+
 Across a whole scene, subscribe to the host instead:
 
 ```ts
@@ -138,6 +140,20 @@ host.onPanelReady(({ id, panel, kind }) => {
   wireMyWindow(id, panel);
 });
 ```
+
+`onPanelReady` covers windows spawned by `createUIWindow` too, not only by `host.createWindow`. So code that already holds factory entities does not have to change how it spawns them: create the host once, subscribe, and match on the `id` you passed to the factory.
+
+```ts
+const entity = createUIWindow(world, { id: 'status', config: './ui/status.uikitml' });
+
+createSceneHost(world).onPanelReady(({ id, panel }) => {
+  if (id === 'status') wireStatus(panel);
+});
+```
+
+Pass an `id` to `createUIWindow` if you intend to match on one. Without it the window has no id to announce, so it arrives as `kind: 'panel'` with its config path as the `id`, and a listener filtering on `kind === 'window'` will silently never see it. `host.createWindow` differs here: it invents `uix-window-<n>` when you omit the id.
+
+`createSceneHost(world)` returns the same host every time it is called for a world, so separate modules can each ask for it without coordinating or passing it around.
 
 Bare panels are announced as well as managed windows, which is how devtools and hand-built `PanelUI` entities show up in the same stream. `supportsStandalonePanels` is `false` on this host: IWSDK owns panel lifecycles through the ECS, so `createPanel()` throws rather than half-working. Spawn a window instead.
 
