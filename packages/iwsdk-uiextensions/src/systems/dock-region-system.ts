@@ -6,7 +6,8 @@
  * windows become a body-locked toolbar; leave it static for a world-locked
  * console wall.
  */
-import { createSystem, type Entity } from '@iwsdk/core';
+import type { Entity } from '@iwsdk/core';
+import { createSystem } from '../create-system.js';
 import { Quaternion, Vector3 } from 'three';
 import { UIDockRegion, UIDockedTo, UIWindow } from '../components.js';
 import { DockMode } from '@realitycollective/webxr-uiextensions';

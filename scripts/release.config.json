@@ -9,6 +9,7 @@
   "importCheck": [
     "webxr-uiextensions"
   ],
+  "declarationCheck": true,
   "binSmoke": [
     {
       "package": "uix-devtools",

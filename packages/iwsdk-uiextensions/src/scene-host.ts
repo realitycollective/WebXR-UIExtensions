@@ -19,10 +19,10 @@ import {
   PanelDocument,
   PanelUI,
   UIKitDocument,
-  createSystem,
   type Entity,
   type World,
 } from '@iwsdk/core';
+import { createSystem } from './create-system.js';
 import {
   upgradePanel,
   type PanelHandle,

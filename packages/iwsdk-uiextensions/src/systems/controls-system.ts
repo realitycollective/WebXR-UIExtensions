@@ -4,7 +4,8 @@
  * Runs against ALL `PanelDocument` panels, not just windows: any IWSDK panel
  * gains steppers, toggles, expandable labels and log views by markup alone.
  */
-import { PanelDocument, UIKitDocument, createSystem, type Entity } from '@iwsdk/core';
+import { PanelDocument, UIKitDocument, type Entity } from '@iwsdk/core';
+import { createSystem } from '../create-system.js';
 import type { UixElement } from '@realitycollective/webxr-uiextensions';
 import { upgradePanel } from '@realitycollective/webxr-uiextensions';
 

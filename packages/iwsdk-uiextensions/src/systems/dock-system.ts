@@ -9,9 +9,9 @@ import {
   Follower,
   FollowBehavior,
   ScreenSpace,
-  createSystem,
   type Entity,
 } from '@iwsdk/core';
+import { createSystem } from '../create-system.js';
 import { Euler, Quaternion, Vector3 } from 'three';
 import { UIWindow, UIWindowState } from '../components.js';
 import {

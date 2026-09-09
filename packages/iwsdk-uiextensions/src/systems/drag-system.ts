@@ -15,9 +15,9 @@ import { HandleStore } from '@pmndrs/handle';
 import {
   PanelDocument,
   UIKitDocument,
-  createSystem,
   type Entity,
 } from '@iwsdk/core';
+import { createSystem } from '../create-system.js';
 import { Vector3, type Object3D } from 'three';
 import { UIDockRegion, UIDockedTo, UIWindow, UIWindowState } from '../components.js';
 import { WINDOW_CHROME_IDS } from '@realitycollective/webxr-uiextensions';
