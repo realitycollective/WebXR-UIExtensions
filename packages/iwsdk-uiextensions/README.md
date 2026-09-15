@@ -114,6 +114,7 @@ controls.stepper('health').events.on('change', (hp) => setHealth(hp));
 - **Pin** toggles `body-follow` ⇄ `world-locked` ("place in space").
 - Dragging a following window implicitly places it - pin re-attaches it.
 - **Hide** takes a window out of view and out of reach (no ray or poke can hit it) while keeping its dock mode, region slot and minimized state; **show** brings it back exactly where it was and in front. Minimize collapses the body but leaves the title bar drawn.
+- **Poke** (near touch) is guarded. IWSDK's own touch pointer presses and releases on an unsigned distance to the panel, so a finger pushed through a panel and pulled back out fires two clicks, and a finger arriving from behind presses. `UITouchGuardSystem` drives the two touch pointers from the core's `TouchPress` state machine instead: a press only when the fingertip enters from the front (2 cm), a hold however deep it goes and whichever way it comes back, a release only on coming back out past 3 cm or on losing contact, and no second press until that release. Every poke target in the app gets this, IWSDK's own panels included. A press that starts on one button and ends over another clicks neither (the release lands where the finger is; IWSDK clicks only when both ends are the same element), and IWSDK's 800 ms click window still applies. Tune with `registerUIExtensions(world, { touchGuard: { pressDistance, releaseDistance, allowFromBehind } })`, or `touchGuard: false` for IWSDK's own behaviour.
 
 ### Hand menus
 

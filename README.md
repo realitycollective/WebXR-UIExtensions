@@ -142,7 +142,7 @@ Six windows + two dock regions demonstrating the whole surface:
 
 The devtools playground adds the **UX Editor** window on top: UIKitML source in a textarea, compiled at runtime to a live panel - see [demos/devtools-playground](./demos/devtools-playground/README.md). The multiplatform lab runs the same scene through whichever pipeline the hardware calls for - see [demos/webxr-multiplatform](./demos/webxr-multiplatform/README.md).
 
-Known verification gap: everything headless is CI-tested, including the IWSDK systems against a headless `World`, but in-headset behaviours (title-bar `HandleStore` drag by ray, near grab by squeeze and by hand pinch, the hand menu's palm gate and anchors on real hands and controllers, system keyboard on Quest) still need a manual pass on device - see the PR/commit notes.
+Known verification gap: everything headless is CI-tested, including the IWSDK systems against a headless `World`, but in-headset behaviours (title-bar `HandleStore` drag by ray, near grab by squeeze and by hand pinch, the hand menu's palm gate and anchors on real hands and controllers, the poke guard's press and release distances, system keyboard on Quest) still need a manual pass on device - see the PR/commit notes.
 
 ## What this stack is and is not
 

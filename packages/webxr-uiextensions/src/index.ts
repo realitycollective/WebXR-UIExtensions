@@ -16,6 +16,7 @@ export * from './core/region-registry.js';
 export * from './core/drag-math.js';
 export * from './core/hold-to-drag.js';
 export * from './core/hand-menu.js';
+export * from './core/touch-press.js';
 export * from './core/stepper-model.js';
 export * from './core/toggle-model.js';
 export * from './core/expandable-model.js';

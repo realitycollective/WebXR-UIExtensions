@@ -22,6 +22,7 @@
 | Bare panels (`createPanel`) | ⬜ ECS owns the lifecycle | ✅ `supportsStandalonePanels` is `true` |
 | Title-bar ray drag (`@pmndrs/handle`) | ✅ | ⬜ roadmap (`movable` is accepted and ignored) |
 | Title-bar near grab (squeeze / pinch) | ✅ | ⬜ roadmap (needs drag) |
+| Guarded poke (one press per touch, front only) | ✅ `UITouchGuardSystem` over IWSDK's touch pointers | ⬜ no near touch here yet; the core `TouchPress` is ready for it |
 | Drop-to-dock by dragging | ✅ | ⬜ roadmap (needs drag) |
 | System keyboard text input | ✅ | ⬜ untested on Android XR |
 

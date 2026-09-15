@@ -18,8 +18,9 @@ import { UIDockSystem } from './systems/dock-system.js';
 import { UIDragSystem } from './systems/drag-system.js';
 import { UIDockRegionSystem } from './systems/dock-region-system.js';
 import { UIControlsSystem } from './systems/controls-system.js';
+import { UITouchGuardSystem } from './systems/touch-guard-system.js';
 import { windowManagerFor } from './manager-registry.js';
-import type { WindowManager } from '@realitycollective/webxr-uiextensions';
+import type { TouchPressOptions, WindowManager } from '@realitycollective/webxr-uiextensions';
 
 export interface RegisterOptions {
   /** Disable the title-bar drag system. */
@@ -34,6 +35,14 @@ export interface RegisterOptions {
   regions?: boolean;
   /** Disable the `data-uix` control upgrades. */
   controls?: boolean;
+  /**
+   * Press / hold / release for IWSDK's near (poke) pointers, so a finger
+   * pushed through a panel and pulled back is one click, and a finger
+   * arriving from behind is none. On by default; pass thresholds to tune
+   * (meters, signed, positive in front), or `false` to keep IWSDK's own
+   * unsigned-distance behaviour. See `UITouchGuardSystem`.
+   */
+  touchGuard?: boolean | Partial<TouchPressOptions>;
 }
 
 export function registerUIExtensions(
@@ -53,6 +62,12 @@ export function registerUIExtensions(
   }
   if (options.controls !== false) {
     world.registerSystem(UIControlsSystem);
+  }
+  if (options.touchGuard !== false) {
+    const thresholds = typeof options.touchGuard === 'object' ? options.touchGuard : {};
+    // Straight after InputSystem (-4) has moved the pointers, before anything
+    // reacts to the presses.
+    world.registerSystem(UITouchGuardSystem, { priority: -3.9, configData: thresholds });
   }
   return windowManagerFor(world);
 }
