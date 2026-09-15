@@ -16,6 +16,7 @@
  */
 import { Emitter } from './events.js';
 import { DockMode, DockModeValue, isDockMode, togglePinned } from './dock-state.js';
+import { resolveHandMenu, type HandMenuOptions } from './hand-menu.js';
 
 /**
  * Which title-bar buttons are enabled. Keys match the chrome element ids in
@@ -53,6 +54,8 @@ export interface WindowRecord {
   region: string | undefined;
   /** Which title-bar buttons are enabled. */
   chrome: WindowChrome;
+  /** Hand, anchor and palm gate used while the window is `hand-locked`. */
+  handMenu: HandMenuOptions;
 }
 
 export interface WindowManagerEvents extends Record<string, unknown> {
@@ -69,6 +72,7 @@ export interface WindowManagerEvents extends Record<string, unknown> {
   /** The app asked for the window to go back to where it spawned. */
   returnHome: WindowRecord;
   chromeChanged: { window: WindowRecord; previous: WindowChrome };
+  handMenuChanged: { window: WindowRecord; previous: HandMenuOptions };
   dragStarted: WindowRecord;
   dragEnded: WindowRecord;
 }
@@ -82,6 +86,8 @@ export interface OpenWindowOptions {
   region?: string;
   /** Buttons to enable; anything omitted stays off. */
   chrome?: Partial<WindowChrome>;
+  /** Hand-menu placement, used when `dockMode` is (or becomes) `hand-locked`. */
+  handMenu?: Partial<HandMenuOptions>;
 }
 
 /**
@@ -131,6 +137,7 @@ export class WindowManager {
       dragging: false,
       region: options.region,
       chrome: { ...NO_CHROME, ...options.chrome },
+      handMenu: resolveHandMenu(options.handMenu),
     };
     this.windows.set(id, record);
     this.focusStack.push(id);
@@ -292,6 +299,28 @@ export class WindowManager {
     const previous = record.chrome;
     record.chrome = next;
     this.events.emit('chromeChanged', { window: record, previous });
+  }
+
+  /**
+   * Change where a hand menu rides: the hand, the anchor, the palm gate. Takes
+   * effect at once if the window is `hand-locked`, and is remembered otherwise.
+   */
+  setHandMenu(id: string, options: Partial<HandMenuOptions>): void {
+    const record = this.require(id);
+    const next = resolveHandMenu({ ...record.handMenu, ...options });
+    const same =
+      next.hand === record.handMenu.hand &&
+      next.anchor === record.handMenu.anchor &&
+      next.anchorDistance === record.handMenu.anchorDistance &&
+      next.palmGate === record.handMenu.palmGate &&
+      next.palmAngle === record.handMenu.palmAngle &&
+      next.offset.every((value, index) => value === record.handMenu.offset[index]);
+    if (same) {
+      return;
+    }
+    const previous = record.handMenu;
+    record.handMenu = next;
+    this.events.emit('handMenuChanged', { window: record, previous });
   }
 
   /** Track an active title-bar drag; emits dragStarted/dragEnded on change. */

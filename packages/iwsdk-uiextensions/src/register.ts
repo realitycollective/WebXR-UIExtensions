@@ -40,7 +40,9 @@ export function registerUIExtensions(
   world: World,
   options: RegisterOptions = {},
 ): WindowManager {
-  world.registerSystem(UIWindowSystem).registerSystem(UIDockSystem);
+  // The dock system runs first: the hand-menu palm gate it writes each frame
+  // is then applied by the window system in the same frame.
+  world.registerSystem(UIDockSystem, { priority: -1 }).registerSystem(UIWindowSystem);
   if (options.drag !== false) {
     world.registerSystem(UIDragSystem, {
       configData: { nearDrag: options.nearDrag !== false },

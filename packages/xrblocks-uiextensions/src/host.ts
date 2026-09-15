@@ -5,8 +5,9 @@
  * to the scene graph: spawn UIKitML windows and dock regions, wire chrome
  * buttons (focus / PIN / DOCK / MIN / X), collapse content while minimized,
  * hide and show, place docked windows into their region's slots, return a
- * window to where it spawned, and ease `body-follow` windows (and
- * body-locked regions) toward the viewer each frame.
+ * window to where it spawned, ease `body-follow` windows (and body-locked
+ * regions) toward the viewer each frame, and ride `hand-locked` windows
+ * (hand menus) on a tracked hand behind the palm gate.
  *
  * The manager is the API app code drives; every manager event is applied
  * here, so `host.manager.hide(id)` or `.dockTo(id, region)` from a hand menu
@@ -38,9 +39,12 @@ import {
   RegionRegistry,
   WINDOW_CHROME_IDS,
   WindowManager,
+  evaluateHandMenu,
   minimizeLabelFor,
   pinLabelFor,
   slotOffset,
+  type HandPoseSource,
+  type HandPoses,
   type HeadPoseSource,
   type PanelHandle,
   type PanelReadyEvent,
@@ -119,6 +123,13 @@ export interface UixWindowHostOptions {
   scene: Object3D;
   /** Viewer pose provider - camera on desktop, HMD pose in XR. */
   headPose: HeadPoseSource;
+  /**
+   * Tracked-hand pose provider, for `hand-locked` windows (hand menus). See
+   * `webxrHandPoseSource` for one backed by a WebXR session. Leave it out
+   * where there are no hands (a desktop) and hand-locked windows fall back
+   * to body-follow placement, so the same scene still shows its menus.
+   */
+  handPose?: HandPoseSource;
   /** Optional UIKitML component kit(s) (e.g. horizon kit). */
   kit?: Kit;
   /**
@@ -155,6 +166,8 @@ interface WindowState {
   minimize: UixElement | undefined;
   /** Every chrome button by its role, for `chromeChanged`. */
   buttons: Record<keyof WindowChrome, UixElement | undefined>;
+  /** Hand-menu palm gate this frame; always open in the other dock modes. */
+  gateOpen: boolean;
 }
 
 interface RegionState {
@@ -173,6 +186,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
   readonly regions = new RegionRegistry();
   private readonly scene: Object3D;
   private readonly headPose: HeadPoseSource;
+  private readonly handPose: HandPoseSource | undefined;
   private readonly kit: Kit | undefined;
   private readonly loadConfig: (path: string) => Promise<unknown>;
   private readonly states = new Map<string, WindowState>();
@@ -186,6 +200,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
   constructor(options: UixWindowHostOptions) {
     this.scene = options.scene;
     this.headPose = options.headPose;
+    this.handPose = options.handPose;
     this.kit = options.kit;
     this.loadConfig = options.loadConfig ?? loadUikitmlSource;
 
@@ -201,10 +216,20 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       }
     });
     this.manager.events.on('hidden', (record) => {
-      this.setVisible(record.id, false);
+      this.applyPresentation(record.id);
     });
     this.manager.events.on('shown', (record) => {
-      this.setVisible(record.id, true);
+      this.applyPresentation(record.id);
+    });
+    this.manager.events.on('dockChanged', ({ window, previous }) => {
+      if (previous === DockMode.HandLocked) {
+        // Off the hand: the gate no longer applies.
+        const state = this.states.get(window.id);
+        if (state) {
+          state.gateOpen = true;
+          this.applyPresentation(window.id);
+        }
+      }
     });
     this.manager.events.on('regionChanged', ({ window }) => {
       this.applyRegion(window);
@@ -305,6 +330,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
             : {}),
           ...(window.pinnable !== undefined ? { pinnable: window.pinnable } : {}),
           ...(window.dockable !== undefined ? { dockable: window.dockable } : {}),
+          ...(window.handMenu !== undefined ? { handMenu: window.handMenu } : {}),
         });
       })
       .catch((error) => {
@@ -440,6 +466,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       pin: undefined,
       minimize: undefined,
       buttons: { pin: undefined, dock: undefined, minimize: undefined, close: undefined },
+      gateOpen: true,
     });
 
     const record = this.manager.open(id, {
@@ -452,6 +479,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         pin: options.pinnable ?? false,
         dock: options.dockable ?? false,
       },
+      ...(options.handMenu !== undefined ? { handMenu: options.handMenu } : {}),
     });
     this.wireChrome(options, handle);
     this.applyChrome(record);
@@ -482,16 +510,28 @@ export class UixWindowHost implements WindowHost, SceneTarget {
 
   /** Drive per-frame from the engine loop (delta in SECONDS). */
   update(deltaSeconds: number): void {
+    let hands: HandPoses | undefined;
     for (const [id, state] of this.states) {
       state.handle.document.update(deltaSeconds);
       const record = this.manager.get(id);
+      if (!record) {
+        continue;
+      }
       const docked = this.regions.regionOf(id) !== undefined;
-      if (
-        record &&
-        record.dockMode === DockMode.BodyFollow &&
-        !record.dragging &&
-        !docked
-      ) {
+      if (record.dockMode === DockMode.HandLocked && !record.dragging && !docked) {
+        if (this.handPose && (this.handPose.hasHands?.() ?? true)) {
+          hands ??= this.readHands();
+          this.placeOnHand(id, state, hands);
+        } else {
+          // No hands here (a desktop, or no session yet): the menu follows
+          // the body instead, and the gate does not apply.
+          state.gateOpen = true;
+          this.applyPresentation(id);
+          this.applyFollow(state.handle.group, state.options, deltaSeconds, true);
+        }
+        continue;
+      }
+      if (record.dockMode === DockMode.BodyFollow && !record.dragging && !docked) {
         this.applyFollow(state.handle.group, state.options, deltaSeconds, true);
       }
     }
@@ -510,6 +550,32 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         this.layoutRegion(state.handle.id);
       }
     }
+  }
+
+  /** This frame's tracked hands from the source, absent ones left out. */
+  private readHands(): HandPoses {
+    const poses: HandPoses = {};
+    for (const hand of ['left', 'right'] as const) {
+      const pose = this.handPose?.getHandPose(hand);
+      if (pose) {
+        poses[hand] = pose;
+      }
+    }
+    return poses;
+  }
+
+  private placeOnHand(id: string, state: WindowState, hands: HandPoses): void {
+    const record = this.manager.get(id);
+    if (!record) {
+      return;
+    }
+    const placement = evaluateHandMenu(hands, this.headPose.getHeadPose().position, record.handMenu);
+    state.gateOpen = placement.visible;
+    if (placement.pose) {
+      state.handle.group.position.set(...placement.pose.position);
+      state.handle.group.quaternion.set(...placement.pose.quaternion);
+    }
+    this.applyPresentation(id);
   }
 
   private applyFollow(
@@ -655,10 +721,12 @@ export class UixWindowHost implements WindowHost, SceneTarget {
     }
   }
 
-  private setVisible(id: string, visible: boolean): void {
+  /** Drawn exactly when not hidden and (for a hand menu) the palm gate is open. */
+  private applyPresentation(id: string): void {
     const state = this.states.get(id);
-    if (state) {
-      state.handle.group.visible = visible;
+    const record = this.manager.get(id);
+    if (state && record) {
+      state.handle.group.visible = !record.hidden && state.gateOpen;
     }
   }
 

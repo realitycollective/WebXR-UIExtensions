@@ -285,6 +285,28 @@ describe('WindowManager', () => {
     expect(returnHome).toHaveBeenCalledWith(w);
   });
 
+  it('carries hand-menu options and setHandMenu emits only on change', () => {
+    const manager = new WindowManager();
+    const changed = vi.fn();
+    manager.events.on('handMenuChanged', changed);
+    const w = manager.open('w', { handMenu: { hand: 'right' } });
+    expect(w.handMenu).toMatchObject({ hand: 'right', anchor: 'above', palmGate: true });
+
+    manager.setHandMenu('w', { hand: 'right' }); // nothing new
+    manager.setHandMenu('w', { offset: [0, 0, 0] }); // same offset, new array
+    expect(changed).not.toHaveBeenCalled();
+
+    const before = w.handMenu;
+    manager.setHandMenu('w', { anchor: 'inside', offset: [0, 0.02, 0] });
+    expect(w.handMenu).toMatchObject({ hand: 'right', anchor: 'inside', offset: [0, 0.02, 0] });
+    expect(changed).toHaveBeenCalledWith({ window: w, previous: before });
+    manager.setHandMenu('w', { palmGate: false });
+    manager.setHandMenu('w', { palmAngle: 45 });
+    manager.setHandMenu('w', { anchorDistance: 0.2 });
+    expect(changed).toHaveBeenCalledTimes(4);
+    expect(() => manager.setHandMenu('ghost', {})).toThrow(/unknown window/);
+  });
+
   it('setChrome merges, emits only on change, and hands back the previous set', () => {
     const manager = new WindowManager();
     const chromeChanged = vi.fn();

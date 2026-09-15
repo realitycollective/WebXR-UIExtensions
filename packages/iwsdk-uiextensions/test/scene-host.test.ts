@@ -148,6 +148,7 @@ const FULL_SCENE: SceneDescriptor = {
       minimizable: true,
       pinnable: true,
       dockable: true,
+      handMenu: { hand: 'right', anchor: 'wrist' },
     },
   ],
 };
@@ -383,6 +384,9 @@ describe('createSceneHost as a SceneTarget', () => {
     expect(Boolean((UIWindow.data.minimizable as Uint8Array)[window.index])).toBe(true);
     expect(Boolean((UIWindow.data.pinnable as Uint8Array)[window.index])).toBe(true);
     expect(Boolean((UIWindow.data.dockable as Uint8Array)[window.index])).toBe(true);
+    // Hand-menu options reach the component too.
+    expect(UIWindow.data.hand[window.index]).toBe('right');
+    expect(UIWindow.data.handAnchor[window.index]).toBe('wrist');
   });
 
   it('applies a descriptor that sets nothing optional', () => {

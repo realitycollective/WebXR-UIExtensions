@@ -269,6 +269,7 @@ function buildSceneHost(world: World): IwsdkSceneHost {
           : {}),
         ...(window.pinnable !== undefined ? { pinnable: window.pinnable } : {}),
         ...(window.dockable !== undefined ? { dockable: window.dockable } : {}),
+        ...(window.handMenu !== undefined ? { handMenu: window.handMenu } : {}),
       });
     },
   };

@@ -20,14 +20,38 @@ describe('dock-state', () => {
     expect(recipeFor(DockMode.WorldLocked)).toEqual({
       follower: false,
       screenSpace: false,
+      handAnchor: false,
       snapOnEnter: false,
     });
     expect(recipeFor(DockMode.BodyFollow).follower).toBe(true);
     expect(recipeFor(DockMode.HeadLocked)).toEqual({
       follower: true,
       screenSpace: true,
+      handAnchor: false,
       snapOnEnter: true,
     });
+    expect(recipeFor(DockMode.HandLocked)).toEqual({
+      follower: false,
+      screenSpace: false,
+      handAnchor: true,
+      snapOnEnter: false,
+    });
+    expect(isDockMode(DockMode.HandLocked)).toBe(true);
+  });
+
+  it('plans body-follow ⇄ hand-locked (follower swaps for the hand anchor)', () => {
+    expect(planTransition(DockMode.BodyFollow, DockMode.HandLocked)).toMatchObject({
+      removeFollower: true,
+      addHandAnchor: true,
+      removeHandAnchor: false,
+      snap: false,
+    });
+    expect(planTransition(DockMode.HandLocked, DockMode.WorldLocked)).toMatchObject({
+      addFollower: false,
+      removeHandAnchor: true,
+      addHandAnchor: false,
+    });
+    expect(togglePinned(DockMode.HandLocked)).toBe(DockMode.WorldLocked);
   });
 
   it('plans world-locked → body-follow (add follower, snap)', () => {
@@ -39,6 +63,8 @@ describe('dock-state', () => {
       removeFollower: false,
       addScreenSpace: false,
       removeScreenSpace: false,
+      addHandAnchor: false,
+      removeHandAnchor: false,
       snap: true,
     });
   });

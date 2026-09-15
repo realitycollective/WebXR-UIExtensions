@@ -25,7 +25,7 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { DockMode, WINDOW_CHROME_IDS } from '@realitycollective/webxr-uiextensions';
-import { Scene, Vector3 } from 'three';
+import { Group, Scene, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   UIDockRegion,
@@ -45,7 +45,20 @@ import { UIWindowSystem } from '../src/systems/window-system.js';
  * Same components in the same order in every world - see the note in
  * scene-host.test.ts on elics keeping `typeId` on the component object.
  */
-function makeWorld(): World {
+/** A stand-in for the XR rig and input manager: which hands are tracked, and where. */
+interface FakeHands {
+  tracked: { left: boolean; right: boolean };
+  spaces: { left: Group; right: Group };
+}
+
+function makeHands(): FakeHands {
+  return {
+    tracked: { left: false, right: false },
+    spaces: { left: new Group(), right: new Group() },
+  };
+}
+
+function makeWorld(hands: FakeHands = makeHands()): World {
   const world = new World();
   for (const component of [
     Transform,
@@ -63,11 +76,23 @@ function makeWorld(): World {
     world.registerComponent(component);
   }
   world.camera = new PerspectiveCamera();
-  // Systems capture `world.scene` when constructed, so it must exist first.
+  // Systems capture `world.scene`, `world.player` and `world.input` when
+  // constructed, so they must exist first. The rig and input are the slices
+  // the systems read: grip spaces per hand, and whether a hand is tracked.
   world.scene = new Scene();
+  world.player = { gripSpaces: hands.spaces } as unknown as World['player'];
+  world.input = {
+    xr: {
+      getPrimaryInputSource: (hand: 'left' | 'right') => (hands.tracked[hand] ? {} : undefined),
+      multiPointers: { left: { toggleSubPointer: () => true }, right: { toggleSubPointer: () => true } },
+      gamepads: { left: undefined, right: undefined },
+      isPrimary: () => false,
+    },
+  } as unknown as World['input'];
+  // Same order and priorities as registerUIExtensions.
   world
+    .registerSystem(UIDockSystem, { priority: -1 })
     .registerSystem(UIWindowSystem)
-    .registerSystem(UIDockSystem)
     .registerSystem(UIDragSystem)
     .registerSystem(UIDockRegionSystem);
   return world;
@@ -369,5 +394,145 @@ describe('UIDragSystem near grab', () => {
     scene.grabDescendants = [];
     world.update(1 / 60, 0);
     expect(scene.grabDescendants).toEqual([]);
+  });
+});
+
+describe('hand menus (hand-locked)', () => {
+  /** 180 degrees about Z: palm (-Y) faces +Y, fingertips stay along -Z. */
+  const PALM_UP = { x: 0, y: 0, z: 1, w: 0 };
+
+  function setup() {
+    const hands = makeHands();
+    const world = makeWorld(hands);
+    // Viewer above the left hand, looking down at a raised palm.
+    world.camera.position.set(-0.3, 2, -0.5);
+    hands.spaces.left.position.set(-0.3, 1, -0.5);
+    hands.spaces.left.quaternion.set(PALM_UP.x, PALM_UP.y, PALM_UP.z, PALM_UP.w);
+    hands.tracked.left = true;
+    const manager = windowManagerFor(world);
+    const { entity } = spawn(world, {
+      id: 'menu',
+      dockMode: DockMode.HandLocked,
+      // 0.125 survives the component's Float32 storage exactly.
+      handMenu: { hand: 'left', anchor: 'above', anchorDistance: 0.125 },
+    });
+    return { hands, world, manager, entity };
+  }
+
+  const round = (values: ArrayLike<number>): number[] =>
+    Array.from(values, (v) => Math.round(v * 1000) / 1000);
+
+  it('seeds the record from the component and mirrors setHandMenu back', () => {
+    const { manager, entity } = setup();
+    expect(manager.get('menu')?.handMenu).toMatchObject({ hand: 'left', anchor: 'above', anchorDistance: 0.125 });
+    manager.setHandMenu('menu', { hand: 'right', anchor: 'inside', offset: [0, 0.02, 0], palmGate: false });
+    expect(entity.getValue(UIWindow, 'hand')).toBe('right');
+    expect(entity.getValue(UIWindow, 'handAnchor')).toBe('inside');
+    expect(round(entity.getVectorView(UIWindow, 'handOffset'))).toEqual([0, 0.02, 0]);
+    expect(Boolean(entity.getValue(UIWindow, 'palmGate'))).toBe(false);
+  });
+
+  it('rides the raised hand and faces the viewer', () => {
+    const { world, entity } = setup();
+    world.update(1 / 60, 0);
+    expect(Boolean(entity.getValue(UIWindowState, 'gateOpen'))).toBe(true);
+    expect(entity.object3D?.visible).toBe(true);
+    expect(entity.hasComponent(RayInteractable)).toBe(true);
+    expect(round(entity.object3D!.position.toArray())).toEqual([-0.3, 1, -0.625]);
+    // The panel's +Z points from the menu to the viewer (a metre up, a
+    // little forward of the fingertips).
+    const forward = new Vector3(0, 0, 1).applyQuaternion(entity.object3D!.quaternion);
+    const toViewer = new Vector3(-0.3, 2, -0.5).sub(entity.object3D!.position).normalize();
+    expect(forward.distanceTo(toViewer)).toBeLessThan(1e-3);
+  });
+
+  it('closes the palm gate when the hand turns away or stops tracking, and reopens', () => {
+    const { hands, world, entity } = setup();
+    world.update(1 / 60, 0);
+    hands.spaces.left.quaternion.set(0, 0, 0, 1); // palm down: back of the hand to the viewer
+    world.update(1 / 60, 0);
+    expect(Boolean(entity.getValue(UIWindowState, 'gateOpen'))).toBe(false);
+    expect(entity.object3D?.visible).toBe(false);
+    expect(entity.hasComponent(RayInteractable)).toBe(false);
+    expect(entity.hasComponent(PokeInteractable)).toBe(false);
+
+    hands.spaces.left.quaternion.set(PALM_UP.x, PALM_UP.y, PALM_UP.z, PALM_UP.w);
+    world.update(1 / 60, 0);
+    expect(entity.object3D?.visible).toBe(true);
+    expect(entity.hasComponent(RayInteractable)).toBe(true);
+    expect(entity.hasComponent(PokeInteractable)).toBe(true);
+
+    hands.tracked.left = false;
+    world.update(1 / 60, 0);
+    expect(entity.object3D?.visible).toBe(false);
+  });
+
+  it('hide wins over an open gate, and show defers to a shut one', () => {
+    const { hands, world, manager, entity } = setup();
+    world.update(1 / 60, 0);
+    manager.hide('menu');
+    expect(entity.object3D?.visible).toBe(false);
+    world.update(1 / 60, 0);
+    expect(entity.object3D?.visible).toBe(false);
+    hands.spaces.left.quaternion.set(0, 0, 0, 1); // gate closes while hidden
+    world.update(1 / 60, 0);
+    manager.show('menu');
+    expect(entity.object3D?.visible).toBe(false); // shown, but the gate is shut
+    hands.spaces.left.quaternion.set(PALM_UP.x, PALM_UP.y, PALM_UP.z, PALM_UP.w);
+    world.update(1 / 60, 0);
+    expect(entity.object3D?.visible).toBe(true);
+  });
+
+  it('leaving hand-locked reopens the gate and leaves the window where the hand was', () => {
+    const { hands, world, manager, entity } = setup();
+    hands.spaces.left.quaternion.set(0, 0, 0, 1);
+    world.update(1 / 60, 0);
+    expect(entity.object3D?.visible).toBe(false);
+    manager.setDockMode('menu', DockMode.WorldLocked);
+    world.update(1 / 60, 0);
+    expect(Boolean(entity.getValue(UIWindowState, 'gateOpen'))).toBe(true);
+    expect(entity.object3D?.visible).toBe(true);
+    expect(manager.get('menu')?.dockMode).toBe(DockMode.WorldLocked);
+    // togglePin from a hand menu also lands on world-locked.
+    manager.setDockMode('menu', DockMode.HandLocked);
+    manager.togglePin('menu');
+    expect(manager.get('menu')?.dockMode).toBe(DockMode.WorldLocked);
+  });
+
+  it('either shows on whichever palm is raised', () => {
+    const { hands, world, manager, entity } = setup();
+    manager.setHandMenu('menu', { hand: 'either' });
+    hands.tracked.left = false;
+    hands.tracked.right = true;
+    hands.spaces.right.position.set(0.3, 1, -0.5);
+    hands.spaces.right.quaternion.set(PALM_UP.x, PALM_UP.y, PALM_UP.z, PALM_UP.w);
+    world.update(1 / 60, 0);
+    expect(entity.object3D?.visible).toBe(true);
+    expect(entity.object3D!.position.x).toBeCloseTo(0.3, 3);
+  });
+
+  it('is hidden in a world with no XR input at all', () => {
+    const world = new World();
+    for (const component of [
+      Transform,
+      PanelUI,
+      PanelDocument,
+      RayInteractable,
+      PokeInteractable,
+      Follower,
+      ScreenSpace,
+      UIWindow,
+      UIWindowState,
+      UIDockRegion,
+      UIDockedTo,
+    ]) {
+      world.registerComponent(component);
+    }
+    world.camera = new PerspectiveCamera();
+    world.scene = new Scene();
+    world.registerSystem(UIDockSystem, { priority: -1 }).registerSystem(UIWindowSystem);
+    const { entity } = spawn(world, { id: 'menu', dockMode: DockMode.HandLocked });
+    world.update(1 / 60, 0);
+    expect(entity.object3D?.visible).toBe(false);
   });
 });

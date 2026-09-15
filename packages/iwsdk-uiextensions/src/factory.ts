@@ -15,6 +15,7 @@ import {
 import { UIDockRegion, UIDockedTo, UIWindow, RegionFlowType } from './components.js';
 import {
   DockMode,
+  resolveHandMenu,
   type WindowOptionsBase,
 } from '@realitycollective/webxr-uiextensions';
 
@@ -40,6 +41,7 @@ export interface CreateWindowOptions extends WindowOptionsBase {
 }
 
 export function createUIWindow(world: World, options: CreateWindowOptions): Entity {
+  const handMenu = resolveHandMenu(options.handMenu);
   const entity = world
     .createTransformEntity()
     .addComponent(PanelUI, {
@@ -62,6 +64,12 @@ export function createUIWindow(world: World, options: CreateWindowOptions): Enti
       followOffset: options.followOffset ?? [0, -0.15, -1.2],
       followSpeed: options.followSpeed ?? 3,
       followTolerance: options.followTolerance ?? 0.35,
+      hand: handMenu.hand,
+      handAnchor: handMenu.anchor,
+      handAnchorDistance: handMenu.anchorDistance,
+      handOffset: handMenu.offset,
+      palmGate: handMenu.palmGate,
+      palmAngle: handMenu.palmAngle,
     })
     .addComponent(RayInteractable)
     .addComponent(PokeInteractable);

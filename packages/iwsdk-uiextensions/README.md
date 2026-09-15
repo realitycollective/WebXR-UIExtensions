@@ -9,6 +9,7 @@ Windowing, docking, layout regions and extra controls for [Meta's Immersive Web 
 | Feature | What you get |
 | --- | --- |
 | **Windows** | Title-bar chrome (pin / dock / minimize / close, each opt-in), focus & z-ordering, hide/show, a per-world `WindowManager` with typed events that is also the API for driving a window from code |
+| **Hand menus** | A `hand-locked` window rides a hand (left, right or whichever is raised), anchored above the fingertips, at the wrist, or on the thumb or little-finger side, shown while the palm faces you; a vertical stack of buttons that sizes to its content, driving other windows through the manager |
 | **Dock states** | `world-locked` (place in space) ⇄ `body-follow` (lazy follow) ⇄ `head-locked`, realised with the IWSDK's own `Follower`/`ScreenSpace` |
 | **Manipulation** | Drag windows by the title bar with the far ray or a near grab (controller squeeze, hand pinch), powered by `@pmndrs/handle`, the same library behind IWSDK grabbing; billboard-while-dragging, drop-to-dock |
 | **Layout regions** | Named regions (row / column / grid slots) windows snap into; regions can themselves follow the player |
@@ -114,6 +115,30 @@ controls.stepper('health').events.on('change', (hp) => setHealth(hp));
 - Dragging a following window implicitly places it - pin re-attaches it.
 - **Hide** takes a window out of view and out of reach (no ray or poke can hit it) while keeping its dock mode, region slot and minimized state; **show** brings it back exactly where it was and in front. Minimize collapses the body but leaves the title bar drawn.
 
+### Hand menus
+
+Spawn a window with `dockMode: DockMode.HandLocked` and it becomes a hand menu in the manner of MRTK 2's: it rides a hand and shows while that palm is raised toward you. `handMenu` says how:
+
+```ts
+host.createWindow({
+  id: 'menu',
+  config: './ui/hand-menu.uikitml',
+  dockMode: DockMode.HandLocked,
+  handMenu: {
+    hand: 'left',        // 'left' | 'right' | 'either' (whichever palm is raised)
+    anchor: 'above',     // 'above' fingertips | 'inside' (thumb) | 'outside' | 'wrist'
+    anchorDistance: 0.12, // meters from the palm
+    offset: [0, 0, 0],   // extra hand-local nudge
+    palmGate: true,      // show only while the palm faces you
+    palmAngle: 60,       // how far off square the palm may be, degrees
+  },
+});
+```
+
+Every field is optional; the defaults are the values shown. `windows.setHandMenu(id, { hand: 'right' })` changes them at runtime. The hand pose is the player rig's grip space, so a controller's grip or a tracked hand both work, and the panel always turns to face you. While the gate is shut the menu is neither drawn nor hittable, and `hide()` still wins over an open gate. Pinning or dragging a hand menu makes it an ordinary world-locked window where it was.
+
+Use `HAND_MENU_SNIPPET` from the core as the markup starting point: the same `uix-window` / `uix-content` ids, no title bar, a vertical stack of buttons that sizes to its content. `Examples/basic-window/` is a window whose manipulation buttons live on such a menu.
+
 ### Driving windows from code
 
 `registerUIExtensions` returns the `WindowManager`, and it is the one API app code needs to change a window - a hand menu, a keyboard shortcut, a voice command. Every call is applied by the systems, and the same calls work on the XR Blocks adapter:
@@ -129,7 +154,9 @@ controls.stepper('health').events.on('change', (hp) => setHealth(hp));
 | `focus(id)` | Bring to the front |
 | `close(id)` | Destroy the window's entity |
 
-The record is always what the scene shows: a drag that docks a window, or a PIN click, is written back into `windows.get(id)`, and every change emits a typed event (`hidden`, `shown`, `regionChanged`, `returnHome`, `chromeChanged`, alongside the existing ones) so a menu can keep its labels honest. See `Examples/window-control/`.
+| `setHandMenu(id, { hand, anchor, ... })` | Move a hand menu to the other hand or another anchor |
+
+The record is always what the scene shows: a drag that docks a window, or a PIN click, is written back into `windows.get(id)`, and every change emits a typed event (`hidden`, `shown`, `regionChanged`, `returnHome`, `chromeChanged`, `handMenuChanged`, alongside the existing ones) so a menu can keep its labels honest. See `Examples/basic-window/`.
 
 See `Examples/` (shipped in this package) and the deployable showcase client in the repository for complete, working demonstrations of every feature.
 

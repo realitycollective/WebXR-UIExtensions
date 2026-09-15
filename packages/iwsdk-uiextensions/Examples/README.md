@@ -4,9 +4,8 @@ Copy-paste starting points, shipped inside the npm package (Unity-style `Example
 
 | Example | Shows |
 | --- | --- |
-| [`basic-window/`](./basic-window) | A managed window with chrome, all four title-bar buttons enabled, and body-follow |
+| [`basic-window/`](./basic-window) | A managed window driven from a hand menu: a `hand-locked` panel on the left hand with HIDE, PIN, HOME, MIN, BUTTONS and CLOSE, each one `WindowManager` call |
 | [`dock-regions/`](./dock-regions) | Layout regions, drop-to-dock, a follow-region "toolbar" |
-| [`window-control/`](./window-control) | Driving a window from code through the `WindowManager`: hide, pin, dock, home, minimize, buttons, close - a hand menu's worth of control on a panel |
 | [`controls/`](./controls) | `data-uix` stepper, toggle, expandable label and log view |
 
 Each example assumes an IWSDK app created with `npm create @iwsdk@latest` (so the UIKitML Vite plugin is already wired: `.uikitml` files in `ui/` compile to `public/ui/*.json`).

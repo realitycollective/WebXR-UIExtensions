@@ -63,7 +63,9 @@ The IWSDK adapter is the reference implementation; the XR Blocks adapter shows t
 
 Options are shared even though `createWindow` is not: every adapter's option type extends `WindowOptionsBase` (`id`, `title`, `dockMode`, `position`, `maxWidth`/`maxHeight`, `movable`, `closable`, `minimizable`, `pinnable`, `dockable`, `followOffset`/`followSpeed`/`followTolerance`, `region`). An option means the same thing everywhere, so one `SceneWindow` maps onto every adapter with no translation table. The four chrome flags are all off unless set: a window shows only the title-bar buttons it asked for, and `WindowManager.setChrome` changes that later.
 
-The `WindowManager` is the state API app code drives, and every adapter applies every one of its events. Beyond focus, minimize and dock mode it holds `hidden` (`hide`/`show`), `region` (`dockTo`/`undock`, plus `returnHome`) and `chrome` (`setChrome`), each with a typed event, and `close` is the one teardown call - an adapter must dispose on `closed`. A menu written against the manager therefore runs unchanged on every engine.
+The `WindowManager` is the state API app code drives, and every adapter applies every one of its events. Beyond focus, minimize and dock mode it holds `hidden` (`hide`/`show`), `region` (`dockTo`/`undock`, plus `returnHome`), `chrome` (`setChrome`) and `handMenu` (`setHandMenu`), each with a typed event, and `close` is the one teardown call - an adapter must dispose on `closed`. A menu written against the manager therefore runs unchanged on every engine.
+
+Hand menus are the fourth dock mode, `hand-locked`. The core owns all of it except the hand pose: `hand-menu.ts` turns the window's `handMenu` options (hand, anchor, palm gate) and this frame's hand and head poses into "visible, and where", in a documented hand frame (WebXR grip convention: `-Z` toward the fingertips, `+Y` out of the back of the hand). An adapter supplies a `HandPoseSource` and applies the result; one that has no hands falls back to body-follow placement. `HAND_MENU_SNIPPET` is the reference markup: a title-bar-free vertical stack that sizes to its content.
 
 ### Proving a new adapter conforms
 

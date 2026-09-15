@@ -31,6 +31,7 @@ import { windowManagerFor } from '../manager-registry.js';
 import {
   minimizeLabelFor,
   pinLabelFor,
+  type HandMenuOptions,
   type WindowChrome,
   type WindowManager,
   type WindowRecord,
@@ -42,7 +43,7 @@ type UikitElement = {
   setProperties: (props: Record<string, unknown>) => void;
 };
 
-/** Which IWSDK interaction tags `hide()` stripped, so `show()` restores only those. */
+/** Which IWSDK interaction tags were stripped while not presented, so only those come back. */
 interface HiddenTags {
   ray: boolean;
   poke: boolean;
@@ -77,8 +78,8 @@ export class UIWindowSystem extends createSystem({
       this.manager.events.on('restored', ({ id }) => this.applyMinimized(id, false)),
       this.manager.events.on('minimized', (record) => this.syncMinimizeLabel(record)),
       this.manager.events.on('restored', (record) => this.syncMinimizeLabel(record)),
-      this.manager.events.on('hidden', ({ id }) => this.applyHidden(id, true)),
-      this.manager.events.on('shown', ({ id }) => this.applyHidden(id, false)),
+      this.manager.events.on('hidden', ({ id }) => this.reconcilePresentation(id)),
+      this.manager.events.on('shown', ({ id }) => this.reconcilePresentation(id)),
       this.manager.events.on('dockChanged', ({ window }) => {
         const entity = this.entitiesById.get(window.id);
         if (entity && entity.getValue(UIWindow, 'dockMode') !== window.dockMode) {
@@ -94,6 +95,7 @@ export class UIWindowSystem extends createSystem({
         }
       }),
       this.manager.events.on('chromeChanged', ({ window }) => this.applyChrome(window)),
+      this.manager.events.on('handMenuChanged', ({ window }) => this.applyHandMenu(window)),
       this.manager.events.on('dragStarted', (window) => this.syncPinLabel(window)),
       this.manager.events.on('dragEnded', (window) => this.syncPinLabel(window)),
     );
@@ -107,7 +109,11 @@ export class UIWindowSystem extends createSystem({
     for (const entity of this.queries.windows.entities) {
       const id = entity.getValue(UIWindow, 'windowId') as string;
       const record = this.manager.get(id);
-      if (!record || record.hidden) {
+      if (!record) {
+        continue;
+      }
+      // The palm gate (UIDockSystem) and hide() both feed one decision.
+      if (!this.reconcilePresentation(id)) {
         continue;
       }
       const document = this.documentOf(entity);
@@ -153,6 +159,7 @@ export class UIWindowSystem extends createSystem({
         dockMode,
         ...(region ? { region } : {}),
         chrome: this.chromeFlagsOf(entity),
+        handMenu: this.handMenuOf(entity),
       });
     }
     this.wireChrome(entity, id, title);
@@ -171,15 +178,42 @@ export class UIWindowSystem extends createSystem({
     const record = this.manager.get(id);
     if (record) {
       this.applyChrome(record);
+      this.applyHandMenu(record);
       this.syncPinLabel(record);
       this.syncMinimizeLabel(record);
       if (record.minimized) {
         this.applyMinimized(id, true);
       }
-      if (record.hidden) {
-        this.applyHidden(id, true);
-      }
+      this.reconcilePresentation(id);
     }
+  }
+
+  /** The hand-menu fields on the component, in the manager's vocabulary. */
+  private handMenuOf(entity: Entity): HandMenuOptions {
+    const offset = entity.getVectorView(UIWindow, 'handOffset');
+    return {
+      hand: entity.getValue(UIWindow, 'hand') as HandMenuOptions['hand'],
+      anchor: entity.getValue(UIWindow, 'handAnchor') as HandMenuOptions['anchor'],
+      anchorDistance: entity.getValue(UIWindow, 'handAnchorDistance') as number,
+      offset: [offset[0] ?? 0, offset[1] ?? 0, offset[2] ?? 0],
+      palmGate: Boolean(entity.getValue(UIWindow, 'palmGate')),
+      palmAngle: entity.getValue(UIWindow, 'palmAngle') as number,
+    };
+  }
+
+  /** Keep the component's hand-menu fields equal to the record. */
+  private applyHandMenu(record: Pick<WindowRecord, 'id' | 'handMenu'>): void {
+    const entity = this.entitiesById.get(record.id);
+    if (!entity) {
+      return;
+    }
+    const { handMenu } = record;
+    entity.setValue(UIWindow, 'hand', handMenu.hand);
+    entity.setValue(UIWindow, 'handAnchor', handMenu.anchor);
+    entity.setValue(UIWindow, 'handAnchorDistance', handMenu.anchorDistance);
+    entity.getVectorView(UIWindow, 'handOffset').set(handMenu.offset);
+    entity.setValue(UIWindow, 'palmGate', handMenu.palmGate);
+    entity.setValue(UIWindow, 'palmAngle', handMenu.palmAngle);
   }
 
   /** Return a window to its home: spawn region, or original placement/mode. */
@@ -301,18 +335,30 @@ export class UIWindowSystem extends createSystem({
     entity.destroy();
   }
 
-  private applyHidden(id: string, hidden: boolean): void {
+  /**
+   * Draw and expose the window exactly when the record is not hidden AND the
+   * palm gate (for a hand menu) is open. Idempotent: `UIWindowState.presented`
+   * records what was last applied, so this is cheap to call every frame.
+   * Returns whether the window is presented.
+   */
+  private reconcilePresentation(id: string): boolean {
     const entity = this.entitiesById.get(id);
-    if (!entity) {
-      return;
+    const record = this.manager.get(id);
+    if (!entity || !record) {
+      return false;
     }
+    const desired = !record.hidden && Boolean(entity.getValue(UIWindowState, 'gateOpen'));
+    if (Boolean(entity.getValue(UIWindowState, 'presented')) === desired) {
+      return desired;
+    }
+    entity.setValue(UIWindowState, 'presented', desired);
     const object = entity.object3D;
     if (object) {
-      object.visible = !hidden;
+      object.visible = desired;
     }
-    if (hidden) {
+    if (!desired) {
       // Strip the interaction tags so no pointer can reach the window, and
-      // remember which ones were there so show() puts back only those.
+      // remember which ones were there so only those come back.
       const tags: HiddenTags = {
         ray: entity.hasComponent(RayInteractable),
         poke: entity.hasComponent(PokeInteractable),
@@ -324,7 +370,7 @@ export class UIWindowSystem extends createSystem({
         entity.removeComponent(PokeInteractable);
       }
       this.hiddenTags.set(id, tags);
-      return;
+      return false;
     }
     const tags = this.hiddenTags.get(id);
     this.hiddenTags.delete(id);
@@ -334,6 +380,7 @@ export class UIWindowSystem extends createSystem({
     if (tags?.poke && !entity.hasComponent(PokeInteractable)) {
       entity.addComponent(PokeInteractable);
     }
+    return true;
   }
 
   /** Make the entity's `UIDockedTo` agree with the record's region. */

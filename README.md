@@ -137,12 +137,12 @@ Six windows + two dock regions demonstrating the whole surface:
 - **Click Machine (all buttons)** - a button with a "clicked" list display; every title-bar button enabled at spawn
 - **Player Status (menu-driven)** - movable info window: health stepper, shield toggle, expandable bio; follows the player until pinned or dragged. Spawned with no buttons and driven from Window Control
 - **Gallery (no buttons)** - image rendering via the native `<img>` element; the opt-in default, so no title-bar buttons, only drag
-- **Window Control** - a stand-in for a hand menu: HIDE/SHOW, PIN/UNPIN, TO BELT, TO WALL, UNDOCK, HOME, MIN/MAX and BUTTONS ON/OFF, each one `WindowManager` call on Player Status, with labels read back from the record
+- **Window Control** - a hand menu (`hand-locked`, left hand, above the fingertips, shown while the palm faces you; follows the body on the desktop build): HIDE/SHOW, PIN/UNPIN, TO BELT, TO WALL, UNDOCK, HOME, MIN/MAX and BUTTONS ON/OFF, each one `WindowManager` call on Player Status, with labels read back from the record
 - Regions: a world-locked wall (column) and a body-locked belt (row) - drag any window into either
 
 The devtools playground adds the **UX Editor** window on top: UIKitML source in a textarea, compiled at runtime to a live panel - see [demos/devtools-playground](./demos/devtools-playground/README.md). The multiplatform lab runs the same scene through whichever pipeline the hardware calls for - see [demos/webxr-multiplatform](./demos/webxr-multiplatform/README.md).
 
-Known verification gap: everything headless is CI-tested, including the IWSDK systems against a headless `World`, but in-headset behaviours (title-bar `HandleStore` drag by ray, near grab by squeeze and by hand pinch, system keyboard on Quest) still need a manual pass on device - see the PR/commit notes.
+Known verification gap: everything headless is CI-tested, including the IWSDK systems against a headless `World`, but in-headset behaviours (title-bar `HandleStore` drag by ray, near grab by squeeze and by hand pinch, the hand menu's palm gate and anchors on real hands and controllers, system keyboard on Quest) still need a manual pass on device - see the PR/commit notes.
 
 ## What this stack is and is not
 

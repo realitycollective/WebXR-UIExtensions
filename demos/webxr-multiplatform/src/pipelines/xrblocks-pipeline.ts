@@ -29,6 +29,8 @@ class UixShowcaseScript extends xb.Script {
     this.host = connectUIExtensions({
       scene: this as unknown as Object3D,
       camera: xb.camera,
+      // renderer.xr gives hand menus the tracked hands in a session.
+      xr: xb.core.renderer.xr as never,
       kit: horizonKit as never,
     });
 
