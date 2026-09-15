@@ -5,6 +5,11 @@
  * plain markup discovered by well-known element ids, not a parallel widget
  * tree. Copy `WINDOW_CHROME_SNIPPET` into a `.uikitml` file and put the
  * window body inside the `uix-content` element.
+ *
+ * The four title-bar buttons are OFF by default: an adapter hides any button
+ * the window has not enabled (`closable`, `minimizable`, `pinnable`,
+ * `dockable` at spawn, or `WindowManager.setChrome` later) and ignores its
+ * clicks. Keep them in the markup so they can be switched on at runtime.
  */
 export const WINDOW_CHROME_IDS = {
   /** Root container of the window. */

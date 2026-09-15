@@ -3,9 +3,14 @@
  *
  * Owns a core `WindowManager` + `RegionRegistry` and applies their decisions
  * to the scene graph: spawn UIKitML windows and dock regions, wire chrome
- * buttons (focus / PIN / MIN / X), collapse content while minimized, place
- * docked windows into their region's slots, and ease `body-follow` windows
- * (and body-locked regions) toward the viewer each frame.
+ * buttons (focus / PIN / DOCK / MIN / X), collapse content while minimized,
+ * hide and show, place docked windows into their region's slots, return a
+ * window to where it spawned, and ease `body-follow` windows (and
+ * body-locked regions) toward the viewer each frame.
+ *
+ * The manager is the API app code drives; every manager event is applied
+ * here, so `host.manager.hide(id)` or `.dockTo(id, region)` from a hand menu
+ * is all a caller needs.
  *
  * It implements the core's `WindowHost` (so app code can wire behaviour
  * through `onPanelReady` with no engine knowledge) and `SceneTarget` (so a
@@ -40,6 +45,8 @@ import {
   type PanelHandle,
   type PanelReadyEvent,
   type RegionDefinition,
+  type WindowChrome,
+  type WindowRecord,
   type SceneRegion,
   type SceneTarget,
   type SceneWindow,
@@ -134,6 +141,8 @@ interface FollowOptions {
 
 interface WindowState {
   handle: XrBlocksWindowHandle;
+  /** Where the window spawned, for `returnHome`. */
+  home: { region: string | undefined; position: Vec3Tuple; dockMode: WindowRecord['dockMode'] };
   /**
    * Recorded from the create options and not acted on - see
    * {@link CreateWindowOptions}. Kept so a future drag path here, or a caller
@@ -144,6 +153,8 @@ interface WindowState {
   content: UixElement | undefined;
   pin: UixElement | undefined;
   minimize: UixElement | undefined;
+  /** Every chrome button by its role, for `chromeChanged`. */
+  buttons: Record<keyof WindowChrome, UixElement | undefined>;
 }
 
 interface RegionState {
@@ -188,6 +199,21 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         state.handle.group.removeFromParent();
         this.layoutRegions();
       }
+    });
+    this.manager.events.on('hidden', (record) => {
+      this.setVisible(record.id, false);
+    });
+    this.manager.events.on('shown', (record) => {
+      this.setVisible(record.id, true);
+    });
+    this.manager.events.on('regionChanged', ({ window }) => {
+      this.applyRegion(window);
+    });
+    this.manager.events.on('returnHome', (record) => {
+      this.returnHome(record.id);
+    });
+    this.manager.events.on('chromeChanged', ({ window }) => {
+      this.applyChrome(window);
     });
     this.manager.events.on('minimized', (record) => {
       this.setContentCollapsed(record.id, true);
@@ -278,6 +304,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
             ? { minimizable: window.minimizable }
             : {}),
           ...(window.pinnable !== undefined ? { pinnable: window.pinnable } : {}),
+          ...(window.dockable !== undefined ? { dockable: window.dockable } : {}),
         });
       })
       .catch((error) => {
@@ -312,15 +339,58 @@ export class UixWindowHost implements WindowHost, SceneTarget {
     return this.regionStates.get(id)?.handle;
   }
 
-  /** Dock a window into a region (or undock it with `undefined`). */
+  /**
+   * Dock a window into a region (or undock it with `undefined`). A thin
+   * forwarder to the manager, kept so existing callers read the same;
+   * `manager.dockTo` / `manager.undock` are the portable calls.
+   */
   dock(windowId: string, regionId: string | undefined): void {
     if (regionId === undefined) {
-      this.regions.undock(windowId);
+      this.manager.undock(windowId);
     } else {
-      this.regions.dock(windowId, regionId);
-      this.manager.setDockMode(windowId, DockMode.WorldLocked);
+      this.manager.dockTo(windowId, regionId);
+    }
+  }
+
+  /** Make the registry (and the layout) agree with the record's region. */
+  private applyRegion(record: Pick<WindowRecord, 'id' | 'region'>): void {
+    const current = this.regions.regionOf(record.id);
+    if (current === record.region) {
+      return;
+    }
+    if (current !== undefined) {
+      this.regions.undock(record.id);
+    }
+    if (record.region !== undefined) {
+      try {
+        this.regions.dock(record.id, record.region);
+      } catch (error) {
+        // Unknown or full region: the record must not claim it.
+        this.manager.undock(record.id);
+        throw error;
+      }
+      this.manager.setDockMode(record.id, DockMode.WorldLocked);
     }
     this.layoutRegions();
+  }
+
+  /** Put a window back where it spawned: its region, or its placement and mode. */
+  private returnHome(id: string): void {
+    const state = this.states.get(id);
+    if (!state) {
+      return;
+    }
+    const { home } = state;
+    if (home.region !== undefined) {
+      this.manager.dockTo(id, home.region);
+      return;
+    }
+    this.manager.undock(id);
+    this.manager.setDockMode(id, home.dockMode);
+    if (home.dockMode === DockMode.WorldLocked) {
+      state.handle.group.position.set(...home.position);
+    }
+    // Follow modes ease back to the viewer on their own in update().
   }
 
   // --- Windows --------------------------------------------------------------
@@ -352,8 +422,14 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         return () => {};
       },
     };
+    const dockMode = options.dockMode ?? DockMode.WorldLocked;
     this.states.set(id, {
       handle,
+      home: {
+        region: options.region,
+        position: options.position ? [...options.position] : [0, 0, 0],
+        dockMode,
+      },
       movable: options.movable ?? true,
       options: {
         followOffset: options.followOffset ?? DEFAULT_FOLLOW_OFFSET,
@@ -363,13 +439,22 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       content: undefined,
       pin: undefined,
       minimize: undefined,
+      buttons: { pin: undefined, dock: undefined, minimize: undefined, close: undefined },
     });
 
-    this.manager.open(id, {
+    const record = this.manager.open(id, {
       title: options.title ?? '',
-      dockMode: options.dockMode ?? DockMode.WorldLocked,
+      dockMode,
+      // Chrome buttons are opt-in - see WindowOptionsBase.
+      chrome: {
+        close: options.closable ?? false,
+        minimize: options.minimizable ?? false,
+        pin: options.pinnable ?? false,
+        dock: options.dockable ?? false,
+      },
     });
     this.wireChrome(options, handle);
+    this.applyChrome(record);
 
     if (options.region !== undefined) {
       this.dock(id, options.region);
@@ -515,50 +600,65 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       }
     });
 
-    const close = element(WINDOW_CHROME_IDS.close);
-    if (options.closable === false) {
-      close?.setProperties({ display: 'none' });
-    } else {
-      close?.addEventListener('click', () => {
-        if (this.manager.has(id)) {
-          this.manager.close(id);
-        }
-      });
-    }
-
-    const minimize = element(WINDOW_CHROME_IDS.minimize);
-    if (options.minimizable === false) {
-      minimize?.setProperties({ display: 'none' });
-    } else {
-      minimize?.addEventListener('click', () => {
-        if (this.manager.has(id)) {
-          this.manager.toggleMinimized(id);
-        }
-      });
-      this.syncMinimizeLabel(id);
-    }
-
-    const pin = element(WINDOW_CHROME_IDS.pin);
     const state = this.states.get(id);
     if (state) {
       state.content = element(WINDOW_CHROME_IDS.content);
-      state.pin = pin;
+      state.pin = element(WINDOW_CHROME_IDS.pin);
       state.minimize = element(WINDOW_CHROME_IDS.minimize);
+      state.buttons = {
+        close: element(WINDOW_CHROME_IDS.close),
+        minimize: element(WINDOW_CHROME_IDS.minimize),
+        pin: element(WINDOW_CHROME_IDS.pin),
+        dock: element(WINDOW_CHROME_IDS.dock),
+      };
     }
-    if (options.pinnable === false) {
-      pin?.setProperties({ display: 'none' });
-    } else {
-      pin?.addEventListener('click', () => {
-        if (!this.manager.has(id)) {
-          return;
-        }
+
+    // Every button is wired once and gated on the record at click time, so
+    // enabling a button later (manager.setChrome) needs no rewiring.
+    const enabled = (key: keyof WindowChrome): boolean =>
+      this.manager.get(id)?.chrome[key] === true;
+
+    element(WINDOW_CHROME_IDS.close)?.addEventListener('click', () => {
+      if (enabled('close')) {
+        this.manager.close(id);
+      }
+    });
+    element(WINDOW_CHROME_IDS.minimize)?.addEventListener('click', () => {
+      if (enabled('minimize')) {
+        this.manager.toggleMinimized(id);
+      }
+    });
+    element(WINDOW_CHROME_IDS.pin)?.addEventListener('click', () => {
+      if (enabled('pin')) {
         // Pinning a docked window pops it out of its region first.
-        if (this.regions.regionOf(id) !== undefined) {
-          this.regions.undock(id);
-        }
+        this.manager.undock(id);
         this.manager.togglePin(id);
-      });
-      this.syncPinLabel(id);
+      }
+    });
+    element(WINDOW_CHROME_IDS.dock)?.addEventListener('click', () => {
+      if (enabled('dock')) {
+        this.manager.returnHome(id);
+      }
+    });
+    this.syncMinimizeLabel(id);
+    this.syncPinLabel(id);
+  }
+
+  /** Show exactly the enabled buttons. */
+  private applyChrome(record: Pick<WindowRecord, 'id' | 'chrome'>): void {
+    const buttons = this.states.get(record.id)?.buttons;
+    if (!buttons) {
+      return;
+    }
+    for (const key of ['close', 'minimize', 'pin', 'dock'] as const) {
+      buttons[key]?.setProperties({ display: record.chrome[key] ? 'flex' : 'none' });
+    }
+  }
+
+  private setVisible(id: string, visible: boolean): void {
+    const state = this.states.get(id);
+    if (state) {
+      state.handle.group.visible = visible;
     }
   }
 

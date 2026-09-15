@@ -9,6 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  WindowManager,
   windowHostContractCases,
   type PanelHandle,
   type PanelReadyEvent,
@@ -23,6 +24,7 @@ const HANDLE = 'createWindow returns a handle with an id and onReady';
 const ONCE = 'onReady fires once when the panel attaches';
 const REPLAY = 'onReady replays for a subscriber that arrives late';
 const HOST_REPLAY = 'onPanelReady replays for a subscriber that arrives late';
+const CLOSE = 'closing through the manager takes the window out of onPanelReady replay';
 
 /** One deliberate defect at a time, so each test names the case it breaks. */
 interface FakeConfig {
@@ -36,6 +38,13 @@ interface FakeConfig {
   unsubscribe?: 'ok' | 'throws' | 'refires';
   onPanelReady?: 'ok' | 'silent';
   panelReadyUnsubscribe?: 'ok' | 'throws';
+  /**
+   * How the host treats the manager: opens windows on it and forgets them
+   * on `closed` (ok), never opens them (unopened), re-opens the record from
+   * its own `closed` listener (reopens), or keeps replaying a closed window
+   * (stale).
+   */
+  manager?: 'ok' | 'unopened' | 'reopens' | 'stale';
 }
 
 interface FakeHandle {
@@ -69,7 +78,9 @@ function makeSetup(config: FakeConfig = {}): WindowHostContractSetup {
   const unsubscribeMode = config.unsubscribe ?? 'ok';
   const panelReadyMode = config.onPanelReady ?? 'ok';
   const panelReadyUnsubscribe = config.panelReadyUnsubscribe ?? 'ok';
+  const managerMode = config.manager ?? 'ok';
 
+  const manager = new WindowManager();
   const events: PanelReadyEvent[] = [];
   const listeners = new Set<(event: PanelReadyEvent) => void>();
   const handles = new Map<string, FakeHandle>();
@@ -112,7 +123,20 @@ function makeSetup(config: FakeConfig = {}): WindowHostContractSetup {
     for (const listener of listeners) listener(event);
   }
 
+  manager.events.on('closed', (record) => {
+    if (managerMode === 'reopens') {
+      manager.open(record.id);
+    }
+    if (managerMode !== 'stale') {
+      const index = events.findIndex((event) => event.id === record.id);
+      if (index >= 0) events.splice(index, 1);
+    }
+  });
+
   function createWindow(id: string): WindowHandle {
+    if (managerMode !== 'unopened') {
+      manager.open(id);
+    }
     const handle: FakeHandle = {
       id: (config.id ?? id) as string,
       panel: undefined,
@@ -148,6 +172,7 @@ function makeSetup(config: FakeConfig = {}): WindowHostContractSetup {
 
   const setup: WindowHostContractSetup = {
     host,
+    manager,
     createWindow,
     panelConfig: { element: {}, classes: {} },
   };
@@ -263,6 +288,24 @@ describe('windowHostContractCases catches a broken host', () => {
     expect(() =>
       runCase(HOST_REPLAY, { panelReadyUnsubscribe: 'throws' }),
     ).toThrow(/unsubscribe returned by onPanelReady\(\) threw/);
+  });
+
+  it('rejects a host that does not open its windows on the manager', () => {
+    expect(() => runCase(CLOSE, { manager: 'unopened' })).toThrow(
+      /must open the window on the manager/,
+    );
+  });
+
+  it('rejects a manager that still knows a closed window', () => {
+    expect(() => runCase(CLOSE, { manager: 'reopens' })).toThrow(
+      /must forget a closed window/,
+    );
+  });
+
+  it('rejects a host that replays a window closed through the manager', () => {
+    expect(() => runCase(CLOSE, { manager: 'stale' })).toThrow(
+      /must not replay a window closed through the manager/,
+    );
   });
 
   it('fails loudly when asked for a case that does not exist', () => {

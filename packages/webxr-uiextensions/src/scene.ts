@@ -35,9 +35,11 @@ export interface SceneWindow {
   followSpeed?: number;
   followTolerance?: number;
   movable?: boolean;
+  /** Title-bar buttons - all off unless enabled (see `WindowOptionsBase`). */
   closable?: boolean;
   minimizable?: boolean;
   pinnable?: boolean;
+  dockable?: boolean;
 }
 
 /** One dock region in a scene. */

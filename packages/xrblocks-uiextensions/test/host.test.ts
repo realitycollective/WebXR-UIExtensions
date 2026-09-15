@@ -18,6 +18,7 @@ const PANEL_SOURCE = `
   <div id="uix-titlebar">
     <text id="uix-title">t</text>
     <div id="uix-pin">PIN</div>
+    <div id="uix-dock">DOCK</div>
     <div id="uix-minimize">MIN</div>
     <div id="uix-close">X</div>
   </div>
@@ -151,6 +152,129 @@ describe('UixWindowHost', () => {
     expect(kinds).toEqual(['window']);
   });
 
+  it('hide takes the window out of view and show brings it back in front', () => {
+    const { host } = makeHost();
+    const handle = host.createWindow({ id: 'w1', config: config(), position: [1, 1, -1] });
+    host.createWindow({ id: 'w2', config: config() });
+    host.manager.hide('w1');
+    expect(handle.group.visible).toBe(false);
+    expect(host.window('w1')).toBe(handle); // still there, not closed
+    host.manager.show('w1');
+    expect(handle.group.visible).toBe(true);
+    expect(handle.group.position.toArray()).toEqual([1, 1, -1]);
+    expect(host.manager.focused?.id).toBe('w1');
+  });
+
+  it('docks through the manager: the record, the registry and the layout agree', () => {
+    const { host } = makeHost();
+    host.createRegion({ id: 'rail', position: [2, 1, -1], flow: 'column', pitch: 0.5 });
+    const handle = host.createWindow({ id: 'w1', config: config(), dockMode: DockMode.BodyFollow });
+    host.manager.dockTo('w1', 'rail');
+    expect(host.manager.get('w1')?.region).toBe('rail');
+    expect(host.regions.regionOf('w1')).toBe('rail');
+    expect(host.manager.get('w1')?.dockMode).toBe(DockMode.WorldLocked);
+    expect(handle.group.position.toArray()).toEqual([2, 1, -1]);
+    host.manager.undock('w1');
+    expect(host.regions.regionOf('w1')).toBeUndefined();
+    // The host-level dock() is the same call, kept for existing callers.
+    host.dock('w1', 'rail');
+    expect(host.manager.get('w1')?.region).toBe('rail');
+    host.dock('w1', undefined);
+    expect(host.manager.get('w1')?.region).toBeUndefined();
+  });
+
+  it('a dock the registry refuses is not claimed by the record', () => {
+    const { host } = makeHost();
+    host.createWindow({ id: 'w1', config: config() });
+    expect(() => host.manager.dockTo('w1', 'nowhere')).toThrow();
+    expect(host.manager.get('w1')?.region).toBeUndefined();
+  });
+
+  it('returnHome puts a window back where it spawned', () => {
+    const { host } = makeHost();
+    host.createRegion({ id: 'rail', position: [2, 1, -1] });
+    const born = host.createWindow({ id: 'docked', config: config(), region: 'rail' });
+    const free = host.createWindow({ id: 'free', config: config(), position: [0, 1.5, -1] });
+
+    host.manager.undock('docked');
+    born.group.position.set(5, 5, 5);
+    host.manager.returnHome('docked');
+    expect(host.manager.get('docked')?.region).toBe('rail');
+    expect(born.group.position.toArray()).toEqual([2, 1, -1]);
+
+    host.manager.dockTo('free', 'rail');
+    host.manager.togglePin('free');
+    host.manager.returnHome('free');
+    expect(host.manager.get('free')?.region).toBeUndefined();
+    expect(host.manager.get('free')?.dockMode).toBe(DockMode.WorldLocked);
+    expect(free.group.position.toArray()).toEqual([0, 1.5, -1]);
+
+    // A window the host no longer knows is ignored rather than thrown on.
+    host.manager.close('free');
+    expect(() => host.manager.returnHome('docked')).not.toThrow();
+  });
+
+  it('chrome buttons are off by default, gate their clicks, and switch on at runtime', () => {
+    const { host } = makeHost();
+    const handle = host.createWindow({ id: 'w1', config: config() });
+    const button = (id: string) =>
+      handle.document.getElementById(id) as unknown as {
+        dispatchEvent(event: { type: string }): void;
+        properties: { peek(): Record<string, unknown> };
+      };
+    const display = (id: string) => button(id).properties.peek()['display'];
+    expect(host.manager.get('w1')?.chrome).toEqual({
+      pin: false,
+      dock: false,
+      minimize: false,
+      close: false,
+    });
+    for (const id of ['uix-pin', 'uix-dock', 'uix-minimize', 'uix-close']) {
+      expect(display(id)).toBe('none');
+    }
+    // Disabled buttons ignore clicks - the window stays open and expanded.
+    button('uix-close').dispatchEvent({ type: 'click' });
+    button('uix-minimize').dispatchEvent({ type: 'click' });
+    expect(host.manager.has('w1')).toBe(true);
+    expect(host.manager.get('w1')?.minimized).toBe(false);
+
+    host.manager.setChrome('w1', { minimize: true, close: true });
+    expect(display('uix-minimize')).toBe('flex');
+    expect(display('uix-close')).toBe('flex');
+    expect(display('uix-pin')).toBe('none');
+    button('uix-minimize').dispatchEvent({ type: 'click' });
+    expect(host.manager.get('w1')?.minimized).toBe(true);
+    button('uix-close').dispatchEvent({ type: 'click' });
+    expect(host.manager.has('w1')).toBe(false);
+  });
+
+  it('spawn options enable chrome, and PIN pops a docked window out of its region', () => {
+    const { host } = makeHost();
+    host.createRegion({ id: 'rail' });
+    const handle = host.createWindow({
+      id: 'w1',
+      config: config(),
+      region: 'rail',
+      pinnable: true,
+      dockable: true,
+    });
+    expect(host.manager.get('w1')?.chrome).toEqual({
+      pin: true,
+      dock: true,
+      minimize: false,
+      close: false,
+    });
+    const click = (id: string) =>
+      (handle.document.getElementById(id) as unknown as {
+        dispatchEvent(event: { type: string }): void;
+      }).dispatchEvent({ type: 'click' });
+    click('uix-pin');
+    expect(host.manager.get('w1')?.region).toBeUndefined();
+    expect(host.manager.get('w1')?.dockMode).toBe(DockMode.BodyFollow);
+    click('uix-dock');
+    expect(host.manager.get('w1')?.region).toBe('rail');
+  });
+
   it('accepts movable without acting on it (no drag path here yet)', () => {
     const { host } = makeHost();
     const handle = host.createWindow({ id: 'w1', config: config(), movable: false });
@@ -163,6 +287,7 @@ windowHostContract('XR Blocks window host', () => {
   const { host } = makeHost();
   return {
     host,
+    manager: host.manager,
     createWindow: (id: string) => host.createWindow({ id, config: config() }),
     panelConfig: config(),
   };

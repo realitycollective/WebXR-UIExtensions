@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DockMode } from '../src/core/dock-state.js';
 import {
+  NO_CHROME,
   WindowManager,
   minimizeLabelFor,
   pinLabelFor,
@@ -191,5 +192,117 @@ describe('WindowManager', () => {
     expect(() => manager.focus('ghost')).toThrow(/unknown window/);
     expect(() => manager.orderOf('ghost')).toThrow(/unknown window/);
     expect(() => manager.close('ghost')).toThrow(/unknown window/);
+    expect(() => manager.hide('ghost')).toThrow(/unknown window/);
+    expect(() => manager.dockTo('ghost', 'rail')).toThrow(/unknown window/);
+    expect(() => manager.returnHome('ghost')).toThrow(/unknown window/);
+    expect(() => manager.setChrome('ghost', { pin: true })).toThrow(/unknown window/);
+  });
+
+  it('opens with every chrome button off, and honours the open options', () => {
+    const manager = new WindowManager();
+    expect(manager.open('plain')).toMatchObject({
+      hidden: false,
+      region: undefined,
+      chrome: NO_CHROME,
+    });
+    expect(NO_CHROME).toEqual({ pin: false, dock: false, minimize: false, close: false });
+    const full = manager.open('full', {
+      hidden: true,
+      region: 'rail',
+      chrome: { pin: true, close: true },
+    });
+    expect(full.hidden).toBe(true);
+    expect(full.region).toBe('rail');
+    expect(full.chrome).toEqual({ pin: true, dock: false, minimize: false, close: true });
+    // The record owns its chrome; the frozen default is never handed out.
+    expect(manager.get('plain')?.chrome).not.toBe(NO_CHROME);
+  });
+
+  it('hides and shows, keeping dock mode and region, and shows to the front', () => {
+    const manager = new WindowManager();
+    const hidden = vi.fn();
+    const shown = vi.fn();
+    manager.events.on('hidden', hidden);
+    manager.events.on('shown', shown);
+    const w = manager.open('w', { dockMode: DockMode.BodyFollow, region: 'rail' });
+    manager.open('other');
+    expect(manager.focused?.id).toBe('other');
+
+    manager.hide('w');
+    expect(w.hidden).toBe(true);
+    expect(hidden).toHaveBeenCalledTimes(1);
+    manager.hide('w'); // idempotent
+    expect(hidden).toHaveBeenCalledTimes(1);
+    expect(w.dockMode).toBe(DockMode.BodyFollow);
+    expect(w.region).toBe('rail');
+    expect(manager.has('w')).toBe(true);
+
+    manager.show('w');
+    expect(w.hidden).toBe(false);
+    expect(shown).toHaveBeenCalledTimes(1);
+    expect(manager.focused?.id).toBe('w');
+    manager.show('w'); // idempotent
+    expect(shown).toHaveBeenCalledTimes(1);
+
+    manager.toggleHidden('w');
+    expect(w.hidden).toBe(true);
+    manager.toggleHidden('w');
+    expect(w.hidden).toBe(false);
+  });
+
+  it('docks into and out of regions with regionChanged', () => {
+    const manager = new WindowManager();
+    const regionChanged = vi.fn();
+    manager.events.on('regionChanged', regionChanged);
+    const w = manager.open('w');
+
+    manager.undock('w'); // not docked: nothing to say
+    expect(regionChanged).not.toHaveBeenCalled();
+
+    manager.dockTo('w', 'rail');
+    expect(w.region).toBe('rail');
+    expect(regionChanged).toHaveBeenLastCalledWith({ window: w, previous: undefined });
+    manager.dockTo('w', 'rail'); // already there
+    expect(regionChanged).toHaveBeenCalledTimes(1);
+
+    manager.dockTo('w', 'belt');
+    expect(regionChanged).toHaveBeenLastCalledWith({ window: w, previous: 'rail' });
+
+    manager.undock('w');
+    expect(w.region).toBeUndefined();
+    expect(regionChanged).toHaveBeenLastCalledWith({ window: w, previous: 'belt' });
+    expect(regionChanged).toHaveBeenCalledTimes(3);
+
+    expect(() => manager.dockTo('w', '')).toThrow(/needs a region id/);
+  });
+
+  it('returnHome only announces; the adapter owns the home snapshot', () => {
+    const manager = new WindowManager();
+    const returnHome = vi.fn();
+    manager.events.on('returnHome', returnHome);
+    const w = manager.open('w');
+    manager.returnHome('w');
+    expect(returnHome).toHaveBeenCalledWith(w);
+  });
+
+  it('setChrome merges, emits only on change, and hands back the previous set', () => {
+    const manager = new WindowManager();
+    const chromeChanged = vi.fn();
+    manager.events.on('chromeChanged', chromeChanged);
+    const w = manager.open('w', { chrome: { close: true } });
+
+    manager.setChrome('w', { close: true }); // nothing new
+    expect(chromeChanged).not.toHaveBeenCalled();
+
+    const before = w.chrome;
+    manager.setChrome('w', { pin: true, dock: true });
+    expect(w.chrome).toEqual({ pin: true, dock: true, minimize: false, close: true });
+    expect(chromeChanged).toHaveBeenCalledWith({ window: w, previous: before });
+    expect(before).toEqual({ pin: false, dock: false, minimize: false, close: true });
+
+    manager.setChrome('w', { minimize: true });
+    manager.setChrome('w', { close: false });
+    expect(w.chrome).toEqual({ pin: true, dock: true, minimize: true, close: false });
+    expect(chromeChanged).toHaveBeenCalledTimes(3);
   });
 });

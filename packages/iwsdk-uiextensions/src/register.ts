@@ -3,8 +3,14 @@
  *
  * ```ts
  * const world = await World.create(container, { features: { spatialUI: true } });
- * registerUIExtensions(world);
+ * const windows = registerUIExtensions(world);
  * ```
+ *
+ * The returned `WindowManager` is the API for changing window state from
+ * app code (a hand menu, a keyboard shortcut): `hide`/`show`, `dockTo`/
+ * `undock`/`returnHome`, `togglePin`/`setDockMode`, `minimize`/`restore`,
+ * `setChrome` and `close`. The systems registered here apply every one of
+ * those to the entities.
  */
 import type { World } from '@iwsdk/core';
 import { UIWindowSystem } from './systems/window-system.js';
@@ -18,6 +24,12 @@ import type { WindowManager } from '@realitycollective/webxr-uiextensions';
 export interface RegisterOptions {
   /** Disable the title-bar drag system. */
   drag?: boolean;
+  /**
+   * Disable near dragging (controller squeeze or hand pinch on the title
+   * bar), leaving the far ray as the only way to move a window. On by
+   * default; see `UIDragSystem` for what it does to IWSDK's pointers.
+   */
+  nearDrag?: boolean;
   /** Disable dock regions. */
   regions?: boolean;
   /** Disable the `data-uix` control upgrades. */
@@ -30,7 +42,9 @@ export function registerUIExtensions(
 ): WindowManager {
   world.registerSystem(UIWindowSystem).registerSystem(UIDockSystem);
   if (options.drag !== false) {
-    world.registerSystem(UIDragSystem);
+    world.registerSystem(UIDragSystem, {
+      configData: { nearDrag: options.nearDrag !== false },
+    });
   }
   if (options.regions !== false) {
     world.registerSystem(UIDockRegionSystem);

@@ -174,11 +174,18 @@ export interface WindowOptionsBase {
   /** Fit the panel into this box in meters, preserving aspect ratio. */
   maxWidth?: number;
   maxHeight?: number;
-  /** Whether the title bar drags the window. */
+  /** Whether the title bar drags the window. Default `true`. */
   movable?: boolean;
+  /**
+   * Title-bar buttons. Every button is OFF unless enabled here, or later
+   * through `WindowManager.setChrome`. The chrome markup may still contain
+   * the elements; a disabled button is hidden and its click ignored.
+   */
   closable?: boolean;
   minimizable?: boolean;
   pinnable?: boolean;
+  /** The DOCK button, which returns the window to where it spawned. */
+  dockable?: boolean;
   /** Head-relative offset used in body-follow mode (meters). */
   followOffset?: Vec3Tuple;
   followSpeed?: number;

@@ -87,7 +87,9 @@ export function installEditorOverlay(
     position: [-0.15, 1.35, -0.95],
     maxWidth: 1.0,
     maxHeight: 1.0,
-    closable: false,
+    // The editor can be parked and collapsed, never closed - it is the tool.
+    pinnable: true,
+    minimizable: true,
   });
 
   // Panels load asynchronously; the host's portable readiness signal tells
@@ -139,6 +141,11 @@ export function installEditorOverlay(
         ],
         maxWidth: 0.8,
         maxHeight: 0.9,
+        // Spawned panels get the full chrome so every button can be tried.
+        pinnable: true,
+        dockable: true,
+        minimizable: true,
+        closable: true,
       });
       say(`Spawned "Live Panel ${spawnCount}" - drag, dock or edit again.`);
     };

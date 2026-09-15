@@ -25,7 +25,9 @@ import {
  * so the same option names mean the same thing on every adapter. `maxWidth`
  * and `maxHeight` route to `UIWindow.targetWidth/Height` here, because IWSDK
  * 0.5 removed those fields from `PanelUI`; omit them to keep the markup's
- * intrinsic size and scale through the entity transform.
+ * intrinsic size and scale through the entity transform. The title-bar
+ * buttons (`closable`, `minimizable`, `pinnable`, `dockable`) are all off
+ * unless asked for.
  */
 export interface CreateWindowOptions extends WindowOptionsBase {
   /**
@@ -51,9 +53,11 @@ export function createUIWindow(world: World, options: CreateWindowOptions): Enti
       title: options.title ?? '',
       dockMode: options.dockMode ?? DockMode.WorldLocked,
       movable: options.movable ?? true,
-      closable: options.closable ?? true,
-      minimizable: options.minimizable ?? true,
-      pinnable: options.pinnable ?? true,
+      // Chrome buttons are opt-in - see WindowOptionsBase.
+      closable: options.closable ?? false,
+      minimizable: options.minimizable ?? false,
+      pinnable: options.pinnable ?? false,
+      dockable: options.dockable ?? false,
       billboardWhileDragging: options.billboardWhileDragging ?? true,
       followOffset: options.followOffset ?? [0, -0.15, -1.2],
       followSpeed: options.followSpeed ?? 3,

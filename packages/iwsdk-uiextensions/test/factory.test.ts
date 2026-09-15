@@ -86,9 +86,11 @@ describe('createUIWindow', () => {
     expect(UIWindow.data.title[entity.index]).toBe('');
     expect(UIWindow.data.dockMode[entity.index]).toBe(DockMode.WorldLocked);
     expect(flag(UIWindow.data.movable, entity.index)).toBe(true);
-    expect(flag(UIWindow.data.closable, entity.index)).toBe(true);
-    expect(flag(UIWindow.data.minimizable, entity.index)).toBe(true);
-    expect(flag(UIWindow.data.pinnable, entity.index)).toBe(true);
+    // Chrome buttons are opt-in: none of the four is on until asked for.
+    expect(flag(UIWindow.data.closable, entity.index)).toBe(false);
+    expect(flag(UIWindow.data.minimizable, entity.index)).toBe(false);
+    expect(flag(UIWindow.data.pinnable, entity.index)).toBe(false);
+    expect(flag(UIWindow.data.dockable, entity.index)).toBe(false);
     expect(flag(UIWindow.data.billboardWhileDragging, entity.index)).toBe(true);
     expect(UIWindow.data.targetWidth[entity.index]).toBe(0);
     expect(UIWindow.data.targetHeight[entity.index]).toBe(0);
@@ -110,9 +112,10 @@ describe('createUIWindow', () => {
       maxWidth: 0.8,
       maxHeight: 0.6,
       movable: false,
-      closable: false,
-      minimizable: false,
-      pinnable: false,
+      closable: true,
+      minimizable: true,
+      pinnable: true,
+      dockable: true,
       billboardWhileDragging: false,
       followOffset: [0.1, -0.2, -1],
       followSpeed: 5,
@@ -124,9 +127,10 @@ describe('createUIWindow', () => {
     expect(UIWindow.data.title[entity.index]).toBe('Event log');
     expect(UIWindow.data.dockMode[entity.index]).toBe(DockMode.BodyFollow);
     expect(flag(UIWindow.data.movable, entity.index)).toBe(false);
-    expect(flag(UIWindow.data.closable, entity.index)).toBe(false);
-    expect(flag(UIWindow.data.minimizable, entity.index)).toBe(false);
-    expect(flag(UIWindow.data.pinnable, entity.index)).toBe(false);
+    expect(flag(UIWindow.data.closable, entity.index)).toBe(true);
+    expect(flag(UIWindow.data.minimizable, entity.index)).toBe(true);
+    expect(flag(UIWindow.data.pinnable, entity.index)).toBe(true);
+    expect(flag(UIWindow.data.dockable, entity.index)).toBe(true);
     expect(flag(UIWindow.data.billboardWhileDragging, entity.index)).toBe(false);
     expect(UIWindow.data.targetWidth[entity.index]).toBeCloseTo(0.8, 5);
     expect(UIWindow.data.targetHeight[entity.index]).toBeCloseTo(0.6, 5);

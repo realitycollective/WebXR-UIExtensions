@@ -33,12 +33,17 @@ export const UIWindow = createComponent(
     dockMode: { type: Types.Enum, enum: DockMode, default: DockMode.WorldLocked },
     /** Whether the title bar drags the window. */
     movable: { type: Types.Boolean, default: true },
-    /** Show/enable the close affordance. */
-    closable: { type: Types.Boolean, default: true },
-    /** Show/enable the minimize affordance. */
-    minimizable: { type: Types.Boolean, default: true },
-    /** Show/enable the pin (body-follow ⇄ world-locked) affordance. */
-    pinnable: { type: Types.Boolean, default: true },
+    /**
+     * Title-bar buttons, all OFF by default. These seed the window's chrome
+     * state on adoption; after that `WindowManager.setChrome` is the way to
+     * change them, and the values here are kept in step with it.
+     */
+    closable: { type: Types.Boolean, default: false },
+    minimizable: { type: Types.Boolean, default: false },
+    /** The pin (body-follow ⇄ world-locked) affordance. */
+    pinnable: { type: Types.Boolean, default: false },
+    /** The DOCK affordance, which returns the window to where it spawned. */
+    dockable: { type: Types.Boolean, default: false },
     /** Keep the window yawed toward the viewer while it is being dragged. */
     billboardWhileDragging: { type: Types.Boolean, default: true },
     /**

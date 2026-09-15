@@ -1,24 +1,58 @@
 /**
- * WindowManager - pure window registry, focus ordering and minimize state.
+ * WindowManager - pure window registry, focus ordering and window state.
  *
  * The manager knows nothing about entities, three.js or uikit. It deals in
- * opaque window ids and answers two questions the ECS layer applies each
+ * opaque window ids and answers the questions the engine layer applies each
  * frame:
  *
  * 1. What is the focus (z) order? (`orderOf` → depth bias so the focused
  *    window renders nearest the user and receives pointer priority)
- * 2. What state is a window in? (minimized / focused / dock mode)
+ * 2. What state is a window in? (minimized / hidden / focused / dock mode /
+ *    region / which chrome buttons are enabled)
+ *
+ * It is also the ONE API app code calls to change a window: a hand menu that
+ * hides, docks or pins a targeted window talks to the manager, and every
+ * adapter applies the resulting events. Nothing here needs an engine handle.
  */
 import { Emitter } from './events.js';
 import { DockMode, DockModeValue, isDockMode, togglePinned } from './dock-state.js';
+
+/**
+ * Which title-bar buttons are enabled. Keys match the chrome element ids in
+ * `WINDOW_CHROME_IDS`. A disabled button is hidden and its click ignored.
+ * Every button is OFF unless the app turns it on.
+ */
+export interface WindowChrome {
+  /** Body-follow ⇄ world-locked toggle. */
+  pin: boolean;
+  /** Return the window to its home (spawn region or original placement). */
+  dock: boolean;
+  /** Minimize / restore toggle. */
+  minimize: boolean;
+  /** Close (destroy) the window. */
+  close: boolean;
+}
+
+export const NO_CHROME: Readonly<WindowChrome> = Object.freeze({
+  pin: false,
+  dock: false,
+  minimize: false,
+  close: false,
+});
 
 export interface WindowRecord {
   id: string;
   title: string;
   dockMode: DockModeValue;
   minimized: boolean;
+  /** Not drawn and not hittable; everything else about the window is kept. */
+  hidden: boolean;
   /** True while the user is actively dragging the window by its title bar. */
   dragging: boolean;
+  /** The layout region the window is docked into, if any. */
+  region: string | undefined;
+  /** Which title-bar buttons are enabled. */
+  chrome: WindowChrome;
 }
 
 export interface WindowManagerEvents extends Record<string, unknown> {
@@ -27,7 +61,14 @@ export interface WindowManagerEvents extends Record<string, unknown> {
   focused: WindowRecord;
   minimized: WindowRecord;
   restored: WindowRecord;
+  hidden: WindowRecord;
+  shown: WindowRecord;
   dockChanged: { window: WindowRecord; previous: DockModeValue };
+  /** The window entered, left or moved between regions. */
+  regionChanged: { window: WindowRecord; previous: string | undefined };
+  /** The app asked for the window to go back to where it spawned. */
+  returnHome: WindowRecord;
+  chromeChanged: { window: WindowRecord; previous: WindowChrome };
   dragStarted: WindowRecord;
   dragEnded: WindowRecord;
 }
@@ -35,6 +76,12 @@ export interface WindowManagerEvents extends Record<string, unknown> {
 export interface OpenWindowOptions {
   title?: string;
   dockMode?: DockModeValue;
+  /** Open hidden; `show()` reveals it. */
+  hidden?: boolean;
+  /** Open docked into this region. */
+  region?: string;
+  /** Buttons to enable; anything omitted stays off. */
+  chrome?: Partial<WindowChrome>;
 }
 
 /**
@@ -80,7 +127,10 @@ export class WindowManager {
       title: options.title ?? id,
       dockMode,
       minimized: false,
+      hidden: options.hidden ?? false,
       dragging: false,
+      region: options.region,
+      chrome: { ...NO_CHROME, ...options.chrome },
     };
     this.windows.set(id, record);
     this.focusStack.push(id);
@@ -89,6 +139,10 @@ export class WindowManager {
     return record;
   }
 
+  /**
+   * Close a window. This is the one teardown call: adapters listen for
+   * `closed` and dispose whatever they created for the window.
+   */
   close(id: string): void {
     const record = this.require(id);
     this.windows.delete(id);
@@ -138,6 +192,39 @@ export class WindowManager {
     }
   }
 
+  /**
+   * Take a window out of view without closing it. Dock mode, region slot and
+   * minimized state are all kept, so `show()` brings it back exactly where
+   * it was. A hidden docked window keeps its slot.
+   */
+  hide(id: string): void {
+    const record = this.require(id);
+    if (record.hidden) {
+      return;
+    }
+    record.hidden = true;
+    this.events.emit('hidden', record);
+  }
+
+  /** Reveal a hidden window and bring it to the front. */
+  show(id: string): void {
+    const record = this.require(id);
+    if (!record.hidden) {
+      return;
+    }
+    record.hidden = false;
+    this.events.emit('shown', record);
+    this.focus(id);
+  }
+
+  toggleHidden(id: string): void {
+    if (this.require(id).hidden) {
+      this.show(id);
+    } else {
+      this.hide(id);
+    }
+  }
+
   setDockMode(id: string, mode: DockModeValue): void {
     if (!isDockMode(mode)) {
       throw new Error(`[uix] "${String(mode)}" is not a dock mode`);
@@ -149,6 +236,62 @@ export class WindowManager {
     const previous = record.dockMode;
     record.dockMode = mode;
     this.events.emit('dockChanged', { window: record, previous });
+  }
+
+  /**
+   * Dock a window into a layout region. The manager records the intent and
+   * emits `regionChanged`; the adapter places the window in a slot (and may
+   * call `undock` back if the region is full or unknown).
+   */
+  dockTo(id: string, regionId: string): void {
+    if (!regionId) {
+      throw new Error('[uix] dockTo needs a region id; use undock() to leave a region');
+    }
+    const record = this.require(id);
+    if (record.region === regionId) {
+      return;
+    }
+    const previous = record.region;
+    record.region = regionId;
+    this.events.emit('regionChanged', { window: record, previous });
+  }
+
+  /** Take a window out of its region. No-op when it is not docked. */
+  undock(id: string): void {
+    const record = this.require(id);
+    if (record.region === undefined) {
+      return;
+    }
+    const previous = record.region;
+    record.region = undefined;
+    this.events.emit('regionChanged', { window: record, previous });
+  }
+
+  /**
+   * Ask for the window to go back to where it spawned: its spawn region, or
+   * its original placement and dock mode. The adapter owns that snapshot,
+   * so this only emits `returnHome`; this is also what the DOCK title-bar
+   * button does.
+   */
+  returnHome(id: string): void {
+    this.events.emit('returnHome', this.require(id));
+  }
+
+  /** Enable or disable title-bar buttons after the window is open. */
+  setChrome(id: string, chrome: Partial<WindowChrome>): void {
+    const record = this.require(id);
+    const next: WindowChrome = { ...record.chrome, ...chrome };
+    if (
+      next.pin === record.chrome.pin &&
+      next.dock === record.chrome.dock &&
+      next.minimize === record.chrome.minimize &&
+      next.close === record.chrome.close
+    ) {
+      return;
+    }
+    const previous = record.chrome;
+    record.chrome = next;
+    this.events.emit('chromeChanged', { window: record, previous });
   }
 
   /** Track an active title-bar drag; emits dragStarted/dragEnded on change. */

@@ -8,9 +8,9 @@ Windowing, docking, layout regions and extra controls for [Meta's Immersive Web 
 
 | Feature | What you get |
 | --- | --- |
-| **Windows** | Title-bar chrome (pin / minimize / close), focus & z-ordering, a per-world `WindowManager` with typed events |
+| **Windows** | Title-bar chrome (pin / dock / minimize / close, each opt-in), focus & z-ordering, hide/show, a per-world `WindowManager` with typed events that is also the API for driving a window from code |
 | **Dock states** | `world-locked` (place in space) ⇄ `body-follow` (lazy follow) ⇄ `head-locked`, realised with the IWSDK's own `Follower`/`ScreenSpace` |
-| **Manipulation** | Drag windows by the title bar (powered by `@pmndrs/handle`, the same library behind IWSDK grabbing), billboard-while-dragging, drop-to-dock |
+| **Manipulation** | Drag windows by the title bar with the far ray or a near grab (controller squeeze, hand pinch), powered by `@pmndrs/handle`, the same library behind IWSDK grabbing; billboard-while-dragging, drop-to-dock |
 | **Layout regions** | Named regions (row / column / grid slots) windows snap into; regions can themselves follow the player |
 | **Controls** | `data-uix` markup upgrades: **stepper**, **toggle**, **expandable multi-line label**, **log/list view** - plus everything UIKitML already has (buttons, inputs, textareas, images, and the horizon kit's Slider/Checkbox/…) |
 
@@ -47,9 +47,18 @@ createUIWindow(world, {
   title: 'Player Status',
   config: './ui/status.uikitml', // UIKitML source; IWSDK 0.5 parses it at runtime
   dockMode: DockMode.BodyFollow,   // follows until the user pins it
+  pinnable: true,                  // title-bar buttons are off unless asked for
+  minimizable: true,
 });
 
 windows.events.on('closed', (w) => console.log(`${w.title} closed`));
+
+// The manager is also how code changes a window - from a hand menu, say:
+windows.hide('status');            // and show(), toggleHidden()
+windows.togglePin('status');       // or setDockMode(id, DockMode.WorldLocked)
+windows.dockTo('status', 'wall');  // undock(id), returnHome(id)
+windows.setChrome('status', { close: true, dock: true });
+windows.close('status');           // destroys the entity
 ```
 
 ### Window markup
@@ -94,12 +103,33 @@ controls.stepper('health').events.on('change', (hp) => setHealth(hp));
 
 > UIKitML note: every dynamic-text element needs a literal placeholder child (`<span data-uix-role="value">.</span>`) or no Text node is created.
 
+**Every title-bar button is off by default.** Keep all four in the markup, then enable the ones a window should have with `closable`, `minimizable`, `pinnable` and `dockable` at spawn, or later with `windows.setChrome(id, { pin: true })`. A disabled button is hidden and its click ignored; enabling one needs no rewiring.
+
 ### Interaction model
 
 - **Drag** the title bar with the ray (or mouse on desktop) to move a window; it billboards toward you while dragging and settles facing you when released. A press only becomes a drag after `dragDelay` seconds (default 0.3, per-window on `UIWindow`) - shorter presses stay clicks, and the chrome buttons swallow their presses entirely, so PIN/DOCK/MIN/X never fight the drag gesture.
+- **Near grab** the title bar to pick the window up: squeeze with a controller, or pinch with a tracked hand while it is on the bar. A near grab is a deliberate gesture, so it drags at once with no hold delay. This does not need `features.grabbing`: `UIDragSystem` enables IWSDK's near `grab` pointer itself, lists every movable title bar as a target for it each frame, and forwards a hand pinch to it only while the hand is on a title bar, so pinching anywhere else still means what your app decided. Pass `registerUIExtensions(world, { nearDrag: false })` to keep the ray as the only way to move windows.
 - **Drop** a window inside a region's snap radius to dock it into the next slot; drag it out again to undock.
 - **Pin** toggles `body-follow` ⇄ `world-locked` ("place in space").
 - Dragging a following window implicitly places it - pin re-attaches it.
+- **Hide** takes a window out of view and out of reach (no ray or poke can hit it) while keeping its dock mode, region slot and minimized state; **show** brings it back exactly where it was and in front. Minimize collapses the body but leaves the title bar drawn.
+
+### Driving windows from code
+
+`registerUIExtensions` returns the `WindowManager`, and it is the one API app code needs to change a window - a hand menu, a keyboard shortcut, a voice command. Every call is applied by the systems, and the same calls work on the XR Blocks adapter:
+
+| Call | Effect |
+| --- | --- |
+| `hide(id)` / `show(id)` / `toggleHidden(id)` | Out of view and unhittable; back in place and in front |
+| `minimize(id)` / `restore(id)` / `toggleMinimized(id)` | Collapse / expand the body |
+| `togglePin(id)` / `setDockMode(id, mode)` | Follow the player or stay put |
+| `dockTo(id, regionId)` / `undock(id)` | Into a region slot (world-locked) / out of it |
+| `returnHome(id)` | Back to the spawn region, or the spawn placement and mode (what DOCK does) |
+| `setChrome(id, { pin, dock, minimize, close })` | Enable or disable title-bar buttons at runtime |
+| `focus(id)` | Bring to the front |
+| `close(id)` | Destroy the window's entity |
+
+The record is always what the scene shows: a drag that docks a window, or a PIN click, is written back into `windows.get(id)`, and every change emits a typed event (`hidden`, `shown`, `regionChanged`, `returnHome`, `chromeChanged`, alongside the existing ones) so a menu can keep its labels honest. See `Examples/window-control/`.
 
 See `Examples/` (shipped in this package) and the deployable showcase client in the repository for complete, working demonstrations of every feature.
 

@@ -1,10 +1,12 @@
 /**
  * The shared `WindowHost` contract, shipped as data rather than as tests.
  *
- * Every adapter promises the same four things, whatever engine sits behind
+ * Every adapter promises the same five things, whatever engine sits behind
  * it: it says whether bare panels work and behaves accordingly,
  * `createWindow` hands back a {@link WindowHandle}, `onReady` fires exactly
- * once and replays for a late subscriber, and `onPanelReady` replays too.
+ * once and replays for a late subscriber, `onPanelReady` replays too, and
+ * closing a window through the `WindowManager` tears it down so it is not
+ * replayed afterwards.
  * Running one suite from every adapter is what keeps those promises from
  * drifting apart, and gives a new adapter a starting test for free.
  *
@@ -18,6 +20,7 @@
  * {@link WindowHostContractSetup} that wraps those differences.
  */
 import type { PanelHandle, WindowHandle, WindowHost } from './adapter.js';
+import type { WindowManager } from './core/window-manager.js';
 
 /**
  * Everything a case needs to drive one adapter. Build a FRESH one per case:
@@ -26,6 +29,11 @@ import type { PanelHandle, WindowHandle, WindowHost } from './adapter.js';
 export interface WindowHostContractSetup {
   /** The host under test. */
   host: WindowHost;
+  /**
+   * The manager the host applies. `close()` on it is the one teardown call
+   * app code has, so the suite proves the host honours it.
+   */
+  manager: WindowManager;
   /** Spawn one window with this id, using whatever config the adapter needs. */
   createWindow(id: string): WindowHandle;
   /**
@@ -153,6 +161,28 @@ const CASES: readonly WindowHostContractCase[] = [
         `onPanelReady must replay the windows already live, expected "contract-d" among [${ids.join(', ')}]`,
       );
       detach(stop, 'onPanelReady');
+    },
+  },
+  {
+    name: 'closing through the manager takes the window out of onPanelReady replay',
+    run(setup) {
+      setup.createWindow('contract-e');
+      setup.attach?.('contract-e');
+      assert(
+        setup.manager.has('contract-e'),
+        'the host must open the window on the manager it was given',
+      );
+      setup.manager.close('contract-e');
+      assert(
+        !setup.manager.has('contract-e'),
+        'the manager must forget a closed window',
+      );
+      const ids: string[] = [];
+      detach(setup.host.onPanelReady((event) => ids.push(event.id)), 'onPanelReady');
+      assert(
+        !ids.includes('contract-e'),
+        `onPanelReady must not replay a window closed through the manager, got [${ids.join(', ')}]`,
+      );
     },
   },
 ];

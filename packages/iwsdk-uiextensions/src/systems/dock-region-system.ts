@@ -13,6 +13,7 @@ import { UIDockRegion, UIDockedTo, UIWindow } from '../components.js';
 import { DockMode } from '@realitycollective/webxr-uiextensions';
 import type { RegionDefinition, RegionFlow } from '@realitycollective/webxr-uiextensions';
 import { regionRegistryFor } from '../region-registry-store.js';
+import { windowManagerFor } from '../manager-registry.js';
 import type { RegionRegistry } from '@realitycollective/webxr-uiextensions';
 
 let autoRegionId = 0;
@@ -107,12 +108,25 @@ export class UIDockRegionSystem extends createSystem({
     if (entity.getValue(UIWindow, 'dockMode') !== DockMode.WorldLocked) {
       entity.setValue(UIWindow, 'dockMode', DockMode.WorldLocked);
     }
+    // Write the placement back so the record shows it (a drag-drop dock, or
+    // a spawn-docked window). A no-op when the manager asked for it.
+    const manager = windowManagerFor(this.world);
+    if (manager.has(windowId)) {
+      manager.dockTo(windowId, regionId);
+    }
   }
 
   private undockWindow(entity: Entity): void {
     const windowId = entity.getValue(UIWindow, 'windowId') as string;
-    if (windowId) {
-      this.registry.undock(windowId);
+    if (!windowId) {
+      return;
+    }
+    this.registry.undock(windowId);
+    // Same write-back on the way out: a drag lifted it, or the dock was
+    // rejected (unknown or full region) and the record must not claim it.
+    const manager = windowManagerFor(this.world);
+    if (manager.has(windowId)) {
+      manager.undock(windowId);
     }
   }
 }

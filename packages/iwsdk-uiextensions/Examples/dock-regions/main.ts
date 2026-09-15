@@ -16,7 +16,7 @@ export async function start(container: HTMLDivElement) {
   const world = await World.create(container, {
     features: { spatialUI: true },
   });
-  registerUIExtensions(world);
+  const windows = registerUIExtensions(world);
 
   // A world-locked column on the wall - drop windows to stack them.
   createDockRegion(world, {
@@ -43,6 +43,8 @@ export async function start(container: HTMLDivElement) {
     title: 'Docked Window',
     config: './ui/window.uikitml',
     region: 'wall',
+    dockable: true, // DOCK returns it to the wall after a drag elsewhere
+    pinnable: true,
   });
 
   // …and one free-floating to drag into either region.
@@ -51,5 +53,13 @@ export async function start(container: HTMLDivElement) {
     title: 'Drag Me Into A Region',
     config: './ui/window.uikitml',
     position: [0, 1.5, -1.4],
+    dockable: true,
+    pinnable: true,
   });
+
+  // Regions are reachable from code too, no drag needed:
+  //   windows.dockTo('floating', 'toolbar');
+  //   windows.undock('floating');
+  //   windows.returnHome('docked');
+  void windows;
 }

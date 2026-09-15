@@ -23,7 +23,16 @@ export async function start(container: HTMLDivElement) {
     config: './ui/window.uikitml',
     dockMode: DockMode.BodyFollow, // follows until pinned or dragged
     followOffset: [0, -0.15, -1.2],
+    // Title-bar buttons are off unless asked for; this window asks for all
+    // four. Leave any of these out and that button is hidden and inert.
+    pinnable: true,
+    dockable: true,
+    minimizable: true,
+    closable: true,
   });
+
+  // Every button is also a call on the manager - see Examples/window-control:
+  //   windows.hide('hello'); windows.show('hello'); windows.togglePin('hello');
 
   windows.events.on('dockChanged', ({ window, previous }) => {
     console.log(`[uix] ${window.title}: ${previous} → ${window.dockMode}`);
