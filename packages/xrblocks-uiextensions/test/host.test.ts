@@ -54,8 +54,10 @@ function makeHands() {
   return { poses, source };
 }
 
-/** 180 degrees about Z: the palm (-Y) faces +Y. */
-const PALM_UP: QuatTuple = [0, 0, 1, 0];
+/** Left grip rotated +90 degrees about Z: the left palm (+X) faces world +Y. */
+const PALM_UP: QuatTuple = [0, 0, Math.SQRT1_2, Math.SQRT1_2];
+/** Right grip rotated -90 degrees about Z: the right palm (-X) faces world +Y. */
+const RIGHT_PALM_UP: QuatTuple = [0, 0, -Math.SQRT1_2, Math.SQRT1_2];
 
 const config = () => parse(PANEL_SOURCE);
 
@@ -334,7 +336,8 @@ describe('UixWindowHost hand menus', () => {
     poses.left = { position: [-0.3, 1.2, -0.4], quaternion: PALM_UP };
     host.update(1 / 60);
     expect(handle.group.visible).toBe(true);
-    expect(handle.group.position.toArray().map((v) => Math.round(v * 1000) / 1000)).toEqual([-0.3, 1.2, -0.5]);
+    // Fingertips (-Y in the grip) point to world +X after the +90° turn.
+    expect(handle.group.position.toArray().map((v) => Math.round(v * 1000) / 1000)).toEqual([-0.2, 1.2, -0.4]);
 
     // Palm turned away: gate shut.
     poses.left = { position: [-0.3, 1.2, -0.4], quaternion: [0, 0, 0, 1] };
@@ -355,13 +358,13 @@ describe('UixWindowHost hand menus', () => {
     const { poses, source } = makeHands();
     const { host } = makeHost(source);
     const handle = host.createWindow({ id: 'menu', config: config(), dockMode: DockMode.HandLocked });
-    poses.right = { position: [0.3, 1.2, -0.4], quaternion: PALM_UP };
+    poses.right = { position: [0.3, 1.2, -0.4], quaternion: RIGHT_PALM_UP };
     host.update(1 / 60);
     expect(handle.group.visible).toBe(false); // default hand is the left
     host.manager.setHandMenu('menu', { hand: 'right' });
     host.update(1 / 60);
     expect(handle.group.visible).toBe(true);
-    expect(handle.group.position.x).toBeCloseTo(0.3, 3);
+    expect(handle.group.position.x).toBeCloseTo(0.3 - 0.12, 3);
   });
 
   it('leaving hand-locked reopens the gate; pin from a hand menu lands world-locked', () => {

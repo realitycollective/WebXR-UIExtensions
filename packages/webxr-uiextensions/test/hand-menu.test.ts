@@ -8,6 +8,7 @@ import {
   handMenuPose,
   isPalmFacing,
   palmFacing,
+  palmNormal,
   pickHand,
   quaternionFromBasis,
   resolveHandMenu,
@@ -15,8 +16,14 @@ import {
 } from '../src/core/hand-menu.js';
 
 const IDENTITY: QuatTuple = [0, 0, 0, 1];
-/** 180° about Z: +Y becomes -Y, so the palm (-Y) faces +Y; fingertips stay along -Z, X mirrors. */
-const PALM_UP: QuatTuple = [0, 0, 1, 0];
+const HALF = Math.SQRT1_2;
+/**
+ * Grip-frame rotations that turn each hand's palm normal to world +Y (a palm
+ * raised toward a viewer overhead): the right palm is -X, so -90° about Z
+ * takes it to +Y; the left palm is +X, so +90° about Z does.
+ */
+const RIGHT_PALM_UP: QuatTuple = [0, 0, -HALF, HALF];
+const LEFT_PALM_UP: QuatTuple = [0, 0, HALF, HALF];
 
 const hand = (position: Vec3Tuple, quaternion: QuatTuple = IDENTITY): PoseTuple => ({
   position,
@@ -41,46 +48,54 @@ describe('hand menu options', () => {
     expect(custom.offset).not.toBe(offset);
   });
 
-  it('places each anchor in the hand frame, mirrored for the other hand', () => {
-    expect(anchorOffset('above', 'right', 0.1)).toEqual([0, 0, -0.1]);
-    expect(anchorOffset('above', 'left', 0.1)).toEqual([0, 0, -0.1]);
-    expect(anchorOffset('wrist', 'left', 0.1)).toEqual([0, 0, 0.1]);
-    // Thumb side: -X on the right hand, +X on the left.
-    expect(anchorOffset('inside', 'right', 0.1)).toEqual([-0.1, 0, 0]);
-    expect(anchorOffset('inside', 'left', 0.1)).toEqual([0.1, 0, 0]);
-    expect(anchorOffset('outside', 'right', 0.1)).toEqual([0.1, 0, 0]);
-    expect(anchorOffset('outside', 'left', 0.1)).toEqual([-0.1, 0, 0]);
+  it('places each anchor in the grip frame, the same for both hands', () => {
+    // Fingertips are -Y (the arm is +Y), the thumb is -Z.
+    expect(anchorOffset('above', 'right', 0.1)).toEqual([0, -0.1, 0]);
+    expect(anchorOffset('above', 'left', 0.1)).toEqual([0, -0.1, 0]);
+    expect(anchorOffset('wrist', 'left', 0.1)).toEqual([0, 0.1, 0]);
+    expect(anchorOffset('inside', 'right', 0.1)).toEqual([0, 0, -0.1]);
+    expect(anchorOffset('inside', 'left', 0.1)).toEqual([0, 0, -0.1]);
+    expect(anchorOffset('outside', 'right', 0.1)).toEqual([0, 0, 0.1]);
+    expect(anchorOffset('outside', 'left', 0.1)).toEqual([0, 0, 0.1]);
+  });
+
+  it('knows which way each palm faces', () => {
+    expect(palmNormal('right')).toEqual([-1, 0, 0]);
+    expect(palmNormal('left')).toEqual([1, 0, 0]);
   });
 });
 
 describe('palm gate', () => {
-  it('reads the palm normal as -Y of the hand frame', () => {
-    // Identity hand at the origin: the palm points down, so a viewer below is
-    // square on and a viewer above sees the back of the hand.
-    expect(palmFacing(hand([0, 0, 0]), [0, -1, 0])).toBeCloseTo(1);
-    expect(palmFacing(hand([0, 0, 0]), [0, 1, 0])).toBeCloseTo(-1);
-    expect(palmFacing(hand([0, 0, 0]), [1, 0, 0])).toBeCloseTo(0);
-    // Turned palm-up, a viewer above is square on.
-    expect(palmFacing(hand([0, 0, 0], PALM_UP), [0, 1, 0])).toBeCloseTo(1);
+  it('reads the palm normal as -X on the right hand and +X on the left', () => {
+    // Identity grip at the origin: the right palm faces -X, the left +X.
+    expect(palmFacing(hand([0, 0, 0]), 'right', [-1, 0, 0])).toBeCloseTo(1);
+    expect(palmFacing(hand([0, 0, 0]), 'right', [1, 0, 0])).toBeCloseTo(-1);
+    expect(palmFacing(hand([0, 0, 0]), 'left', [1, 0, 0])).toBeCloseTo(1);
+    expect(palmFacing(hand([0, 0, 0]), 'left', [0, 1, 0])).toBeCloseTo(0);
+    // Turned palm-up, a viewer above is square on, for either hand.
+    expect(palmFacing(hand([0, 0, 0], RIGHT_PALM_UP), 'right', [0, 1, 0])).toBeCloseTo(1);
+    expect(palmFacing(hand([0, 0, 0], LEFT_PALM_UP), 'left', [0, 1, 0])).toBeCloseTo(1);
     // The viewer at the hand has no direction to judge: treated as facing.
-    expect(palmFacing(hand([1, 1, 1]), [1, 1, 1])).toBe(1);
+    expect(palmFacing(hand([1, 1, 1]), 'right', [1, 1, 1])).toBe(1);
   });
 
   it('opens within the angle and closes outside it', () => {
-    const raised = hand([0, 0, 0], PALM_UP);
-    expect(isPalmFacing(raised, [0, 1, 0], 60)).toBe(true);
+    const raised = hand([0, 0, 0], LEFT_PALM_UP);
+    expect(isPalmFacing(raised, 'left', [0, 1, 0], 60)).toBe(true);
     // 45° off: inside a 60° gate, outside a 30° one.
-    expect(isPalmFacing(raised, [1, 1, 0], 60)).toBe(true);
-    expect(isPalmFacing(raised, [1, 1, 0], 30)).toBe(false);
-    expect(isPalmFacing(raised, [0, -1, 0], 60)).toBe(false);
+    expect(isPalmFacing(raised, 'left', [1, 1, 0], 60)).toBe(true);
+    expect(isPalmFacing(raised, 'left', [1, 1, 0], 30)).toBe(false);
+    expect(isPalmFacing(raised, 'left', [0, -1, 0], 60)).toBe(false);
   });
 });
 
 describe('placement', () => {
   it('anchors in the hand frame, applies the offset, and faces the viewer', () => {
-    const options = resolveHandMenu({ anchor: 'above', anchorDistance: 0.1, offset: [0, 0.05, 0] });
-    const pose = handMenuPose(hand([1, 1, 1]), 'left', [1, 1.05, 5], options);
-    close(pose.position, [1, 1.05, 0.9]);
+    // Identity grip: fingertips are -Y, so "above" is below in world terms
+    // and the extra offset nudges along +Z toward a viewer at +Z.
+    const options = resolveHandMenu({ anchor: 'above', anchorDistance: 0.1, offset: [0, 0, 0.05] });
+    const pose = handMenuPose(hand([1, 1, 1]), 'left', [1, 0.9, 5], options);
+    close(pose.position, [1, 0.9, 1.05]);
     // The panel's +Z points at the viewer, and it stays upright.
     close(rotate(pose.quaternion, [0, 0, 1]), [0, 0, 1]);
     close(rotate(pose.quaternion, [0, 1, 0]), [0, 1, 0]);
@@ -88,20 +103,20 @@ describe('placement', () => {
 
   it('rotates the anchor with the hand', () => {
     const options = resolveHandMenu({ anchor: 'above', anchorDistance: 0.1 });
-    // Palm-up hand: its -Z (fingertips) is still -Z, but +X is mirrored, so
-    // the right hand's thumb side (-X locally) lands at world +X.
-    const above = handMenuPose(hand([0, 0, 0], PALM_UP), 'right', [0, 2, 0], options);
-    close(above.position, [0, 0, -0.1]);
+    // Right palm turned up (-90° about Z): -Y (fingertips) lands at world -X,
+    // and -Z (thumb) stays -Z.
+    const above = handMenuPose(hand([0, 0, 0], RIGHT_PALM_UP), 'right', [0, 2, 0], options);
+    close(above.position, [-0.1, 0, 0]);
     const inside = handMenuPose(
-      hand([0, 0, 0], PALM_UP),
+      hand([0, 0, 0], RIGHT_PALM_UP),
       'right',
       [0, 2, 0],
       resolveHandMenu({ anchor: 'inside', anchorDistance: 0.1 }),
     );
-    close(inside.position, [0.1, 0, 0]);
+    close(inside.position, [0, 0, -0.1]);
     // The panel's +Z points from its own position to the viewer.
-    const length = Math.hypot(0, 2, 0.1);
-    close(rotate(above.quaternion, [0, 0, 1]), [0, 2 / length, 0.1 / length]);
+    const length = Math.hypot(0.1, 2, 0);
+    close(rotate(above.quaternion, [0, 0, 1]), [0.1 / length, 2 / length, 0]);
   });
 });
 
@@ -150,8 +165,9 @@ describe('quaternionFromBasis', () => {
 
 describe('hand selection', () => {
   const viewer: Vec3Tuple = [0, 2, 0];
-  const raisedLeft = hand([-0.3, 0, 0], PALM_UP);
-  const raisedRight = hand([0.3, 0, 0], PALM_UP);
+  const raisedLeft = hand([-0.3, 0, 0], LEFT_PALM_UP);
+  const raisedRight = hand([0.3, 0, 0], RIGHT_PALM_UP);
+  // An identity grip: the right palm faces -X, level with the viewer overhead.
   const loweredRight = hand([0.3, 0, 0]);
 
   it('uses the configured hand only while it is tracked and facing', () => {
@@ -181,6 +197,7 @@ describe('hand selection', () => {
     const placed = evaluateHandMenu({ right: raisedRight }, viewer, options);
     expect(placed.hand).toBe('right');
     expect(placed.visible).toBe(true);
-    close(placed.pose!.position, [0.3, 0, -0.1]);
+    // Right palm up: fingertips (-Y) point to world -X.
+    close(placed.pose!.position, [0.2, 0, 0]);
   });
 });

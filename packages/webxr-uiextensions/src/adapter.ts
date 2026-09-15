@@ -57,9 +57,11 @@ export type {
 } from '@realitycollective/webxr-input';
 
 /**
- * Supplies a hand's pose each frame, in the hand frame `hand-menu.ts`
- * documents (WebXR grip convention: `-Z` toward the fingertips, `+Y` out of
- * the back of the hand). Returns `undefined` while that hand is not tracked;
+ * Supplies a hand's pose each frame as a WebXR GRIP space, the frame
+ * `hand-menu.ts` documents (`-Z` toward the thumb, `+Y` up the arm, the palm
+ * at `-X` on the right hand and `+X` on the left). A controller's grip and a
+ * tracked hand's `gripSpace` both are one; hand JOINT spaces are not, and
+ * must be converted. Returns `undefined` while that hand is not tracked;
  * a hand menu on it is then hidden. An adapter without hands at all (a
  * desktop) supplies no source and falls back to body-follow placement for
  * hand-locked windows.

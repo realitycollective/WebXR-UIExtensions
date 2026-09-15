@@ -398,8 +398,10 @@ describe('UIDragSystem near grab', () => {
 });
 
 describe('hand menus (hand-locked)', () => {
-  /** 180 degrees about Z: palm (-Y) faces +Y, fingertips stay along -Z. */
-  const PALM_UP = { x: 0, y: 0, z: 1, w: 0 };
+  /** Left grip rotated +90 degrees about Z: the left palm (+X) faces world +Y. */
+  const PALM_UP = { x: 0, y: 0, z: Math.SQRT1_2, w: Math.SQRT1_2 };
+  /** Right grip rotated -90 degrees about Z: the right palm (-X) faces world +Y. */
+  const RIGHT_PALM_UP = { x: 0, y: 0, z: -Math.SQRT1_2, w: Math.SQRT1_2 };
 
   function setup() {
     const hands = makeHands();
@@ -438,7 +440,8 @@ describe('hand menus (hand-locked)', () => {
     expect(Boolean(entity.getValue(UIWindowState, 'gateOpen'))).toBe(true);
     expect(entity.object3D?.visible).toBe(true);
     expect(entity.hasComponent(RayInteractable)).toBe(true);
-    expect(round(entity.object3D!.position.toArray())).toEqual([-0.3, 1, -0.625]);
+    // Fingertips (-Y in the grip) point to world +X after the +90° turn.
+    expect(round(entity.object3D!.position.toArray())).toEqual([-0.175, 1, -0.5]);
     // The panel's +Z points from the menu to the viewer (a metre up, a
     // little forward of the fingertips).
     const forward = new Vector3(0, 0, 1).applyQuaternion(entity.object3D!.quaternion);
@@ -505,10 +508,11 @@ describe('hand menus (hand-locked)', () => {
     hands.tracked.left = false;
     hands.tracked.right = true;
     hands.spaces.right.position.set(0.3, 1, -0.5);
-    hands.spaces.right.quaternion.set(PALM_UP.x, PALM_UP.y, PALM_UP.z, PALM_UP.w);
+    hands.spaces.right.quaternion.set(RIGHT_PALM_UP.x, RIGHT_PALM_UP.y, RIGHT_PALM_UP.z, RIGHT_PALM_UP.w);
     world.update(1 / 60, 0);
     expect(entity.object3D?.visible).toBe(true);
-    expect(entity.object3D!.position.x).toBeCloseTo(0.3, 3);
+    // Fingertips point to world -X after the -90° turn.
+    expect(entity.object3D!.position.x).toBeCloseTo(0.3 - 0.125, 3);
   });
 
   it('is hidden in a world with no XR input at all', () => {

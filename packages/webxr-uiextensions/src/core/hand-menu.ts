@@ -8,15 +8,21 @@
  * applies; this module turns those choices plus this frame's hand and head
  * poses into "is it visible, and where".
  *
- * Hand frame. Every adapter delivers a hand pose in the WebXR grip / hand
- * convention, so the offsets here mean the same thing on every engine:
+ * Hand frame. Every adapter delivers a hand pose as a WebXR GRIP space, the
+ * frame a controller's grip and a tracked hand's `gripSpace` both use, so the
+ * offsets here mean the same thing on every engine. The Device API defines
+ * it as the pose of a rod held in the hand:
  *
- * - origin at the palm (controller grip, or the hand's grip / wrist space)
- * - `-Z` points along the hand toward the fingertips
- * - `+Y` points out of the BACK of the hand, so the palm normal is `-Y`
- * - `+X` completes the right-handed frame; for a hand held palm-down it
- *   points to the wearer's right, which is the little-finger side of the
- *   right hand and the thumb side of the left
+ * - origin at the centroid of the curled fingers (the palm)
+ * - `-Z` points along the rod toward the thumb
+ * - `X` is perpendicular to the back of the hand: the back of the RIGHT hand
+ *   points `+X`, the back of the LEFT hand points `-X`, so the palm normal is
+ *   `-X` on the right hand and `+X` on the left
+ * - `+Y` points up the arm, so `-Y` is toward the fingertips
+ *
+ * (Hand JOINT spaces use a different frame - `-Y` out of the palm, `-Z` along
+ * the bone. An adapter that reads joints must convert; the shipped adapters
+ * read the grip space and need not.)
  *
  * Anchors are named from the hand's point of view so a menu reads the same
  * whichever hand carries it: `above` is beyond the fingertips, `wrist` is
@@ -75,37 +81,48 @@ export interface HandMenuPlacement {
   pose: PoseTuple | undefined;
 }
 
-/** Hand-local offset for an anchor, mirrored so both hands read the same. */
-export function anchorOffset(anchor: HandMenuAnchor, hand: Hand, distance: number): Vec3Tuple {
-  // Thumb side is -X on the right hand and +X on the left (see the frame note).
-  const thumb = hand === 'right' ? -distance : distance;
+/**
+ * Hand-local offset for an anchor. The thumb is `-Z` and the fingertips `-Y`
+ * for both hands in the grip frame, so no mirroring is needed.
+ */
+export function anchorOffset(anchor: HandMenuAnchor, _hand: Hand, distance: number): Vec3Tuple {
   switch (anchor) {
     case 'above':
-      return [0, 0, -distance];
+      return [0, -distance, 0];
     case 'wrist':
-      return [0, 0, distance];
+      return [0, distance, 0];
     case 'inside':
-      return [thumb, 0, 0];
+      return [0, 0, -distance];
     case 'outside':
-      return [-thumb, 0, 0];
+      return [0, 0, distance];
   }
+}
+
+/** The palm normal in the hand frame: `-X` on the right hand, `+X` on the left. */
+export function palmNormal(hand: Hand): Vec3Tuple {
+  return hand === 'right' ? [-1, 0, 0] : [1, 0, 0];
 }
 
 /**
  * Cosine of the angle between the palm normal and the direction to the
  * viewer: 1 is palm square on to the viewer, -1 is the back of the hand.
  */
-export function palmFacing(hand: PoseTuple, viewer: Vec3Tuple): number {
-  const normal = rotate(hand.quaternion, [0, -1, 0]);
-  const toViewer = normalize(sub(viewer, hand.position));
+export function palmFacing(pose: PoseTuple, hand: Hand, viewer: Vec3Tuple): number {
+  const normal = rotate(pose.quaternion, palmNormal(hand));
+  const toViewer = normalize(sub(viewer, pose.position));
   if (!toViewer) {
     return 1; // viewer at the hand: no direction to judge, treat as facing
   }
   return dot(normal, toViewer);
 }
 
-export function isPalmFacing(hand: PoseTuple, viewer: Vec3Tuple, angleDegrees: number): boolean {
-  return palmFacing(hand, viewer) >= Math.cos((angleDegrees * Math.PI) / 180);
+export function isPalmFacing(
+  pose: PoseTuple,
+  hand: Hand,
+  viewer: Vec3Tuple,
+  angleDegrees: number,
+): boolean {
+  return palmFacing(pose, hand, viewer) >= Math.cos((angleDegrees * Math.PI) / 180);
 }
 
 /** The menu's world pose for a hand: anchored in the hand frame, turned to face the viewer. */
@@ -127,13 +144,15 @@ export function handMenuPose(
  * yields `undefined`.
  */
 export function pickHand(poses: HandPoses, viewer: Vec3Tuple, options: HandMenuOptions): Hand | undefined {
-  const open = (pose: PoseTuple | undefined): boolean =>
-    pose !== undefined && (!options.palmGate || isPalmFacing(pose, viewer, options.palmAngle));
+  const open = (hand: Hand): boolean => {
+    const pose = poses[hand];
+    return pose !== undefined && (!options.palmGate || isPalmFacing(pose, hand, viewer, options.palmAngle));
+  };
   if (options.hand !== 'either') {
-    return open(poses[options.hand]) ? options.hand : undefined;
+    return open(options.hand) ? options.hand : undefined;
   }
-  const left = open(poses.left) ? palmFacing(poses.left!, viewer) : -Infinity;
-  const right = open(poses.right) ? palmFacing(poses.right!, viewer) : -Infinity;
+  const left = open('left') ? palmFacing(poses.left!, 'left', viewer) : -Infinity;
+  const right = open('right') ? palmFacing(poses.right!, 'right', viewer) : -Infinity;
   if (left === -Infinity && right === -Infinity) {
     return undefined;
   }
