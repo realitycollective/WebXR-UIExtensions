@@ -42,4 +42,14 @@ describe('HoldToDrag', () => {
     const hold = new HoldToDrag(0);
     expect(hold.update(true, 0.016)).toEqual({ phase: 'dragging', began: true, ended: false });
   });
+
+  it('a per-press delay overrides the configured one for that press only', () => {
+    const hold = new HoldToDrag(0.3);
+    // A deliberate gesture (near grab) asks for no wait and drags at once.
+    expect(hold.update(true, 0.016, 0)).toEqual({ phase: 'dragging', began: true, ended: false });
+    hold.update(false, 0.016);
+    // The next press without an override waits out the configured delay.
+    expect(hold.update(true, 0.016).phase).toBe('pending');
+    expect(hold.delaySeconds).toBe(0.3);
+  });
 });

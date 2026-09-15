@@ -8,6 +8,7 @@
  */
 import {
   Follower,
+  Transform,
   PanelDocument,
   PanelUI,
   PerspectiveCamera,
@@ -30,23 +31,37 @@ import {
   UIDockRegion,
   UIDockedTo,
   UIWindow,
+  UIWindowState,
 } from '../src/components.js';
 import { createUIWindow } from '../src/factory.js';
+import { UIWindowSystem } from '../src/systems/window-system.js';
+import { windowManagerFor } from '../src/manager-registry.js';
 import {
   createSceneHost,
   getPanelHandle,
   type IwsdkWindowHandle,
 } from '../src/scene-host.js';
 
+/**
+ * Every world in this file registers the same components in the same order.
+ * elics keeps `typeId` on the component object itself and `addComponent`
+ * only registers a component whose `typeId` is still -1, so a component
+ * first registered lazily (IWSDK's `Transform`, on the first
+ * `createTransformEntity`) keeps the id it got in an earlier world. A later
+ * world that hands that id to a different component makes the two share a
+ * bit, and a query excluding one silently excludes the other.
+ */
 function makeWorld(): World {
   const world = new World();
   for (const component of [
+    Transform,
     PanelUI,
     PanelDocument,
     RayInteractable,
     PokeInteractable,
     Follower,
     UIWindow,
+    UIWindowState,
     UIDockRegion,
     UIDockedTo,
   ]) {
@@ -129,9 +144,11 @@ const FULL_SCENE: SceneDescriptor = {
       followSpeed: 5,
       followTolerance: 0.1,
       movable: false,
-      closable: false,
-      minimizable: false,
-      pinnable: false,
+      closable: true,
+      minimizable: true,
+      pinnable: true,
+      dockable: true,
+      handMenu: { hand: 'right', anchor: 'wrist' },
     },
   ],
 };
@@ -362,6 +379,14 @@ describe('createSceneHost as a SceneTarget', () => {
     expect(UIWindow.data.followSpeed[window.index]).toBe(5);
     expect(UIDockedTo.data.regionId[window.index]).toBe('rail');
     expect(window.object3D?.position.toArray()).toEqual([1, 1.4, -2]);
+    // The four chrome flags reach the component, dockable included.
+    expect(Boolean((UIWindow.data.closable as Uint8Array)[window.index])).toBe(true);
+    expect(Boolean((UIWindow.data.minimizable as Uint8Array)[window.index])).toBe(true);
+    expect(Boolean((UIWindow.data.pinnable as Uint8Array)[window.index])).toBe(true);
+    expect(Boolean((UIWindow.data.dockable as Uint8Array)[window.index])).toBe(true);
+    // Hand-menu options reach the component too.
+    expect(UIWindow.data.hand[window.index]).toBe('right');
+    expect(UIWindow.data.handAnchor[window.index]).toBe('wrist');
   });
 
   it('applies a descriptor that sets nothing optional', () => {
@@ -413,10 +438,14 @@ describe('one host per world', () => {
 
 windowHostContract('IWSDK scene host', () => {
   const world = makeWorld();
+  // The window system is what opens a record on the manager once the panel
+  // attaches, and what destroys the entity when the manager closes it.
+  world.registerSystem(UIWindowSystem);
   const host = createSceneHost(world);
   const handles = new Map<string, IwsdkWindowHandle>();
   return {
     host,
+    manager: windowManagerFor(world),
     createWindow(id: string) {
       const handle = host.createWindow({ id, config: `/ui/${id}.uikitml` });
       handles.set(id, handle);
@@ -430,3 +459,4 @@ windowHostContract('IWSDK scene host', () => {
     },
   };
 });
+

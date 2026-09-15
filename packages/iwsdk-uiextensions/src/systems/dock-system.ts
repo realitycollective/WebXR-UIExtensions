@@ -4,6 +4,13 @@
  * `body-follow` and `head-locked` are implemented with the IWSDK's own
  * `Follower` / `ScreenSpace` components (reuse, not recreation); this system
  * only plans and applies transitions with the pure dock state machine.
+ *
+ * `hand-locked` (a hand menu) has no IWSDK component to lean on, so it is
+ * placed here each frame: the hand poses come from the player rig's grip
+ * spaces (a controller's grip, or the tracked hand), the decision of which
+ * hand, whether the palm gate is open and where the panel goes is the core's
+ * `evaluateHandMenu`, and the result is written to the entity transform and
+ * to `UIWindowState.gateOpen`, which `UIWindowSystem` turns into visibility.
  */
 import {
   Follower,
@@ -12,14 +19,18 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { createSystem } from '../create-system.js';
-import { Euler, Quaternion, Vector3 } from 'three';
+import { Euler, Quaternion, Vector3, type Object3D } from 'three';
 import { UIWindow, UIWindowState } from '../components.js';
 import {
   DockMode,
+  evaluateHandMenu,
   isDockMode,
   planTransition,
   recipeFor,
   type DockModeValue,
+  type Hand,
+  type HandPoses,
+  type PoseTuple,
 } from '@realitycollective/webxr-uiextensions';
 import { faceViewerYaw } from '@realitycollective/webxr-uiextensions';
 import { windowManagerFor } from '../manager-registry.js';
@@ -31,20 +42,95 @@ export class UIDockSystem extends createSystem({
   private manager!: WindowManager;
   private windowPosition = new Vector3();
   private viewerPosition = new Vector3();
+  private handPosition = new Vector3();
+  private handQuaternion = new Quaternion();
+  private parentQuaternion = new Quaternion();
 
   override init(): void {
     this.manager = windowManagerFor(this.world);
   }
 
   override update(): void {
+    let hands: HandPoses | undefined;
     for (const entity of this.queries.windows.entities) {
       const requested = entity.getValue(UIWindow, 'dockMode') as DockModeValue;
       const applied = entity.getValue(UIWindowState, 'appliedDockMode') as string;
-      if (!isDockMode(requested) || applied === requested) {
-        continue;
+      if (isDockMode(requested) && applied !== requested) {
+        this.apply(entity, applied, requested);
       }
-      this.apply(entity, applied, requested);
+      if (requested === DockMode.HandLocked) {
+        hands ??= this.readHands();
+        this.placeOnHand(entity, hands);
+      }
     }
+  }
+
+  /** This frame's tracked hands, in the core's hand frame (WebXR grip convention). */
+  private readHands(): HandPoses {
+    const poses: HandPoses = {};
+    const xr = (this.input as typeof this.input | undefined)?.xr;
+    const rig = this.player as { gripSpaces?: Record<Hand, Object3D> } | undefined;
+    if (!xr || !rig?.gripSpaces) {
+      return poses;
+    }
+    for (const hand of ['left', 'right'] as const) {
+      if (!xr.getPrimaryInputSource(hand)) {
+        continue; // nothing tracked on that side this frame
+      }
+      const space = rig.gripSpaces[hand];
+      space.getWorldPosition(this.handPosition);
+      space.getWorldQuaternion(this.handQuaternion);
+      poses[hand] = {
+        position: [this.handPosition.x, this.handPosition.y, this.handPosition.z],
+        quaternion: [
+          this.handQuaternion.x,
+          this.handQuaternion.y,
+          this.handQuaternion.z,
+          this.handQuaternion.w,
+        ],
+      };
+    }
+    return poses;
+  }
+
+  private placeOnHand(entity: Entity, hands: HandPoses): void {
+    const id = entity.getValue(UIWindow, 'windowId') as string;
+    const record = this.manager.get(id);
+    const object = entity.object3D;
+    if (!record || !object) {
+      return;
+    }
+    this.camera.getWorldPosition(this.viewerPosition);
+    const placement = evaluateHandMenu(
+      hands,
+      [this.viewerPosition.x, this.viewerPosition.y, this.viewerPosition.z],
+      record.handMenu,
+    );
+    if (Boolean(entity.getValue(UIWindowState, 'gateOpen')) !== placement.visible) {
+      entity.setValue(UIWindowState, 'gateOpen', placement.visible);
+    }
+    if (placement.pose) {
+      this.applyWorldPose(object, placement.pose);
+    }
+  }
+
+  /** Write a world pose onto an object whatever it is parented to. */
+  private applyWorldPose(object: Object3D, pose: PoseTuple): void {
+    this.windowPosition.set(pose.position[0], pose.position[1], pose.position[2]);
+    this.handQuaternion.set(
+      pose.quaternion[0],
+      pose.quaternion[1],
+      pose.quaternion[2],
+      pose.quaternion[3],
+    );
+    const parent = object.parent;
+    if (parent) {
+      parent.worldToLocal(this.windowPosition);
+      parent.getWorldQuaternion(this.parentQuaternion).invert();
+      this.handQuaternion.premultiply(this.parentQuaternion);
+    }
+    object.position.copy(this.windowPosition);
+    object.quaternion.copy(this.handQuaternion);
   }
 
   private apply(entity: Entity, applied: string, requested: DockModeValue): void {
@@ -64,6 +150,12 @@ export class UIDockSystem extends createSystem({
       }
       if (plan.removeScreenSpace && entity.hasComponent(ScreenSpace)) {
         entity.removeComponent(ScreenSpace);
+      }
+      if (plan.removeHandAnchor) {
+        // Off the hand: the gate no longer applies, and the window stays
+        // where the hand left it, facing the viewer.
+        entity.setValue(UIWindowState, 'gateOpen', true);
+        this.faceViewer(entity);
       }
       if (plan.addFollower) {
         // Unpinning: keep the window where the user left it, expressed

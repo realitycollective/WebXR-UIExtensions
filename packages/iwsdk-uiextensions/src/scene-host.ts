@@ -40,6 +40,7 @@ import {
   type CreateWindowOptions,
 } from './factory.js';
 import { UIWindow } from './components.js';
+import { windowManagerFor } from './manager-registry.js';
 
 /** Panel handle over an IWSDK `UIKitDocument`. */
 function panelHandleFor(document: UIKitDocument): PanelHandle {
@@ -162,6 +163,12 @@ function buildSceneHost(world: World): IwsdkSceneHost {
 
   world.registerSystem(createReadySystem(announce));
 
+  // A window closed through the manager is gone: stop replaying it to late
+  // subscribers. (The window system destroys the entity on the same event.)
+  windowManagerFor(world).events.on('closed', ({ id }) => {
+    ready.delete(id);
+  });
+
   let windowSequence = 0;
 
   const host: IwsdkSceneHost = {
@@ -261,6 +268,8 @@ function buildSceneHost(world: World): IwsdkSceneHost {
           ? { minimizable: window.minimizable }
           : {}),
         ...(window.pinnable !== undefined ? { pinnable: window.pinnable } : {}),
+        ...(window.dockable !== undefined ? { dockable: window.dockable } : {}),
+        ...(window.handMenu !== undefined ? { handMenu: window.handMenu } : {}),
       });
     },
   };

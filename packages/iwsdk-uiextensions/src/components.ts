@@ -8,7 +8,17 @@
  * components to realise dock modes rather than re-implementing them.
  */
 import { Types, createComponent } from '@iwsdk/core';
-import { DockMode } from '@realitycollective/webxr-uiextensions';
+import { DEFAULT_HAND_MENU, DockMode } from '@realitycollective/webxr-uiextensions';
+
+/** `HandMenuOptions.hand` as an enum object for the component schema. */
+export const HandChoice = { Left: 'left', Right: 'right', Either: 'either' } as const;
+/** `HandMenuOptions.anchor` as an enum object for the component schema. */
+export const HandAnchor = {
+  Above: 'above',
+  Inside: 'inside',
+  Outside: 'outside',
+  Wrist: 'wrist',
+} as const;
 
 /** Region flow options mirrored as an enum object for the component schema. */
 export const RegionFlowType = {
@@ -33,12 +43,17 @@ export const UIWindow = createComponent(
     dockMode: { type: Types.Enum, enum: DockMode, default: DockMode.WorldLocked },
     /** Whether the title bar drags the window. */
     movable: { type: Types.Boolean, default: true },
-    /** Show/enable the close affordance. */
-    closable: { type: Types.Boolean, default: true },
-    /** Show/enable the minimize affordance. */
-    minimizable: { type: Types.Boolean, default: true },
-    /** Show/enable the pin (body-follow ⇄ world-locked) affordance. */
-    pinnable: { type: Types.Boolean, default: true },
+    /**
+     * Title-bar buttons, all OFF by default. These seed the window's chrome
+     * state on adoption; after that `WindowManager.setChrome` is the way to
+     * change them, and the values here are kept in step with it.
+     */
+    closable: { type: Types.Boolean, default: false },
+    minimizable: { type: Types.Boolean, default: false },
+    /** The pin (body-follow ⇄ world-locked) affordance. */
+    pinnable: { type: Types.Boolean, default: false },
+    /** The DOCK affordance, which returns the window to where it spawned. */
+    dockable: { type: Types.Boolean, default: false },
     /** Keep the window yawed toward the viewer while it is being dragged. */
     billboardWhileDragging: { type: Types.Boolean, default: true },
     /**
@@ -54,6 +69,19 @@ export const UIWindow = createComponent(
     followTolerance: { type: Types.Float32, default: 0.35 },
     /** Meters the focused window is nudged toward the viewer per focus depth. */
     focusBias: { type: Types.Float32, default: 0.02 },
+    /**
+     * Hand-menu placement, used while `dockMode` is `hand-locked`. These seed
+     * the record's `handMenu` on adoption; after that
+     * `WindowManager.setHandMenu` is the way to change them, and the values
+     * here are kept in step with it. See `hand-menu.ts` in the core for the
+     * hand frame and what each anchor means.
+     */
+    hand: { type: Types.Enum, enum: HandChoice, default: DEFAULT_HAND_MENU.hand },
+    handAnchor: { type: Types.Enum, enum: HandAnchor, default: DEFAULT_HAND_MENU.anchor },
+    handAnchorDistance: { type: Types.Float32, default: DEFAULT_HAND_MENU.anchorDistance },
+    handOffset: { type: Types.Vec3, default: [0, 0, 0] },
+    palmGate: { type: Types.Boolean, default: DEFAULT_HAND_MENU.palmGate },
+    palmAngle: { type: Types.Float32, default: DEFAULT_HAND_MENU.palmAngle },
     /**
      * World size box in meters, applied via `UIKitDocument.setTargetDimensions`
      * once the document loads. IWSDK 0.5 removed `PanelUI.maxWidth/maxHeight`;
@@ -76,6 +104,14 @@ export const UIWindowState = createComponent(
   {
     appliedDockMode: { type: Types.String, default: '' },
     chromeWired: { type: Types.Boolean, default: false },
+    /**
+     * Whether the hand-menu palm gate is open this frame (always true in the
+     * other dock modes). `UIDockSystem` writes it; `UIWindowSystem` combines
+     * it with the record's `hidden` to decide what is drawn and hittable.
+     */
+    gateOpen: { type: Types.Boolean, default: true },
+    /** What `UIWindowSystem` last applied: drawn and hittable, or not. */
+    presented: { type: Types.Boolean, default: true },
     /** "Home" snapshot captured on adoption - the DOCK button returns here. */
     homeDockMode: { type: Types.String, default: '' },
     homeRegion: { type: Types.String, default: '' },

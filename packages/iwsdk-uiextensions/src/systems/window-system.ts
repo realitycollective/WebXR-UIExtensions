@@ -1,6 +1,15 @@
 /**
  * UIWindowSystem - wires window chrome, keeps the `WindowManager` in sync
- * with entities, applies focus ordering and minimize state.
+ * with entities, and applies every manager event to the ECS: focus
+ * ordering, minimize, hide/show, region docking, return-home, chrome
+ * enablement and close.
+ *
+ * The manager is the API app code drives (a hand menu calls
+ * `manager.hide(id)` or `manager.dockTo(id, region)`); this system is where
+ * those calls become entity changes. The reverse direction is kept in step
+ * too: a title-bar drag that docks a window, or a dock-mode change applied
+ * by `UIDockSystem`, is written back into the record, so the record is
+ * always what the scene shows.
  *
  * Reuse over recreation: the panel itself is loaded/rendered by the IWSDK's
  * `PanelUISystem`; this system only discovers the chrome elements by their
@@ -9,6 +18,8 @@
 import {
   PanelDocument,
   PanelUI,
+  PokeInteractable,
+  RayInteractable,
   UIKitDocument,
   type Entity,
 } from '@iwsdk/core';
@@ -20,6 +31,8 @@ import { windowManagerFor } from '../manager-registry.js';
 import {
   minimizeLabelFor,
   pinLabelFor,
+  type HandMenuOptions,
+  type WindowChrome,
   type WindowManager,
   type WindowRecord,
 } from '@realitycollective/webxr-uiextensions';
@@ -29,6 +42,12 @@ type UikitElement = {
   addEventListener: (type: string, listener: (event?: unknown) => void) => void;
   setProperties: (props: Record<string, unknown>) => void;
 };
+
+/** Which IWSDK interaction tags were stripped while not presented, so only those come back. */
+interface HiddenTags {
+  ray: boolean;
+  poke: boolean;
+}
 
 let autoId = 0;
 
@@ -41,6 +60,7 @@ export class UIWindowSystem extends createSystem({
 }) {
   private manager!: WindowManager;
   private entitiesById = new Map<string, Entity>();
+  private hiddenTags = new Map<string, HiddenTags>();
   private localCamera = new Vector3();
 
   override init(): void {
@@ -53,10 +73,13 @@ export class UIWindowSystem extends createSystem({
       this.queries.windows.subscribe('disqualify', (entity) => {
         this.releaseWindow(entity);
       }),
+      this.manager.events.on('closed', ({ id }) => this.destroyWindow(id)),
       this.manager.events.on('minimized', ({ id }) => this.applyMinimized(id, true)),
       this.manager.events.on('restored', ({ id }) => this.applyMinimized(id, false)),
       this.manager.events.on('minimized', (record) => this.syncMinimizeLabel(record)),
       this.manager.events.on('restored', (record) => this.syncMinimizeLabel(record)),
+      this.manager.events.on('hidden', ({ id }) => this.reconcilePresentation(id)),
+      this.manager.events.on('shown', ({ id }) => this.reconcilePresentation(id)),
       this.manager.events.on('dockChanged', ({ window }) => {
         const entity = this.entitiesById.get(window.id);
         if (entity && entity.getValue(UIWindow, 'dockMode') !== window.dockMode) {
@@ -64,6 +87,15 @@ export class UIWindowSystem extends createSystem({
         }
         this.syncPinLabel(window);
       }),
+      this.manager.events.on('regionChanged', ({ window }) => this.applyRegion(window)),
+      this.manager.events.on('returnHome', ({ id }) => {
+        const entity = this.entitiesById.get(id);
+        if (entity) {
+          this.returnHome(entity);
+        }
+      }),
+      this.manager.events.on('chromeChanged', ({ window }) => this.applyChrome(window)),
+      this.manager.events.on('handMenuChanged', ({ window }) => this.applyHandMenu(window)),
       this.manager.events.on('dragStarted', (window) => this.syncPinLabel(window)),
       this.manager.events.on('dragEnded', (window) => this.syncPinLabel(window)),
     );
@@ -76,7 +108,12 @@ export class UIWindowSystem extends createSystem({
     // window orientation.
     for (const entity of this.queries.windows.entities) {
       const id = entity.getValue(UIWindow, 'windowId') as string;
-      if (!this.manager.has(id)) {
+      const record = this.manager.get(id);
+      if (!record) {
+        continue;
+      }
+      // The palm gate (UIDockSystem) and hide() both feed one decision.
+      if (!this.reconcilePresentation(id)) {
         continue;
       }
       const document = this.documentOf(entity);
@@ -112,9 +149,18 @@ export class UIWindowSystem extends createSystem({
     }
     const title = entity.getValue(UIWindow, 'title') as string;
     const dockMode = entity.getValue(UIWindow, 'dockMode') as DockModeValue;
+    const region = entity.hasComponent(UIDockedTo)
+      ? (entity.getValue(UIDockedTo, 'regionId') as string)
+      : '';
     this.entitiesById.set(id, entity);
     if (!this.manager.has(id)) {
-      this.manager.open(id, { title, dockMode });
+      this.manager.open(id, {
+        title,
+        dockMode,
+        ...(region ? { region } : {}),
+        chrome: this.chromeFlagsOf(entity),
+        handMenu: this.handMenuOf(entity),
+      });
     }
     this.wireChrome(entity, id, title);
 
@@ -125,13 +171,49 @@ export class UIWindowSystem extends createSystem({
       chromeWired: true,
       appliedDockMode: '',
       homeDockMode: dockMode,
-      homeRegion: entity.hasComponent(UIDockedTo)
-        ? (entity.getValue(UIDockedTo, 'regionId') as string)
-        : '',
+      homeRegion: region,
       homePosition: object ? [object.position.x, object.position.y, object.position.z] : [0, 0, 0],
       homeYaw: object ? object.rotation.y : 0,
     });
-    this.syncPinLabel({ id, dockMode, dragging: false });
+    const record = this.manager.get(id);
+    if (record) {
+      this.applyChrome(record);
+      this.applyHandMenu(record);
+      this.syncPinLabel(record);
+      this.syncMinimizeLabel(record);
+      if (record.minimized) {
+        this.applyMinimized(id, true);
+      }
+      this.reconcilePresentation(id);
+    }
+  }
+
+  /** The hand-menu fields on the component, in the manager's vocabulary. */
+  private handMenuOf(entity: Entity): HandMenuOptions {
+    const offset = entity.getVectorView(UIWindow, 'handOffset');
+    return {
+      hand: entity.getValue(UIWindow, 'hand') as HandMenuOptions['hand'],
+      anchor: entity.getValue(UIWindow, 'handAnchor') as HandMenuOptions['anchor'],
+      anchorDistance: entity.getValue(UIWindow, 'handAnchorDistance') as number,
+      offset: [offset[0] ?? 0, offset[1] ?? 0, offset[2] ?? 0],
+      palmGate: Boolean(entity.getValue(UIWindow, 'palmGate')),
+      palmAngle: entity.getValue(UIWindow, 'palmAngle') as number,
+    };
+  }
+
+  /** Keep the component's hand-menu fields equal to the record. */
+  private applyHandMenu(record: Pick<WindowRecord, 'id' | 'handMenu'>): void {
+    const entity = this.entitiesById.get(record.id);
+    if (!entity) {
+      return;
+    }
+    const { handMenu } = record;
+    entity.setValue(UIWindow, 'hand', handMenu.hand);
+    entity.setValue(UIWindow, 'handAnchor', handMenu.anchor);
+    entity.setValue(UIWindow, 'handAnchorDistance', handMenu.anchorDistance);
+    entity.getVectorView(UIWindow, 'handOffset').set(handMenu.offset);
+    entity.setValue(UIWindow, 'palmGate', handMenu.palmGate);
+    entity.setValue(UIWindow, 'palmAngle', handMenu.palmAngle);
   }
 
   /** Return a window to its home: spawn region, or original placement/mode. */
@@ -168,6 +250,47 @@ export class UIWindowSystem extends createSystem({
     // Follow modes re-snap on their own (the dock system syncs the Follower).
   }
 
+  /** The chrome flags on the component, in the manager's vocabulary. */
+  private chromeFlagsOf(entity: Entity): WindowChrome {
+    return {
+      close: Boolean(entity.getValue(UIWindow, 'closable')),
+      minimize: Boolean(entity.getValue(UIWindow, 'minimizable')),
+      pin: Boolean(entity.getValue(UIWindow, 'pinnable')),
+      dock: Boolean(entity.getValue(UIWindow, 'dockable')),
+    };
+  }
+
+  /**
+   * Show exactly the enabled buttons, and keep the component flags equal to
+   * the record so code reading either sees one answer.
+   */
+  private applyChrome(record: Pick<WindowRecord, 'id' | 'chrome'>): void {
+    const entity = this.entitiesById.get(record.id);
+    if (!entity) {
+      return;
+    }
+    const { chrome } = record;
+    entity.setValue(UIWindow, 'closable', chrome.close);
+    entity.setValue(UIWindow, 'minimizable', chrome.minimize);
+    entity.setValue(UIWindow, 'pinnable', chrome.pin);
+    entity.setValue(UIWindow, 'dockable', chrome.dock);
+    const document = this.documentOf(entity);
+    if (!document) {
+      return;
+    }
+    const buttons: Array<[string, boolean]> = [
+      [WINDOW_CHROME_IDS.close, chrome.close],
+      [WINDOW_CHROME_IDS.minimize, chrome.minimize],
+      [WINDOW_CHROME_IDS.pin, chrome.pin],
+      [WINDOW_CHROME_IDS.dock, chrome.dock],
+    ];
+    for (const [elementId, enabled] of buttons) {
+      (document.getElementById(elementId) as UikitElement | undefined)?.setProperties({
+        display: enabled ? 'flex' : 'none',
+      });
+    }
+  }
+
   /** MIN when open, MAX when minimized - the label names the next action. */
   private syncMinimizeLabel(record: Pick<WindowRecord, 'id' | 'minimized'>): void {
     const entity = this.entitiesById.get(record.id);
@@ -189,13 +312,94 @@ export class UIWindowSystem extends createSystem({
     pin?.setProperties({ text: pinLabelFor(record) });
   }
 
+  /** The entity went away (destroyed, or lost its panel): close the record. */
   private releaseWindow(entity: Entity): void {
     const id = entity.getValue(UIWindow, 'windowId') as string;
     if (id && this.entitiesById.get(id) === entity) {
       this.entitiesById.delete(id);
+      this.hiddenTags.delete(id);
       if (this.manager.has(id)) {
         this.manager.close(id);
       }
+    }
+  }
+
+  /** The record was closed through the manager: tear the entity down. */
+  private destroyWindow(id: string): void {
+    const entity = this.entitiesById.get(id);
+    if (!entity) {
+      return; // closed from the entity side; releaseWindow already ran
+    }
+    this.entitiesById.delete(id);
+    this.hiddenTags.delete(id);
+    entity.destroy();
+  }
+
+  /**
+   * Draw and expose the window exactly when the record is not hidden AND the
+   * palm gate (for a hand menu) is open. Idempotent: `UIWindowState.presented`
+   * records what was last applied, so this is cheap to call every frame.
+   * Returns whether the window is presented.
+   */
+  private reconcilePresentation(id: string): boolean {
+    const entity = this.entitiesById.get(id);
+    const record = this.manager.get(id);
+    if (!entity || !record) {
+      return false;
+    }
+    const desired = !record.hidden && Boolean(entity.getValue(UIWindowState, 'gateOpen'));
+    if (Boolean(entity.getValue(UIWindowState, 'presented')) === desired) {
+      return desired;
+    }
+    entity.setValue(UIWindowState, 'presented', desired);
+    const object = entity.object3D;
+    if (object) {
+      object.visible = desired;
+    }
+    if (!desired) {
+      // Strip the interaction tags so no pointer can reach the window, and
+      // remember which ones were there so only those come back.
+      const tags: HiddenTags = {
+        ray: entity.hasComponent(RayInteractable),
+        poke: entity.hasComponent(PokeInteractable),
+      };
+      if (tags.ray) {
+        entity.removeComponent(RayInteractable);
+      }
+      if (tags.poke) {
+        entity.removeComponent(PokeInteractable);
+      }
+      this.hiddenTags.set(id, tags);
+      return false;
+    }
+    const tags = this.hiddenTags.get(id);
+    this.hiddenTags.delete(id);
+    if (tags?.ray && !entity.hasComponent(RayInteractable)) {
+      entity.addComponent(RayInteractable);
+    }
+    if (tags?.poke && !entity.hasComponent(PokeInteractable)) {
+      entity.addComponent(PokeInteractable);
+    }
+    return true;
+  }
+
+  /** Make the entity's `UIDockedTo` agree with the record's region. */
+  private applyRegion(record: Pick<WindowRecord, 'id' | 'region'>): void {
+    const entity = this.entitiesById.get(record.id);
+    if (!entity) {
+      return;
+    }
+    const current = entity.hasComponent(UIDockedTo)
+      ? (entity.getValue(UIDockedTo, 'regionId') as string)
+      : undefined;
+    if (current === record.region) {
+      return; // the ECS already shows it (drag-drop docked, or a write-back)
+    }
+    if (entity.hasComponent(UIDockedTo)) {
+      entity.removeComponent(UIDockedTo);
+    }
+    if (record.region !== undefined) {
+      entity.addComponent(UIDockedTo, { regionId: record.region });
     }
   }
 
@@ -242,47 +446,33 @@ export class UIWindowSystem extends createSystem({
       }
     });
 
-    const close = element(WINDOW_CHROME_IDS.close);
-    if (close) {
-      if (entity.getValue(UIWindow, 'closable')) {
-        close.addEventListener('click', () => {
-          // Destroying the entity disqualifies it everywhere; releaseWindow
-          // then closes the manager record.
-          entity.destroy();
-        });
-      } else {
-        close.setProperties({ display: 'none' });
-      }
-    }
+    // Every button is wired once and gated on the record at click time, so
+    // enabling a button later (manager.setChrome) needs no rewiring.
+    const enabled = (key: keyof WindowChrome): boolean =>
+      this.manager.get(id)?.chrome[key] === true;
 
-    const minimize = element(WINDOW_CHROME_IDS.minimize);
-    if (minimize) {
-      if (entity.getValue(UIWindow, 'minimizable')) {
-        minimize.addEventListener('click', () => {
-          if (this.manager.has(id)) {
-            this.manager.toggleMinimized(id);
-          }
-        });
-      } else {
-        minimize.setProperties({ display: 'none' });
+    element(WINDOW_CHROME_IDS.close)?.addEventListener('click', () => {
+      if (enabled('close')) {
+        // One teardown path: the manager closes, destroyWindow removes the
+        // entity, releaseWindow sees the record is already gone.
+        this.manager.close(id);
       }
-    }
-
-    const pin = element(WINDOW_CHROME_IDS.pin);
-    if (pin) {
-      if (entity.getValue(UIWindow, 'pinnable')) {
-        pin.addEventListener('click', () => {
-          if (this.manager.has(id)) {
-            this.manager.togglePin(id);
-          }
-        });
-      } else {
-        pin.setProperties({ display: 'none' });
+    });
+    element(WINDOW_CHROME_IDS.minimize)?.addEventListener('click', () => {
+      if (enabled('minimize')) {
+        this.manager.toggleMinimized(id);
       }
-    }
-
-    const dock = element(WINDOW_CHROME_IDS.dock);
-    dock?.addEventListener('click', () => this.returnHome(entity));
+    });
+    element(WINDOW_CHROME_IDS.pin)?.addEventListener('click', () => {
+      if (enabled('pin')) {
+        this.manager.togglePin(id);
+      }
+    });
+    element(WINDOW_CHROME_IDS.dock)?.addEventListener('click', () => {
+      if (enabled('dock')) {
+        this.manager.returnHome(id);
+      }
+    });
   }
 
   private applyMinimized(id: string, minimized: boolean): void {

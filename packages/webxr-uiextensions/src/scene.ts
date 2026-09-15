@@ -17,6 +17,7 @@
  */
 import type { DockModeValue } from './core/dock-state.js';
 import type { RegionFlow, Vec3 } from './core/region-layout.js';
+import type { HandMenuOptions } from './core/hand-menu.js';
 
 /** One window in a scene. */
 export interface SceneWindow {
@@ -35,9 +36,13 @@ export interface SceneWindow {
   followSpeed?: number;
   followTolerance?: number;
   movable?: boolean;
+  /** Title-bar buttons - all off unless enabled (see `WindowOptionsBase`). */
   closable?: boolean;
   minimizable?: boolean;
   pinnable?: boolean;
+  dockable?: boolean;
+  /** Hand-menu placement for a `hand-locked` window. */
+  handMenu?: Partial<HandMenuOptions>;
 }
 
 /** One dock region in a scene. */

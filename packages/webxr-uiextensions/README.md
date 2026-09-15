@@ -61,7 +61,13 @@ The IWSDK adapter is the reference implementation; the XR Blocks adapter shows t
 - `WindowHandle` - `id`, `panel` (`undefined` until the document is attached) and `onReady(listener)`, which runs once and fires immediately if the panel is already there. It is the per-window form of `onPanelReady`, for when you hold a handle and want only that window.
 - Getting the panel later, when you did not keep the handle - on IWSDK call `getPanelHandle(entity)` with the window's entity; on the three.js and XR Blocks host call `host.window(id)?.panel`. Both return the same `PanelHandle`.
 
-Options are shared even though `createWindow` is not: every adapter's option type extends `WindowOptionsBase` (`id`, `title`, `dockMode`, `position`, `maxWidth`/`maxHeight`, `movable`, `closable`, `minimizable`, `pinnable`, `followOffset`/`followSpeed`/`followTolerance`, `region`). An option means the same thing everywhere, so one `SceneWindow` maps onto every adapter with no translation table.
+Options are shared even though `createWindow` is not: every adapter's option type extends `WindowOptionsBase` (`id`, `title`, `dockMode`, `position`, `maxWidth`/`maxHeight`, `movable`, `closable`, `minimizable`, `pinnable`, `dockable`, `followOffset`/`followSpeed`/`followTolerance`, `region`). An option means the same thing everywhere, so one `SceneWindow` maps onto every adapter with no translation table. The four chrome flags are all off unless set: a window shows only the title-bar buttons it asked for, and `WindowManager.setChrome` changes that later.
+
+The `WindowManager` is the state API app code drives, and every adapter applies every one of its events. Beyond focus, minimize and dock mode it holds `hidden` (`hide`/`show`), `region` (`dockTo`/`undock`, plus `returnHome`), `chrome` (`setChrome`) and `handMenu` (`setHandMenu`), each with a typed event, and `close` is the one teardown call - an adapter must dispose on `closed`. A menu written against the manager therefore runs unchanged on every engine.
+
+Near touch has a press / hold / release state machine, `TouchPress` in `core/touch-press.ts`: fed a signed distance (positive in front of the surface) and the target under the finger each frame, it presses only on entering from the front, holds until the finger comes back out past a release distance or contact is lost, and cannot press again before that release. It reports the target at the press and at the release separately, because a finger can enter one button and leave through another; what that means for a click is the adapter's rule. The IWSDK adapter drives IWSDK's touch pointers from it.
+
+Hand menus are the fourth dock mode, `hand-locked`. The core owns all of it except the hand pose: `hand-menu.ts` turns the window's `handMenu` options (hand, anchor, palm gate) and this frame's hand and head poses into "visible, and where", in the WebXR grip frame (`-Z` toward the thumb, `+Y` up the arm, palm at `-X` on the right hand and `+X` on the left), which a controller's grip and a tracked hand's `gripSpace` share. An adapter supplies a `HandPoseSource` and applies the result; one that has no hands falls back to body-follow placement. `HAND_MENU_SNIPPET` is the reference markup: a title-bar-free vertical stack that sizes to its content.
 
 ### Proving a new adapter conforms
 
@@ -77,6 +83,7 @@ function makeSetup(): WindowHostContractSetup {
   const host = createMyHost();
   return {
     host,
+    manager: host.manager, // the WindowManager the host applies
     createWindow: (id) => host.createWindow({ id, config: myConfig() }),
     // Only where the panel arrives after the window does:
     attach: (id) => deliverThePanelFor(id),
@@ -90,7 +97,7 @@ for (const contractCase of windowHostContractCases()) {
 }
 ```
 
-`makeSetup()` runs once per case, because the cases spawn windows of their own and do not clean up after themselves. `attach` and `panelConfig` are both optional: leave `attach` out when a window's panel exists as soon as the window does, and `panelConfig` out when the host reports `supportsStandalonePanels: false`. Both shipped adapters run this suite, so a case failing on yours is a real difference in behaviour, not a difference in test style.
+`makeSetup()` runs once per case, because the cases spawn windows of their own and do not clean up after themselves. `manager` is required: one case closes a window through it and checks the host stops replaying it. `attach` and `panelConfig` are both optional: leave `attach` out when a window's panel exists as soon as the window does, and `panelConfig` out when the host reports `supportsStandalonePanels: false`. Both shipped adapters run this suite, so a case failing on yours is a real difference in behaviour, not a difference in test style.
 
 ## Testing
 

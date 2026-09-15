@@ -8,9 +8,14 @@
  *                    with a deadzone so it doesn't jitter.
  * - `head-locked`  - rigidly attached to the view (IWSDK `ScreenSpace` outside
  *                    XR / a zero-tolerance follow inside XR). Use sparingly.
+ * - `hand-locked`  - rides on a hand and shows while the palm is raised toward
+ *                    the viewer: a hand menu. Placement and the palm gate are
+ *                    `hand-menu.ts`; the window's `handMenu` options say which
+ *                    hand and where.
  *
  * The state machine itself only decides WHICH engine ingredients a mode needs;
- * `DockSystem` applies them (adding/removing `Follower` / `ScreenSpace`).
+ * `DockSystem` applies them (adding/removing `Follower` / `ScreenSpace`, or
+ * placing the window from a hand pose each frame).
  * Keeping the decision pure makes every transition unit-testable without a
  * headset or a renderer.
  */
@@ -19,6 +24,7 @@ export const DockMode = {
   WorldLocked: 'world-locked',
   BodyFollow: 'body-follow',
   HeadLocked: 'head-locked',
+  HandLocked: 'hand-locked',
 } as const;
 
 export type DockModeValue = (typeof DockMode)[keyof typeof DockMode];
@@ -29,6 +35,8 @@ export interface DockRecipe {
   follower: boolean;
   /** Requires an IWSDK `ScreenSpace` component (non-XR HUD lock). */
   screenSpace: boolean;
+  /** Placed from a hand pose each frame, and gated on the palm (a hand menu). */
+  handAnchor: boolean;
   /**
    * When true the window should re-sync its follow position immediately on
    * entering the mode (jump to the ideal spot instead of drifting there).
@@ -37,16 +45,18 @@ export interface DockRecipe {
 }
 
 const RECIPES: Record<DockModeValue, DockRecipe> = {
-  [DockMode.WorldLocked]: { follower: false, screenSpace: false, snapOnEnter: false },
-  [DockMode.BodyFollow]: { follower: true, screenSpace: false, snapOnEnter: true },
-  [DockMode.HeadLocked]: { follower: true, screenSpace: true, snapOnEnter: true },
+  [DockMode.WorldLocked]: { follower: false, screenSpace: false, handAnchor: false, snapOnEnter: false },
+  [DockMode.BodyFollow]: { follower: true, screenSpace: false, handAnchor: false, snapOnEnter: true },
+  [DockMode.HeadLocked]: { follower: true, screenSpace: true, handAnchor: false, snapOnEnter: true },
+  [DockMode.HandLocked]: { follower: false, screenSpace: false, handAnchor: true, snapOnEnter: false },
 };
 
 export function isDockMode(value: unknown): value is DockModeValue {
   return (
     value === DockMode.WorldLocked ||
     value === DockMode.BodyFollow ||
-    value === DockMode.HeadLocked
+    value === DockMode.HeadLocked ||
+    value === DockMode.HandLocked
   );
 }
 
@@ -62,6 +72,8 @@ export interface DockTransition {
   removeFollower: boolean;
   addScreenSpace: boolean;
   removeScreenSpace: boolean;
+  addHandAnchor: boolean;
+  removeHandAnchor: boolean;
   snap: boolean;
 }
 
@@ -85,15 +97,18 @@ export function planTransition(
     removeFollower: a.follower && !b.follower,
     addScreenSpace: !a.screenSpace && b.screenSpace,
     removeScreenSpace: a.screenSpace && !b.screenSpace,
+    addHandAnchor: !a.handAnchor && b.handAnchor,
+    removeHandAnchor: a.handAnchor && !b.handAnchor,
     snap: b.snapOnEnter,
   };
 }
 
 /**
  * The "pin" affordance on a window's title bar toggles between following the
- * player and being placed in space. Head-locked windows unpin to world-locked
- * too - pinning something rigidly to the user's face is never the toggle
- * target you want.
+ * player and being placed in space. Head-locked and hand-locked windows unpin
+ * to world-locked too - pinning something rigidly to the user's face is never
+ * the toggle target you want, and a hand menu pinned in place is simply a
+ * window again.
  */
 export function togglePinned(mode: DockModeValue): DockModeValue {
   return mode === DockMode.WorldLocked ? DockMode.BodyFollow : DockMode.WorldLocked;

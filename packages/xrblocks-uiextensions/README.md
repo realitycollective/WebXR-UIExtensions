@@ -9,16 +9,20 @@
 | Feature | IWSDK | XR Blocks / three.js (this package) |
 | --- | --- | --- |
 | UIKitML panel hosting (runtime interpret, scale-to-fit) | ✅ | ✅ `UixPanelDocument` |
-| Window lifecycle + chrome (focus/PIN/MIN/X, pin labels) | ✅ | ✅ `UixWindowHost` |
+| Window lifecycle + chrome (focus/PIN/DOCK/MIN/X, all opt-in, pin labels) | ✅ | ✅ `UixWindowHost` |
+| Driving windows from code (`WindowManager`: hide/show, dockTo/undock/returnHome, setChrome, close) | ✅ | ✅ every manager event applied |
 | Portable scene descriptors (`applyScene`) | ✅ | ✅ implements `SceneTarget` |
 | Panel-ready wiring (`onPanelReady`) | ✅ | ✅ implements `WindowHost` |
 | Follow mode (body-follow, yaw-only, eased) | ✅ | ✅ pure `follow-math` |
-| Dock regions (wall/belt, slots, follow) | ✅ | ✅ `createRegion` / `dock` |
+| Hand menus (`hand-locked`, palm gate, anchors) | ✅ from the player rig | ✅ from a `HandPoseSource`; `webxrHandPoseSource(renderer.xr)` reads the session's input sources, and without hands the menu follows the body |
+| Dock regions (wall/belt, slots, follow) | ✅ | ✅ `createRegion`, `manager.dockTo` (`host.dock` forwards) |
 | Desktop mouse input (hover, click, drag-to-look) | ✅ | ✅ via `@pmndrs/pointer-events` |
 | Desktop locomotion (WASD, jump, crouch, sprint) | n/a | ✅ `DesktopControls` |
 | XR select-ray click forwarding | ✅ | ✅ minimal (`forwardClick`) |
 | Bare panels (`createPanel`) | ⬜ ECS owns the lifecycle | ✅ `supportsStandalonePanels` is `true` |
 | Title-bar ray drag (`@pmndrs/handle`) | ✅ | ⬜ roadmap (`movable` is accepted and ignored) |
+| Title-bar near grab (squeeze / pinch) | ✅ | ⬜ roadmap (needs drag) |
+| Guarded poke (one press per touch, front only) | ✅ `UITouchGuardSystem` over IWSDK's touch pointers | ⬜ no near touch here yet; the core `TouchPress` is ready for it |
 | Drop-to-dock by dragging | ✅ | ⬜ roadmap (needs drag) |
 | System keyboard text input | ✅ | ⬜ untested on Android XR |
 
@@ -79,6 +83,8 @@ Nothing here imports `xrblocks` - the glue binds to plain three.js shapes (`scen
 
 - `id` is optional. Omit it and the window is named `uix-window-<n>`.
 - `movable` is accepted and recorded, but nothing acts on it yet: this host has no title-bar drag of its own, so there is no gate to close. It is in the options so a scene descriptor written for IWSDK loads here unchanged.
+- The four chrome flags (`closable`, `minimizable`, `pinnable`, `dockable`) are off unless set, as on IWSDK; `host.manager.setChrome(id, {...})` changes them later. `host.manager.hide/show`, `dockTo/undock/returnHome` and `close` all take effect here, so a menu written against the manager needs no host-specific code.
+- `handMenu` and `dockMode: 'hand-locked'` make a hand menu. Pass `xr: renderer.xr` to `connectUIExtensions` (or `handPose` to the host) so it rides the session's tracked hands; on a page that also serves a desktop the source reports no hands outside a session and the menu follows the body until one starts.
 
 The handle it returns satisfies the core `WindowHandle` and adds the three.js specifics:
 

@@ -29,8 +29,14 @@ export class HoldToDrag {
     return this.phase;
   }
 
-  /** Advance with this frame's held state and delta time (seconds). */
-  update(held: boolean, delta: number): HoldUpdate {
+  /**
+   * Advance with this frame's held state and delta time (seconds).
+   *
+   * `delaySeconds` overrides the constructor delay for THIS press, so a
+   * deliberate gesture (a near grab on the title bar) can start dragging at
+   * once while a ray press still waits out the click window.
+   */
+  update(held: boolean, delta: number, delaySeconds = this.delaySeconds): HoldUpdate {
     if (!held) {
       const ended = this.phase === 'dragging';
       this.phase = 'idle';
@@ -41,7 +47,7 @@ export class HoldToDrag {
       return { phase: 'dragging', began: false, ended: false };
     }
     this.heldFor += delta;
-    if (this.heldFor >= this.delaySeconds) {
+    if (this.heldFor >= delaySeconds) {
       this.phase = 'dragging';
       return { phase: 'dragging', began: true, ended: false };
     }

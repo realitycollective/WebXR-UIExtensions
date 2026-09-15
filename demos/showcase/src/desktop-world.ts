@@ -39,6 +39,7 @@ import {
   DesktopControls,
   UixWindowHost,
   cameraHeadPoseSource,
+  webxrHandPoseSource,
   configureRendererForUikit,
   type WindowManager,
 } from '@realitycollective/xrblocks-uiextensions';
@@ -115,6 +116,9 @@ export async function bootstrapDesktopShowcase(
   const host = new UixWindowHost({
     scene,
     headPose: cameraHeadPoseSource(camera),
+    // Hand menus ride the tracked hands once a session starts (Enter VR);
+    // until then the source reports no hands and they follow the body.
+    handPose: webxrHandPoseSource(renderer.xr),
     kit: horizonKit as never,
   });
   installPlaygroundBehaviour(host, host.manager);

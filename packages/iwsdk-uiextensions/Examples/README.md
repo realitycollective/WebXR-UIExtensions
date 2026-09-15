@@ -4,7 +4,7 @@ Copy-paste starting points, shipped inside the npm package (Unity-style `Example
 
 | Example | Shows |
 | --- | --- |
-| [`basic-window/`](./basic-window) | A managed window with chrome, pin/minimize/close and body-follow |
+| [`basic-window/`](./basic-window) | A managed window driven from a hand menu: a `hand-locked` panel on the left hand with HIDE, PIN, HOME, MIN, BUTTONS and CLOSE, each one `WindowManager` call |
 | [`dock-regions/`](./dock-regions) | Layout regions, drop-to-dock, a follow-region "toolbar" |
 | [`controls/`](./controls) | `data-uix` stepper, toggle, expandable label and log view |
 

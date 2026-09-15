@@ -9,6 +9,7 @@
  *  - {@link PanelHost}: turn compiled UIKitML JSON into a live spatial panel
  *  - {@link PointerInputSource}: deliver ray/pointer press-move-release
  *  - {@link HeadPoseSource}: the viewer pose, for follow mode & body-lock
+ *  - {@link HandPoseSource}: the tracked hands, for hand menus (optional)
  *
  * On top of those, {@link WindowHost} adds the portable window surface:
  * {@link WindowHost.onPanelReady} for readiness, {@link PanelReadyEvent.kind}
@@ -32,8 +33,9 @@
  * stack drives both. The names below are re-exported, so importing them from
  * this package keeps working.
  */
-import type { RayTuple, Vec3Tuple } from '@realitycollective/webxr-input';
+import type { PoseTuple, RayTuple, Vec3Tuple } from '@realitycollective/webxr-input';
 import type { DockModeValue } from './core/dock-state.js';
+import type { Hand, HandMenuOptions } from './core/hand-menu.js';
 import type { UixElement } from './controls/element.js';
 
 /**
@@ -49,9 +51,32 @@ import type { UixElement } from './controls/element.js';
 export type {
   HeadPose,
   HeadPoseSource,
+  PoseTuple,
   QuatTuple,
   Vec3Tuple,
 } from '@realitycollective/webxr-input';
+
+/**
+ * Supplies a hand's pose each frame as a WebXR GRIP space, the frame
+ * `hand-menu.ts` documents (`-Z` toward the thumb, `+Y` up the arm, the palm
+ * at `-X` on the right hand and `+X` on the left). A controller's grip and a
+ * tracked hand's `gripSpace` both are one; hand JOINT spaces are not, and
+ * must be converted. Returns `undefined` while that hand is not tracked;
+ * a hand menu on it is then hidden. An adapter without hands at all (a
+ * desktop) supplies no source and falls back to body-follow placement for
+ * hand-locked windows.
+ */
+export interface HandPoseSource {
+  getHandPose(hand: Hand): PoseTuple | undefined;
+  /**
+   * Whether hands can be tracked at all right now - an XR session with hand
+   * or controller input. Off (or absent from the session) means "no hands
+   * here", and hand-locked windows fall back to body-follow placement rather
+   * than staying hidden, so one page can serve a desktop and a headset.
+   * Omit it when the source is always inside a session.
+   */
+  hasHands?(): boolean;
+}
 
 /**
  * A live spatial panel created from compiled UIKitML JSON.
@@ -174,11 +199,25 @@ export interface WindowOptionsBase {
   /** Fit the panel into this box in meters, preserving aspect ratio. */
   maxWidth?: number;
   maxHeight?: number;
-  /** Whether the title bar drags the window. */
+  /** Whether the title bar drags the window. Default `true`. */
   movable?: boolean;
+  /**
+   * Title-bar buttons. Every button is OFF unless enabled here, or later
+   * through `WindowManager.setChrome`. The chrome markup may still contain
+   * the elements; a disabled button is hidden and its click ignored.
+   */
   closable?: boolean;
   minimizable?: boolean;
   pinnable?: boolean;
+  /** The DOCK button, which returns the window to where it spawned. */
+  dockable?: boolean;
+  /**
+   * Where a `hand-locked` window rides: which hand, which side of the palm,
+   * and whether the palm must face the viewer. Defaults: left hand, above
+   * the fingertips, gated. Ignored in the other dock modes but kept, so a
+   * later `setDockMode(id, 'hand-locked')` uses it.
+   */
+  handMenu?: Partial<HandMenuOptions>;
   /** Head-relative offset used in body-follow mode (meters). */
   followOffset?: Vec3Tuple;
   followSpeed?: number;

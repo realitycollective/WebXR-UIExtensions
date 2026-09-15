@@ -8,6 +8,8 @@
  * Panels are matched by their window id from the scene descriptor.
  */
 import {
+  minimizeLabelFor,
+  pinLabelFor,
   upgradePanel,
   type LogViewHandle,
   type PanelHandle,
@@ -61,6 +63,17 @@ export function installPlaygroundBehaviour(
   manager.events.on('dockChanged', ({ window, previous }) =>
     log(`"${window.title}" ${previous} → ${window.dockMode}`),
   );
+  manager.events.on('hidden', (w) => log(`hidden "${w.title}"`));
+  manager.events.on('shown', (w) => log(`shown "${w.title}"`));
+  manager.events.on('regionChanged', ({ window, previous }) =>
+    log(`"${window.title}" region ${previous ?? 'none'} → ${window.region ?? 'none'}`),
+  );
+  manager.events.on('chromeChanged', ({ window }) => {
+    const on = Object.entries(window.chrome)
+      .filter(([, enabled]) => enabled)
+      .map(([key]) => key);
+    log(`"${window.title}" buttons: ${on.length ? on.join(', ') : 'none'}`);
+  });
 
   const wire = (id: string, panel: PanelHandle): void => {
     const controls = upgradePanel(panel.root, panel.root as UixElement);
@@ -137,6 +150,11 @@ export function installPlaygroundBehaviour(
         break;
       }
 
+      case 'window-control': {
+        wireWindowControl(manager, element);
+        break;
+      }
+
       default:
         break; // gallery and any future panels need no wiring
     }
@@ -151,4 +169,77 @@ export function installPlaygroundBehaviour(
   });
 
   return { dispose: unsubscribe };
+}
+
+/** The window every control-panel button acts on. */
+const TARGET = 'player-status';
+
+/**
+ * A hand menu's worth of window control, on a panel: every button is one
+ * `WindowManager` call on a targeted window, and the labels read back from
+ * the record so they always name the next action. Nothing here knows which
+ * engine hosts the window.
+ */
+function wireWindowControl(
+  manager: WindowManager,
+  element: (elementId: string) => Uikit | undefined,
+): void {
+  const status = element('ctl-status');
+  const labels = (): void => {
+    const record = manager.get(TARGET);
+    if (!record) {
+      status?.setProperties({ text: `"${TARGET}" is closed.` });
+      return;
+    }
+    element('ctl-hide')?.setProperties({ text: record.hidden ? 'SHOW' : 'HIDE' });
+    element('ctl-pin')?.setProperties({ text: pinLabelFor(record) });
+    element('ctl-minimize')?.setProperties({ text: minimizeLabelFor(record) });
+    element('ctl-chrome')?.setProperties({
+      text: record.chrome.pin ? 'BUTTONS OFF' : 'BUTTONS ON',
+    });
+    status?.setProperties({
+      text:
+        `${record.hidden ? 'hidden' : 'shown'}, ${record.dockMode}, ` +
+        `region: ${record.region ?? 'none'}` +
+        (record.minimized ? ', minimized' : ''),
+    });
+  };
+
+  const act = (elementId: string, action: () => void): void => {
+    element(elementId)?.addEventListener('click', () => {
+      if (manager.has(TARGET)) {
+        action();
+      }
+      labels();
+    });
+  };
+
+  act('ctl-hide', () => manager.toggleHidden(TARGET));
+  act('ctl-pin', () => manager.togglePin(TARGET));
+  act('ctl-belt', () => manager.dockTo(TARGET, 'belt'));
+  act('ctl-wall', () => manager.dockTo(TARGET, 'console-wall'));
+  act('ctl-undock', () => manager.undock(TARGET));
+  act('ctl-home', () => manager.returnHome(TARGET));
+  act('ctl-minimize', () => manager.toggleMinimized(TARGET));
+  act('ctl-chrome', () => {
+    const on = !(manager.get(TARGET)?.chrome.pin ?? false);
+    manager.setChrome(TARGET, { pin: on, dock: on, minimize: on, close: on });
+  });
+
+  // Keep the labels honest when the target changes by other means (its own
+  // title bar, a drag into a region, a close).
+  for (const event of [
+    'hidden',
+    'shown',
+    'dockChanged',
+    'regionChanged',
+    'minimized',
+    'restored',
+    'chromeChanged',
+    'closed',
+    'dragEnded',
+  ] as const) {
+    manager.events.on(event, labels);
+  }
+  labels();
 }

@@ -5,6 +5,11 @@
  * plain markup discovered by well-known element ids, not a parallel widget
  * tree. Copy `WINDOW_CHROME_SNIPPET` into a `.uikitml` file and put the
  * window body inside the `uix-content` element.
+ *
+ * The four title-bar buttons are OFF by default: an adapter hides any button
+ * the window has not enabled (`closable`, `minimizable`, `pinnable`,
+ * `dockable` at spawn, or `WindowManager.setChrome` later) and ignores its
+ * clicks. Keep them in the markup so they can be switched on at runtime.
  */
 export const WINDOW_CHROME_IDS = {
   /** Root container of the window. */
@@ -38,6 +43,22 @@ export const WINDOW_CHROME_IDS = {
  *   compact title-bar chrome. Plain containers stay fully styleable and
  *   still receive click events.
  */
+/**
+ * Reference hand-menu markup: the same root and content ids, no title bar,
+ * a vertical stack of buttons that sizes to its content. Spawn it with
+ * `dockMode: 'hand-locked'` and it rides the hand; without a title bar there
+ * is nothing to drag, which is what a hand menu wants. Give each button an
+ * id and wire it to a `WindowManager` call.
+ */
+export const HAND_MENU_SNIPPET = `
+<div id="uix-window" class="uix-hand-menu">
+  <div id="uix-content" class="uix-hand-menu-stack">
+    <div id="menu-first" class="uix-hand-menu-button">FIRST</div>
+    <div id="menu-second" class="uix-hand-menu-button">SECOND</div>
+  </div>
+</div>
+`;
+
 export const WINDOW_CHROME_SNIPPET = `
 <div id="uix-window" class="uix-window">
   <div id="uix-titlebar" class="uix-titlebar">

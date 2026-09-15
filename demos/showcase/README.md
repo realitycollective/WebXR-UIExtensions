@@ -1,6 +1,6 @@
 # UI Extensions showcase
 
-Demo client for the UI Extensions: five windows and two dock regions exercising the library's whole surface. The [workspace README](../../README.md#the-showcase-scene) has the tour.
+Demo client for the UI Extensions: six windows and two dock regions exercising the library's whole surface, including one window with every title-bar button on, one with none, and one driven from a hand menu on the left hand. The [workspace README](../../README.md#the-showcase-scene) has the tour.
 
 ## Two builds, one scene
 
