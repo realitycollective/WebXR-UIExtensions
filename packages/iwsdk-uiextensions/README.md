@@ -13,7 +13,7 @@ Windowing, docking, layout regions and extra controls for [Meta's Immersive Web 
 | **Dock states** | `world-locked` (place in space) ⇄ `body-follow` (lazy follow) ⇄ `head-locked`, realised with the IWSDK's own `Follower`/`ScreenSpace` |
 | **Manipulation** | Drag windows by the title bar with the far ray or a near grab (controller squeeze, hand pinch), powered by `@pmndrs/handle`, the same library behind IWSDK grabbing; billboard-while-dragging, drop-to-dock |
 | **Layout regions** | Named regions (row / column / grid slots) windows snap into; regions can themselves follow the player |
-| **Controls** | `data-uix` markup upgrades: **stepper**, **toggle**, **expandable multi-line label**, **log/list view** - plus everything UIKitML already has (buttons, inputs, textareas, images, and the horizon kit's Slider/Checkbox/…) |
+| **Controls** | `<uix-*>` custom-element upgrades: **stepper**, **toggle**, **expandable multi-line label**, **log/list view** - plus everything UIKitML already has (buttons, inputs, textareas, images, and the horizon kit's Slider/Checkbox/…) |
 
 Everything is authored in plain UIKitML (HTML/CSS-like) - no new markup language, no custom renderer, no wrapper widgets around things the IWSDK already does.
 
@@ -85,14 +85,24 @@ Windows are ordinary UIKitML panels; the chrome is discovered by well-known elem
 
 ### Controls markup
 
-Annotate any element with `data-uix` and the `UIControlsSystem` upgrades it - in any panel, not just windows:
+A control is a custom element, `<uix-stepper>`, `<uix-toggle>`, `<uix-expandable-label>` or `<uix-log-view>`, with its parts as elements too (`<uix-decrement>`, `<uix-value>`, `<uix-increment>`, `<uix-label>`, `<uix-text>`, `<uix-more>`, `<uix-line>`). Parameters stay `data-uix-*` attributes. The `UIControlsSystem` upgrades every control it finds, in any panel, not just windows:
 
 ```html
-<div data-uix="stepper" data-uix-id="health" data-uix-min="0" data-uix-max="100" data-uix-step="10">
-  <button data-uix-role="decrement">-</button>
-  <span data-uix-role="value">.</span>
-  <button data-uix-role="increment">+</button>
-</div>
+<uix-stepper data-uix-id="health" data-uix-min="0" data-uix-max="100" data-uix-step="10">
+  <uix-decrement>-</uix-decrement>
+  <uix-value>.</uix-value>
+  <uix-increment>+</uix-increment>
+</uix-stepper>
+```
+
+IWSDK 0.5 validates every tag against a component schema, so a world whose panels use controls must register the set, or the panel fails to parse and never attaches:
+
+```ts
+import { uixComponentSet } from '@realitycollective/iwsdk-uiextensions';
+
+const world = await World.create(container, {
+  features: { spatialUI: { kit: 'horizon', componentSets: [uixComponentSet] } },
+});
 ```
 
 ```ts
@@ -102,7 +112,7 @@ const controls = panelControlsFor(document); // the panel's UIKitDocument
 controls.stepper('health').events.on('change', (hp) => setHealth(hp));
 ```
 
-> UIKitML note: every dynamic-text element needs a literal placeholder child (`<span data-uix-role="value">.</span>`) or no Text node is created.
+> UIKitML note: every dynamic-text element needs a literal placeholder child (`<uix-value>.</uix-value>`) or no Text node is created.
 
 **Every title-bar button is off by default.** Keep all four in the markup, then enable the ones a window should have with `closable`, `minimizable`, `pinnable` and `dockable` at spawn, or later with `windows.setChrome(id, { pin: true })`. A disabled button is hidden and its click ignored; enabling one needs no rewiring.
 

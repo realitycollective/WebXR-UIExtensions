@@ -29,14 +29,17 @@ import { createSystem } from '../create-system.js';
 import { Quaternion, Vector3, type Object3D } from 'three';
 import {
   DEFAULT_TOUCH_PRESS,
+  type Hand,
   TouchPress,
   type TouchSample,
 } from '@realitycollective/webxr-uiextensions';
 
-type Handedness = 'left' | 'right';
-
-/** The slice of a pointer-events `Pointer` this system drives. */
-interface TouchPointerLike {
+/**
+ * The slice of a pointer-events `Pointer` this system drives. Exported
+ * because it is the parameter type of `sampleOf`, so a caller feeding the
+ * sampler from a fake pointer in a test has a name for the shape.
+ */
+export interface TouchPointerLike {
   down(event: { timeStamp: number; button: number }): void;
   up(event: { timeStamp: number; button: number }): void;
   getIntersection():
@@ -57,7 +60,7 @@ interface Guard {
   up: TouchPointerLike['up'];
 }
 
-const HANDS: readonly Handedness[] = ['left', 'right'];
+const HANDS: readonly Hand[] = ['left', 'right'];
 const HELPER_NORMAL = new Vector3();
 const HELPER_OFFSET = new Vector3();
 const HELPER_QUATERNION = new Quaternion();
@@ -73,7 +76,7 @@ export class UITouchGuardSystem extends createSystem(
     allowFromBehind: { type: Types.Boolean, default: DEFAULT_TOUCH_PRESS.allowFromBehind },
   },
 ) {
-  private guards = new Map<Handedness, Guard>();
+  private guards = new Map<Hand, Guard>();
 
   override init(): void {
     const xr = (this.input as typeof this.input | undefined)?.xr;
@@ -122,7 +125,7 @@ export class UITouchGuardSystem extends createSystem(
   }
 
   /** The state machine for a hand, for inspection and tests. */
-  pressFor(hand: Handedness): TouchPress<Object3D> | undefined {
+  pressFor(hand: Hand): TouchPress<Object3D> | undefined {
     return this.guards.get(hand)?.press;
   }
 }

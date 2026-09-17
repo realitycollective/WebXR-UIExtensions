@@ -322,6 +322,14 @@ jobs:
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: npm install --no-save --no-audit --no-fund playwright-core@1.61.1
 
+      # The lab is smoked three times: its launch screen, then the desktop and
+      # IWSDK pipelines booted directly through ?uix-autostart=1, because a
+      # pipeline that fails to start is invisible behind the launch screen (the
+      # IWSDK pipeline shipped once with a bare three-mesh-bvh import that only
+      # pressing START would have revealed). The XR Blocks pipeline is not
+      # smoked: xrblocks renders into <body> rather than the mount point and
+      # logs a console.error about the three.js revision it wants, both of
+      # which the smoke test counts as failures.
       - name: Smoke test the deployed site
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: |
@@ -329,6 +337,8 @@ jobs:
             "${{ steps.deploy.outputs.deployment-url }}" \
             "${{ steps.deploy.outputs.deployment-url }}/?uix-engine=iwsdk" \
             "${{ steps.deploylab.outputs.deployment-url }}" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=desktop&uix-autostart=1" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=iwsdk&uix-autostart=1" \
             --mount "#scene-container"
 
   # ---------------------------------------------------------------------------
@@ -550,6 +560,14 @@ jobs:
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: npm install --no-save --no-audit --no-fund playwright-core@1.61.1
 
+      # The lab is smoked three times: its launch screen, then the desktop and
+      # IWSDK pipelines booted directly through ?uix-autostart=1, because a
+      # pipeline that fails to start is invisible behind the launch screen (the
+      # IWSDK pipeline shipped once with a bare three-mesh-bvh import that only
+      # pressing START would have revealed). The XR Blocks pipeline is not
+      # smoked: xrblocks renders into <body> rather than the mount point and
+      # logs a console.error about the three.js revision it wants, both of
+      # which the smoke test counts as failures.
       - name: Smoke test the deployed site
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: |
@@ -557,5 +575,7 @@ jobs:
             "${{ steps.deploy.outputs.deployment-url }}" \
             "${{ steps.deploy.outputs.deployment-url }}/?uix-engine=iwsdk" \
             "${{ steps.deploylab.outputs.deployment-url }}" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=desktop&uix-autostart=1" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=iwsdk&uix-autostart=1" \
             --mount "#scene-container"
 

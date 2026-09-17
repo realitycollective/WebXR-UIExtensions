@@ -4,6 +4,22 @@ Change log for the Reality Collective WebXR UI Extensions packages. All four pac
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Preview builds are not listed separately. The entry for a version accumulates while its previews are published, and is dated when that version is released.
 
+## [0.1.1]
+
+### Added
+
+- `demos/webxr-multiplatform` - `?uix-engine=<engine>&uix-autostart=1` boots that pipeline at once instead of showing the launch screen. It exists for the post-deploy smoke test, which now loads the desktop and IWSDK pipelines of the deployed lab as well as its launch screen; before this a pipeline that failed to start was invisible to CI, because nothing pressed START. The XR Blocks pipeline is not smoked: xrblocks renders into `<body>` rather than the mount point and logs a `console.error` about the three.js revision it wants, both of which the smoke test counts as failures.
+
+### Changed
+
+- `@realitycollective/iwsdk-uiextensions` - `TouchPointerLike` (the parameter type of `sampleOf`) is exported, and `UITouchGuardSystem` uses the core's `Hand` type rather than a private duplicate. `@realitycollective/xrblocks-uiextensions` exports `UikitComponentLike` (`UixPanelDocument.rootComponent`) and `InteractiveLike` (the return type of `pickInteractive`); `@realitycollective/uix-devtools` exports `CompileOptions` (the options of `compilePanelSource`). Each was a module-private type that appeared in an exported signature, so a consumer had nothing to name and TypeDoc reported it as referenced but undocumented.
+
+### Fixed
+
+- `demos/webxr-multiplatform` - the IWSDK pipeline failed to start on the deployed lab, for every visitor, with `Failed to resolve module specifier "three-mesh-bvh"`. The Vite config externalised `three-mesh-bvh` alongside the optional integrations xrblocks imports lazily, but `@iwsdk/core` imports it for real, so the IWSDK chunk shipped a bare import the browser cannot resolve. It resolves in the workspace through `@iwsdk/core`'s own dependency and is now bundled like `three-pathfinding`. Found while photographing the live lab for the Reality Collective site.
+- `@realitycollective/iwsdk-uiextensions` - the README and `Examples/controls` still showed the `data-uix="stepper"` / `data-uix-role` attribute form that the core stopped upgrading when controls became custom elements, so the shipped example silently produced no controls. Both now use `<uix-stepper>`, `<uix-toggle>`, `<uix-expandable-label>` and `<uix-log-view>` with their part elements, and both register `uixComponentSet` when creating the world, which IWSDK 0.5 needs before it will parse a panel that uses a control. The README says why.
+- `docs/developer-cycle.md` - the publishing section described GitHub Packages ("no npmjs.com for now"); the packages publish to npmjs.com under the `@realitycollective` scope through `publish-npm.yml`, and the section now describes that workflow, its two dist-tags and the consumer install commands.
+
 ## [0.1.0] - 2026-09-17
 
 ### Added
@@ -52,6 +68,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - `@realitycollective/webxr-uiextensions` takes its geometry vocabulary from `@realitycollective/webxr-input` at `^0.1.1` rather than redeclaring it. `Vec3Tuple`, `QuatTuple`, `HeadPose`, `HeadPoseSource` and `PointerSample` are now that package's types, re-exported under the same names, so no import changes for a consumer. `PointerSample` is its `RayTuple`, which is what lets an input provider written against the shared contracts feed this contract unchanged. It is the core's only runtime dependency: the contracts package is engine-free and carries none of its own, and `test/architecture.test.ts` now allows exactly that one name and fails on any other.
 - `PointerSample` states its ownership rule: a delivered sample belongs to the listener and the source never writes to it again, so the core's hold-to-drag and drag maths may keep a press-time sample without copying. It mirrors the rule `@realitycollective/webxr-input` 0.1.3 writes on `InputSourceSnapshot`, so a provider feeding both contracts has one promise to keep.
 
+[0.1.1]: https://github.com/realitycollective/WebXR-UIExtensions/compare/v0.1.0...development
 [0.1.0]: https://github.com/realitycollective/WebXR-UIExtensions/releases/tag/v0.1.0
 
 ### Fixed

@@ -50,14 +50,17 @@ export default defineConfig({
       // none of those features, so the modules stay unresolved - xrblocks
       // only touches them behind the corresponding feature options.
       // (three-pathfinding ships as a real dependency of xrblocks and DOES
-      // resolve; it is deliberately not externalized.)
+      // resolve; it is deliberately not externalized. So does three-mesh-bvh:
+      // xrblocks only imports it lazily, but @iwsdk/core imports it for real,
+      // and externalizing it left a bare "three-mesh-bvh" import in the IWSDK
+      // chunk that the browser cannot resolve, so the IWSDK pipeline failed
+      // to start on the deployed lab.)
       external: [
         "@google/genai",
         "openai",
         "@mediapipe/tasks-audio",
         "@mediapipe/tasks-vision",
         "@sparkjsdev/spark",
-        "three-mesh-bvh",
         "troika-three-text",
       ],
     },

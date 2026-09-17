@@ -11,8 +11,11 @@
  */
 import type { Object3D } from 'three';
 
-/** The event surface uikit components expose (three.js EventDispatcher). */
-interface InteractiveLike {
+/**
+ * The event surface uikit components expose (three.js EventDispatcher).
+ * Exported because `pickInteractive` returns it.
+ */
+export interface InteractiveLike {
   dispatchEvent?(event: { type: string; [key: string]: unknown }): void;
   userData?: Record<string, unknown>;
   parent?: unknown;

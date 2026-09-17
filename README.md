@@ -133,7 +133,7 @@ To develop against an unreleased `webxr-input`, use `npm link` rather than editi
 Six windows + two dock regions demonstrating the whole surface:
 
 - **Crew Registration** - native UIKitML `<input>`/`<textarea>` (system keyboard), horizon-kit `Slider`, submit validation
-- **Event Log** - `data-uix="log-view"` fed by live `WindowManager` events; spawns docked into the world-locked "console wall" region
+- **Event Log** - a `<uix-log-view>` fed by live `WindowManager` events; spawns docked into the world-locked "console wall" region
 - **Click Machine (all buttons)** - a button with a "clicked" list display; every title-bar button enabled at spawn
 - **Player Status (menu-driven)** - movable info window: health stepper, shield toggle, expandable bio; follows the player until pinned or dragged. Spawned with no buttons and driven from Window Control
 - **Gallery (no buttons)** - image rendering via the native `<img>` element; the opt-in default, so no title-bar buttons, only drag

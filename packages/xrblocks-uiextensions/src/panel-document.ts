@@ -13,8 +13,11 @@ import { interpret, type Kit } from '@pmndrs/uikitml';
 import type { PanelHandle, UixElement } from '@realitycollective/webxr-uiextensions';
 import { fitScale } from './scale-math.js';
 
-/** The slice of a uikit component this adapter relies on. */
-interface UikitComponentLike extends Object3D {
+/**
+ * The slice of a uikit component this adapter relies on. Exported because
+ * `UixPanelDocument` exposes it as `rootComponent`.
+ */
+export interface UikitComponentLike extends Object3D {
   update?(deltaMs: number): void;
   size?: {
     value: unknown;

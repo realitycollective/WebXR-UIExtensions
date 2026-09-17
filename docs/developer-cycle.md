@@ -51,7 +51,7 @@ That second point is what `npm run verify:pack` exists for.
 | --- | --- | --- |
 | Who | anyone working *in* this repo | an app depending *on* these packages |
 | Resolves to | `packages/<name>/src` via aliases | the installed `dist` |
-| Needs a registry | no | yes (GitHub Packages now, npmjs later) |
+| Needs a registry | no | yes (npmjs.com, the `@realitycollective` scope) |
 | Needs `npm run build` | no | n/a - consumes the published build |
 | Exercised by | `npm test`, `npm run dev:*`, `npm run build:demos` | `npm run verify:pack` |
 
@@ -66,7 +66,7 @@ npm run verify:pack -- --skip-build # reuse the current dist (what CI does)
 
 It packs all four packages exactly as the publish workflow does, installs the tarballs into a throwaway project outside the repo, and asserts that every `main`/`types`/`exports` target exists, every declared `bin` has a file behind it, no sibling dependency is still pinned at `"*"`, LICENSE and CHANGELOG shipped, the core imports in plain node, and the `uix-dev` CLI launches. It runs in CI on every PR and again in the publish workflow before anything is pushed to a registry.
 
-To try a real consumer install by hand once the packages are live, point a scratch project at GitHub Packages (see [Publishing](#publishing-github-packages--releases--no-npmjscom-for-now) for the `.npmrc` lines) or install a Release tarball straight from its URL, which needs no registry config at all.
+To try a real consumer install by hand once the packages are live, install from npmjs.com (`npm install @realitycollective/iwsdk-uiextensions`, or `@preview` for the development branch's latest preview) or install a Release tarball straight from its URL, which needs no registry config at all.
 
 ### If you ever need a demo to run against the published build
 
@@ -157,33 +157,28 @@ Handled by the deploy jobs in `.github/workflows/ci.yml`:
 
 A PR can never touch production. Use deploys for sign-off and sharing, not for iteration - the tunnel loop is minutes-to-seconds faster.
 
-## Publishing (GitHub Packages + Releases - no npmjs.com for now)
+## Publishing (npmjs.com + GitHub Releases)
 
-`webxr-uiextensions-publish.yml` (manual dispatch, **defaults to dry run**):
+`publish-npm.yml` (manual dispatch, **defaults to dry run**) publishes all four packages to npmjs.com under the `@realitycollective` scope, the same arrangement as `com.realitycollective.service-framework.ts` and the other WebXR repositories. Which dist-tag it publishes under depends on the branch you dispatch it from:
 
-1. builds, typechecks and tests everything, then `npm pack`s **all four** packages - the tarballs are always uploaded as workflow artifacts;
-2. with `dryRun=false`: publishes all four to **GitHub Packages**, re-scoped to the repo owner (the registry requires it - under the `realitycollective` org that re-scope is a no-op).
+- **`development`** publishes every package under the `preview` dist-tag, then bumps the preview counter (`0.1.1-preview.0` to `0.1.1-preview.1`) and pushes the bump back so the next run cannot collide.
+- **`main`** publishes every package under the `latest` dist-tag, creates the `v<version>` tag and GitHub Release with the tarballs attached, then merges `main` into `development` and re-seeds it at the next patch preview (`main` 0.1.0 leaves `development` at 0.1.1-preview.0).
 
-Consumers need a **scoped** registry entry, not `--registry=`: that flag redirects the whole install and 404s on the npmjs-hosted dependencies (`@pmndrs/*`, `qrcode-terminal`), which GitHub Packages does not proxy. In the consuming project's `.npmrc`:
+Any other branch is rejected. A dry run builds, typechecks, tests, runs `verify:pack`, packs every package and uploads the tarballs as workflow artifacts, with nothing pushed to the registry, no tag, no release and no version bump; re-run with `dryRun=false` to release for real. Every publish carries `--provenance`. The four repositories publish in a fixed order, because this one depends on `@realitycollective/webxr-input`: WebXR-Input first, then WebXR-Interactions, then this repository, then WebXR-Environment.
 
-   ```ini
-   @realitycollective:registry=https://npm.pkg.github.com
-   //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-   ```
+Consumers need no registry configuration:
 
    ```bash
-   npm install @realitycollective/iwsdk-uiextensions
-   npm install @realitycollective/uix-devtools
+   npm install @realitycollective/iwsdk-uiextensions          # the stable release
+   npm install @realitycollective/iwsdk-uiextensions@preview  # the newest development preview
+   npm install --save-dev @realitycollective/uix-devtools
    ```
 
-(GitHub Packages needs an auth token even for reads: a PAT with `read:packages`.)
-3. with `createRelease=true`: cuts/updates a GitHub Release tagged `uix-v<version>` with the original `@realitycollective/*` tarballs attached - installable directly:
+A Release tarball also installs directly from its URL, which is useful for pinning a build that was never tagged:
 
    ```bash
-   npm install https://github.com/realitycollective/WebXR-UIExtensions/releases/download/uix-v0.1.0/realitycollective-iwsdk-uiextensions-0.1.0.tgz
+   npm install https://github.com/realitycollective/WebXR-UIExtensions/releases/download/v0.1.0/realitycollective-iwsdk-uiextensions-0.1.0.tgz
    ```
-
-When the packages graduate to the public npm registry, add an npm job alongside the GitHub one - same build/pack steps, plus `--provenance`.
 
 ## Quick reference
 

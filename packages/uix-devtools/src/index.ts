@@ -22,4 +22,4 @@ export {
   type EditSession,
   type TokenStorage,
 } from './gate.js';
-export { compilePanelSource, type CompiledPanel } from './runtime-compile.js';
+export { compilePanelSource, type CompiledPanel, type CompileOptions } from './runtime-compile.js';

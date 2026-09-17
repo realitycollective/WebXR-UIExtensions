@@ -5,6 +5,12 @@
  * screen, and boots NOTHING until the user presses START - proving the
  * chosen implementation actually runs on this browser. All three pipelines
  * are dynamic imports, so a session only downloads the engine it launches.
+ *
+ * `?uix-engine=<engine>&uix-autostart=1` skips the launch screen and boots
+ * that pipeline at once. It exists for the post-deploy smoke test, which
+ * must reach the pipeline code and not only the launch screen: the deployed
+ * lab once passed smoke while its IWSDK pipeline failed on a bare
+ * `three-mesh-bvh` import, because nothing pressed START.
  */
 import {
   ENGINE_PARAM,
@@ -31,6 +37,8 @@ const MODES: Record<UixEngine, ModeInfo> = {
     blurb: 'Same panels hosted inside a Google XR Blocks Script (Android XR; desktop simulator).',
   },
 };
+
+const AUTOSTART_PARAM = 'uix-autostart';
 
 const choice = chooseEngine(navigator.userAgent, location.search);
 const container = document.getElementById('scene-container') as HTMLDivElement;
@@ -136,4 +144,11 @@ function showLaunchScreen(): void {
   container.appendChild(overlay);
 }
 
-showLaunchScreen();
+if (choice.overridden && new URLSearchParams(location.search).get(AUTOSTART_PARAM) === '1') {
+  boot(choice.engine).catch((error) => {
+    console.error('[lab] pipeline failed to start:', error);
+    showLaunchScreen();
+  });
+} else {
+  showLaunchScreen();
+}

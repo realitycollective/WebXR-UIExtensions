@@ -1,19 +1,25 @@
 /**
- * Controls - data-uix markup upgrades on any IWSDK panel.
+ * Controls - `<uix-*>` custom elements upgraded on any IWSDK panel.
  *
  * The controls work in plain panels too (no window required): the
  * UIControlsSystem upgrades every loaded PanelDocument.
+ *
+ * IWSDK 0.5 parses panels against a component schema and rejects any tag it
+ * does not know, so a panel that uses a control must register
+ * `uixComponentSet` when the world is created. Without it the panel fails to
+ * parse and never attaches, with no error in the scene.
  */
 import { PanelDocument, PanelUI, UIKitDocument, World, createSystem, eq } from '@iwsdk/core';
 import {
   registerUIExtensions,
+  uixComponentSet,
   upgradePanel,
   type UixElement,
 } from '@realitycollective/iwsdk-uiextensions';
 
 export async function start(container: HTMLDivElement) {
   const world = await World.create(container, {
-    features: { spatialUI: true },
+    features: { spatialUI: { kit: 'horizon', componentSets: [uixComponentSet] } },
   });
   registerUIExtensions(world);
 
