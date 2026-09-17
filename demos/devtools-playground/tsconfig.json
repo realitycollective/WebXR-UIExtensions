@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vite/client"],
+    "paths": {
+      "@realitycollective/webxr-uiextensions": [
+        "../../packages/webxr-uiextensions/src/index.ts"
+      ],
+      "@realitycollective/iwsdk-uiextensions": [
+        "../../packages/iwsdk-uiextensions/src/index.ts"
+      ],
+      "@realitycollective/uix-devtools": [
+        "../../packages/uix-devtools/src/index.ts"
+      ],
+      "@showcase/*": ["../showcase/src/*"]
+    }
+  },
+  "include": ["src/**/*", "vite.config.ts"]
+}

@@ -1,0 +1,4 @@
+# Default owners for everything in the repository. A later, more specific
+# match takes precedence; without one, these owners are requested for review
+# on every pull request.
+*       @FejZa @SimonDarksideJ

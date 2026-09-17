@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@realitycollective/webxr-uiextensions": [
+        "./packages/webxr-uiextensions/src/index.ts"
+      ],
+      "@realitycollective/iwsdk-uiextensions": [
+        "./packages/iwsdk-uiextensions/src/index.ts"
+      ],
+      "@realitycollective/xrblocks-uiextensions": [
+        "./packages/xrblocks-uiextensions/src/index.ts"
+      ],
+      "@realitycollective/uix-devtools": [
+        "./packages/uix-devtools/src/index.ts"
+      ]
+    }
+  }
+}
