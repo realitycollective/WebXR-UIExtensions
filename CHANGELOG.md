@@ -4,7 +4,7 @@ Change log for the Reality Collective WebXR UI Extensions packages. All four pac
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Preview builds are not listed separately. The entry for a version accumulates while its previews are published, and is dated when that version is released.
 
-## [0.1.0]
+## [0.1.0] - 2026-09-17
 
 ### Added
 
@@ -52,7 +52,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - `@realitycollective/webxr-uiextensions` takes its geometry vocabulary from `@realitycollective/webxr-input` at `^0.1.1` rather than redeclaring it. `Vec3Tuple`, `QuatTuple`, `HeadPose`, `HeadPoseSource` and `PointerSample` are now that package's types, re-exported under the same names, so no import changes for a consumer. `PointerSample` is its `RayTuple`, which is what lets an input provider written against the shared contracts feed this contract unchanged. It is the core's only runtime dependency: the contracts package is engine-free and carries none of its own, and `test/architecture.test.ts` now allows exactly that one name and fails on any other.
 - `PointerSample` states its ownership rule: a delivered sample belongs to the listener and the source never writes to it again, so the core's hold-to-drag and drag maths may keep a press-time sample without copying. It mirrors the rule `@realitycollective/webxr-input` 0.1.3 writes on `InputSourceSnapshot`, so a provider feeding both contracts has one promise to keep.
 
-[0.1.0]: https://github.com/realitycollective/WebXR-UIExtensions/commits/main
+[0.1.0]: https://github.com/realitycollective/WebXR-UIExtensions/releases/tag/v0.1.0
 
 ### Fixed
 
