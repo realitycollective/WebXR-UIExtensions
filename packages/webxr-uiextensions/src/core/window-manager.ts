@@ -13,6 +13,12 @@
  * It is also the ONE API app code calls to change a window: a hand menu that
  * hides, docks or pins a targeted window talks to the manager, and every
  * adapter applies the resulting events. Nothing here needs an engine handle.
+ *
+ * A window in a region is always world-locked: the region places it, so it
+ * cannot also follow the viewer. Opening into a region or `dockTo` makes it
+ * world-locked, and a follow mode set through `setDockMode` or `togglePin`
+ * takes it out of its region first. The manager holds this rule so every
+ * platform lays out the same descriptor the same way.
  */
 import { Emitter } from './events.js';
 import { DockMode, DockModeValue, isDockMode, togglePinned } from './dock-state.js';
@@ -82,7 +88,7 @@ export interface OpenWindowOptions {
   dockMode?: DockModeValue;
   /** Open hidden; `show()` reveals it. */
   hidden?: boolean;
-  /** Open docked into this region. */
+  /** Open docked into this region. The window is then world-locked, whatever `dockMode` says. */
   region?: string;
   /** Buttons to enable; anything omitted stays off. */
   chrome?: Partial<WindowChrome>;
@@ -124,14 +130,14 @@ export class WindowManager {
     if (this.windows.has(id)) {
       throw new Error(`[uix] window "${id}" is already open`);
     }
-    const dockMode = options.dockMode ?? DockMode.WorldLocked;
-    if (!isDockMode(dockMode)) {
-      throw new Error(`[uix] "${String(dockMode)}" is not a dock mode`);
+    const requested = options.dockMode ?? DockMode.WorldLocked;
+    if (!isDockMode(requested)) {
+      throw new Error(`[uix] "${String(requested)}" is not a dock mode`);
     }
     const record: WindowRecord = {
       id,
       title: options.title ?? id,
-      dockMode,
+      dockMode: options.region !== undefined ? DockMode.WorldLocked : requested,
       minimized: false,
       hidden: options.hidden ?? false,
       dragging: false,
@@ -240,15 +246,20 @@ export class WindowManager {
     if (record.dockMode === mode) {
       return;
     }
+    if (mode !== DockMode.WorldLocked) {
+      // A region places its windows, so a window that follows cannot stay in one.
+      this.undock(id);
+    }
     const previous = record.dockMode;
     record.dockMode = mode;
     this.events.emit('dockChanged', { window: record, previous });
   }
 
   /**
-   * Dock a window into a layout region. The manager records the intent and
-   * emits `regionChanged`; the adapter places the window in a slot (and may
-   * call `undock` back if the region is full or unknown).
+   * Dock a window into a layout region. The manager records the intent,
+   * makes the window world-locked, and emits `regionChanged` then, if the
+   * mode changed, `dockChanged`. The adapter places the window in a slot
+   * (and may call `undock` back if the region is full or unknown).
    */
   dockTo(id: string, regionId: string): void {
     if (!regionId) {
@@ -259,8 +270,13 @@ export class WindowManager {
       return;
     }
     const previous = record.region;
+    const previousMode = record.dockMode;
     record.region = regionId;
+    record.dockMode = DockMode.WorldLocked;
     this.events.emit('regionChanged', { window: record, previous });
+    if (previousMode !== DockMode.WorldLocked) {
+      this.events.emit('dockChanged', { window: record, previous: previousMode });
+    }
   }
 
   /** Take a window out of its region. No-op when it is not docked. */

@@ -2,7 +2,7 @@
 
 A library for building user interfaces inside a WebXR scene. It gives you movable, resizable windows that can be dragged, snapped into fixed regions of the scene, and filled with buttons, sliders and other controls.
 
-The core logic is plain TypeScript with no dependency on any 3D engine. Small adapters connect it to [Meta's Immersive Web SDK](https://iwsdk.dev), to [Google XR Blocks](https://github.com/google/xr-blocks), or to plain three.js. The repository also holds developer tooling and demo clients you can deploy.
+The core logic is plain TypeScript with no dependency on any 3D engine. Small adapters connect it to [Meta's Immersive Web SDK](https://iwsdk.dev), to [Google XR Blocks](https://github.com/google/xr-blocks), to plain three.js, or - through `@realitycollective/native-uiextensions` - to a native app (OpenXR, visionOS) that embeds a JavaScript engine such as Hermes, renders panels itself and installs `globalThis.__rcHost`, per the Reality Collective native host contract shared across the WebXR family repositories. The repository also holds developer tooling and demo clients you can deploy.
 
 Panels are written in **UIKitML**, IWSDK's HTML/CSS-like markup for spatial panels.
 
@@ -37,6 +37,9 @@ WebXR-UIExtensions/
 │   ├── xrblocks-uiextensions/  Google XR Blocks / three.js adapter (EXPERIMENTAL)
 │   │   └── src/                panel document, window host, follow + scale math,
 │   │                           desktop controls/locomotion, pointer forwarding
+│   ├── native-uiextensions/    Native app adapter (OpenXR/visionOS host, no engine)
+│   │   └── src/                NativeWindowHost, proxy UixElements over the
+│   │                           host's element tree, the `ui` slice contract
 │   └── uix-devtools/           dev tooling (dev-only, NEVER ship)
 │       ├── src/gate.ts         edit-session launch gate (compiled out of prod)
 │       ├── src/runtime-compile.ts  live UIKitML → panel compilation
@@ -59,7 +62,7 @@ WebXR-UIExtensions/
 │                               them; edit gate on IWSDK; own Pages projects
 ├── scripts/verify-pack.mjs     consumer check - packs, installs, imports
 ├── docs/developer-cycle.md     the four development loops, terminal to deploy
-├── CHANGELOG.md                shared across all four packages
+├── CHANGELOG.md                shared across all five packages
 ├── .github/workflows/          CI, Cloudflare Pages deploy, GitHub publish
 ├── vitest.config.ts            workspace test run + coverage gates
 └── tsconfig.base.json          shared strict compiler options
@@ -73,6 +76,7 @@ Each adapter re-exports the whole core, so an app installs one package:
 | --- | --- |
 | `@realitycollective/iwsdk-uiextensions` | Meta IWSDK apps (core re-exported) |
 | `@realitycollective/xrblocks-uiextensions` | XR Blocks / three.js apps (core re-exported, experimental) |
+| `@realitycollective/native-uiextensions` | native apps (OpenXR, visionOS) embedding a JS engine and rendering panels themselves (core re-exported, no engine dependency) |
 | `@realitycollective/webxr-uiextensions` | writing your own engine adapter |
 | `@realitycollective/uix-devtools` | dev dependency only - never in a shipped bundle |
 
@@ -85,7 +89,7 @@ for the contributor-vs-consumer split and how to test the published path.
 | Command | What |
 | --- | --- |
 | `npm ci` | install everything |
-| `npm run build` | build all four packages (`tsc` → `dist/`, core first) |
+| `npm run build` | build all five packages (`tsc` → `dist/`, core first) |
 | `npm run typecheck` | strict typecheck - all packages + all demos |
 | `npm test` | vitest + v8 coverage (100% thresholds on the pure modules) |
 | `npm run test:watch` | the same suites in watch mode |
@@ -98,7 +102,7 @@ for the contributor-vs-consumer split and how to test the published path.
 | `npm run build:showcase` / `build:playground` | one demo bundle at a time (what deploy uses) |
 | `npx uix-dev doctor` | check node / cloudflared / adb before first use |
 
-New here? Read **[docs/developer-cycle.md](./docs/developer-cycle.md)** - the full developer cycle: desktop preview, testing on a Quest (USB and tunnel), live edit sessions, deployment and publishing. Released changes are tracked in **[CHANGELOG.md](./CHANGELOG.md)** - all four packages version together.
+New here? Read **[docs/developer-cycle.md](./docs/developer-cycle.md)** - the full developer cycle: desktop preview, testing on a Quest (USB and tunnel), live edit sessions, deployment and publishing. Released changes are tracked in **[CHANGELOG.md](./CHANGELOG.md)** - all five packages version together.
 
 ## Live demos
 
@@ -118,7 +122,7 @@ Two workflows ship in every Reality Collective TypeScript repository, with the s
 | Workflow | Trigger | Does |
 | --- | --- | --- |
 | `ci.yml` | every PR + push to `main` / `development` | Build, typecheck, test with coverage gates, `verify:pack`, and all three demo builds. On a PR it then deploys to the `-test` Pages projects; on a push to `main`, to production, with short codes and QR codes in the step summary. The deploy steps skip when the Cloudflare secrets are absent, leaving a pure build gate |
-| `publish-npm.yml` | manual dispatch | packs all four packages and publishes to **npmjs.com** with provenance - `preview` dist-tag from `development`, `latest` from `main`. **Defaults to a dry run** |
+| `publish-npm.yml` | manual dispatch | packs all five packages and publishes to **npmjs.com** with provenance - `preview` dist-tag from `development`, `latest` from `main`. **Defaults to a dry run** |
 
 A PR can never touch production - staging lives in its own isolated Pages projects.
 

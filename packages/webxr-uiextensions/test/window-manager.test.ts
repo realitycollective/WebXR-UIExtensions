@@ -233,7 +233,7 @@ describe('WindowManager', () => {
     expect(hidden).toHaveBeenCalledTimes(1);
     manager.hide('w'); // idempotent
     expect(hidden).toHaveBeenCalledTimes(1);
-    expect(w.dockMode).toBe(DockMode.BodyFollow);
+    expect(w.dockMode).toBe(DockMode.WorldLocked); // in a region, so world-locked
     expect(w.region).toBe('rail');
     expect(manager.has('w')).toBe(true);
 
@@ -274,6 +274,45 @@ describe('WindowManager', () => {
     expect(regionChanged).toHaveBeenCalledTimes(3);
 
     expect(() => manager.dockTo('w', '')).toThrow(/needs a region id/);
+  });
+
+  it('opens a window given a region and a follow mode world-locked in that region', () => {
+    const manager = new WindowManager();
+    const record = manager.open('w', { region: 'rail', dockMode: DockMode.HeadLocked });
+    expect(record).toMatchObject({ region: 'rail', dockMode: DockMode.WorldLocked });
+    expect(() => manager.open('bad', { region: 'rail', dockMode: 'sideways' as never })).toThrow(/not a dock mode/);
+  });
+
+  it('dockTo makes a following window world-locked, announcing the region first', () => {
+    const manager = new WindowManager();
+    const seen: string[] = [];
+    manager.events.on('regionChanged', ({ window }) => seen.push(`region:${window.region}:${window.dockMode}`));
+    manager.events.on('dockChanged', ({ window, previous }) => seen.push(`dock:${previous}->${window.dockMode}`));
+    manager.open('w', { dockMode: DockMode.BodyFollow });
+    manager.dockTo('w', 'rail');
+    expect(seen).toEqual([
+      `region:rail:${DockMode.WorldLocked}`,
+      `dock:${DockMode.BodyFollow}->${DockMode.WorldLocked}`,
+    ]);
+    manager.dockTo('w', 'belt'); // already world-locked: no dock change
+    expect(seen).toHaveLength(3);
+  });
+
+  it('a follow mode takes a docked window out of its region first', () => {
+    const manager = new WindowManager();
+    const seen: string[] = [];
+    manager.events.on('regionChanged', ({ window }) => seen.push(`region:${String(window.region)}`));
+    manager.events.on('dockChanged', ({ window }) => seen.push(`dock:${window.dockMode}`));
+    const record = manager.open('w', { region: 'rail' });
+
+    manager.setDockMode('w', DockMode.HeadLocked);
+    expect(record).toMatchObject({ region: undefined, dockMode: DockMode.HeadLocked });
+    expect(seen).toEqual(['region:undefined', `dock:${DockMode.HeadLocked}`]);
+
+    manager.dockTo('w', 'rail');
+    manager.togglePin('w'); // world-locked -> follow, so it leaves the region
+    expect(record.region).toBeUndefined();
+    expect(record.dockMode).not.toBe(DockMode.WorldLocked);
   });
 
   it('returnHome only announces; the adapter owns the home snapshot', () => {

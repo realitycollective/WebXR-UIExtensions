@@ -104,7 +104,8 @@ export class UIDockRegionSystem extends createSystem({
       entity.removeComponent(UIDockedTo);
       return;
     }
-    // Docked windows are world-locked by definition (the region may follow).
+    // Docked windows are world-locked, the core manager's rule (the region
+    // may follow). Mirror it on the component before the record catches up.
     if (entity.getValue(UIWindow, 'dockMode') !== DockMode.WorldLocked) {
       entity.setValue(UIWindow, 'dockMode', DockMode.WorldLocked);
     }

@@ -196,6 +196,9 @@ export class UixWindowHost implements WindowHost, SceneTarget {
   private readonly ready = new Map<string, PanelReadyEvent>();
   /** Feeds `uix-window-<n>` ids to windows created without one. */
   private windowSequence = 0;
+  /** Every manager subscription, released by {@link dispose}. */
+  private readonly subscriptions: Array<() => void> = [];
+  private disposed = false;
 
   constructor(options: UixWindowHostOptions) {
     this.scene = options.scene;
@@ -204,7 +207,7 @@ export class UixWindowHost implements WindowHost, SceneTarget {
     this.kit = options.kit;
     this.loadConfig = options.loadConfig ?? loadUikitmlSource;
 
-    this.manager.events.on('closed', (record) => {
+    this.subscriptions.push(this.manager.events.on('closed', (record) => {
       const state = this.states.get(record.id);
       if (state) {
         this.states.delete(record.id);
@@ -214,14 +217,14 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         state.handle.group.removeFromParent();
         this.layoutRegions();
       }
-    });
-    this.manager.events.on('hidden', (record) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('hidden', (record) => {
       this.applyPresentation(record.id);
-    });
-    this.manager.events.on('shown', (record) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('shown', (record) => {
       this.applyPresentation(record.id);
-    });
-    this.manager.events.on('dockChanged', ({ window, previous }) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('dockChanged', ({ window, previous }) => {
       if (previous === DockMode.HandLocked) {
         // Off the hand: the gate no longer applies.
         const state = this.states.get(window.id);
@@ -230,27 +233,27 @@ export class UixWindowHost implements WindowHost, SceneTarget {
           this.applyPresentation(window.id);
         }
       }
-    });
-    this.manager.events.on('regionChanged', ({ window }) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('regionChanged', ({ window }) => {
       this.applyRegion(window);
-    });
-    this.manager.events.on('returnHome', (record) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('returnHome', (record) => {
       this.returnHome(record.id);
-    });
-    this.manager.events.on('chromeChanged', ({ window }) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('chromeChanged', ({ window }) => {
       this.applyChrome(window);
-    });
-    this.manager.events.on('minimized', (record) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('minimized', (record) => {
       this.setContentCollapsed(record.id, true);
       this.syncMinimizeLabel(record.id);
-    });
-    this.manager.events.on('restored', (record) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('restored', (record) => {
       this.setContentCollapsed(record.id, false);
       this.syncMinimizeLabel(record.id);
-    });
-    this.manager.events.on('dockChanged', ({ window }) => {
+    }));
+    this.subscriptions.push(this.manager.events.on('dockChanged', ({ window }) => {
       this.syncPinLabel(window.id);
-    });
+    }));
   }
 
   // --- WindowHost -----------------------------------------------------------
@@ -273,6 +276,28 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       listener(event);
     }
     return () => void this.readyListeners.delete(listener);
+  }
+
+  /**
+   * Leave nothing behind: close every window through the manager, so each
+   * goes down the normal close path (its document disposed, its group
+   * removed), remove the region groups this host added to the scene, then
+   * release every manager subscription. Safe to call twice.
+   */
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const id of [...this.states.keys()]) {
+      if (this.manager.has(id)) this.manager.close(id);
+    }
+    for (const region of this.regionStates.values()) {
+      region.handle.group.removeFromParent();
+    }
+    this.regionStates.clear();
+    this.ready.clear();
+    this.readyListeners.clear();
+    for (const unsubscribe of this.subscriptions) unsubscribe();
+    this.subscriptions.length = 0;
   }
 
   // --- SceneTarget (portable scene descriptors) -----------------------------
@@ -395,7 +420,6 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         this.manager.undock(record.id);
         throw error;
       }
-      this.manager.setDockMode(record.id, DockMode.WorldLocked);
     }
     this.layoutRegions();
   }

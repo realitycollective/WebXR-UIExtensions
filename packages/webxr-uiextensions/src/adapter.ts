@@ -153,6 +153,14 @@ export interface WindowHost extends PanelHost {
    * that are already live. Returns an unsubscribe function.
    */
   onPanelReady(listener: (event: PanelReadyEvent) => void): () => void;
+  /**
+   * Leave nothing behind. Closes every window this host opened, through its
+   * `WindowManager`, so each window goes down the same path a user close
+   * takes. Then releases the host's own subscriptions and listeners, so
+   * `onPanelReady` replays nothing afterwards. Safe to call more than once.
+   * Every platform implements it, so an app tears down the same way on each.
+   */
+  dispose(): void;
 }
 
 /**

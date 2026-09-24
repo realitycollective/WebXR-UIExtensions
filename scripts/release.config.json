@@ -4,10 +4,12 @@
     "webxr-uiextensions",
     "iwsdk-uiextensions",
     "xrblocks-uiextensions",
+    "native-uiextensions",
     "uix-devtools"
   ],
   "importCheck": [
-    "webxr-uiextensions"
+    "webxr-uiextensions",
+    "native-uiextensions"
   ],
   "declarationCheck": true,
   "binSmoke": [
