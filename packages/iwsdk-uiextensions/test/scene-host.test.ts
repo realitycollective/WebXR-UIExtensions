@@ -26,6 +26,7 @@ import {
 } from '@realitycollective/webxr-uiextensions';
 import { describe, expect, it, vi } from 'vitest';
 import { windowHostContract } from '../../webxr-uiextensions/test/helpers/window-host-contract.js';
+import { sceneTargetContract } from '../../webxr-uiextensions/test/helpers/scene-target-contract.js';
 import {
   RegionFlowType,
   UIDockRegion,
@@ -436,6 +437,33 @@ describe('one host per world', () => {
   });
 });
 
+describe('createSceneHost dispose', () => {
+  it('closes attached windows, skips one still loading, and goes quiet', () => {
+    const world = makeWorld();
+    world.registerSystem(UIWindowSystem);
+    const host = createSceneHost(world);
+    const manager = windowManagerFor(world);
+    const attached = host.createWindow({ id: 'attached', config: '/ui/a.uikitml' });
+    attachDocument(attached.entity, makeDocument());
+    const loading = host.createWindow({ id: 'loading', config: '/ui/b.uikitml' });
+    expect(manager.has('attached')).toBe(true);
+    expect(manager.has('loading')).toBe(false);
+
+    host.dispose();
+
+    expect(manager.has('attached')).toBe(false);
+    // The old readiness system is still on the world, but silent.
+    const fresh = createSceneHost(world);
+    expect(fresh).not.toBe(host);
+    const events: PanelReadyEvent[] = [];
+    fresh.onPanelReady((event) => events.push(event));
+    attachDocument(loading.entity, makeDocument());
+    expect(events.map((event) => event.id)).toEqual(['loading']);
+
+    host.dispose();
+  });
+});
+
 windowHostContract('IWSDK scene host', () => {
   const world = makeWorld();
   // The window system is what opens a record on the manager once the panel
@@ -460,3 +488,19 @@ windowHostContract('IWSDK scene host', () => {
   };
 });
 
+sceneTargetContract('IWSDK scene host', () => {
+  const world = makeWorld();
+  world.registerSystem(UIWindowSystem);
+  const host = createSceneHost(world);
+  return {
+    target: host,
+    manager: windowManagerFor(world),
+    // IWSDK loads each panel over later frames; the window record opens when
+    // its document attaches.
+    settle: () => {
+      for (const entity of entitiesWith(world, UIWindow)) {
+        attachDocument(entity, makeDocument());
+      }
+    },
+  };
+});

@@ -27,6 +27,9 @@
       "@realitycollective/xrblocks-uiextensions": [
         "./packages/xrblocks-uiextensions/src/index.ts"
       ],
+      "@realitycollective/native-uiextensions": [
+        "./packages/native-uiextensions/src/index.ts"
+      ],
       "@realitycollective/uix-devtools": [
         "./packages/uix-devtools/src/index.ts"
       ]

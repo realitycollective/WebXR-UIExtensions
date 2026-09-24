@@ -1,0 +1,59 @@
+{
+  "name": "@realitycollective/native-uiextensions",
+  "version": "0.1.1-preview.0",
+  "description": "Native app adapter for the Reality Collective UI Extensions - binds the engine-free @realitycollective/webxr-uiextensions windowing core onto a native host (OpenXR, visionOS) that embeds a JavaScript engine such as Hermes, renders panels itself and installs globalThis.__rcHost. No engine dependency: every value crossing the boundary is plain data.",
+  "keywords": [
+    "realitycollective",
+    "native",
+    "openxr",
+    "visionos",
+    "hermes",
+    "webxr",
+    "ui",
+    "windowing",
+    "spatial-ui",
+    "uikitml",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Reality Collective",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@realitycollective/webxr-uiextensions": "^0.1.1-preview.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realitycollective/WebXR-UIExtensions.git",
+    "directory": "packages/native-uiextensions"
+  },
+  "homepage": "https://github.com/realitycollective/WebXR-UIExtensions#readme",
+  "bugs": {
+    "url": "https://github.com/realitycollective/WebXR-UIExtensions/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.19.0 <21.0.0-0 || >=22.12.0 <23.0.0-0 || >=24.0.0"
+  }
+}

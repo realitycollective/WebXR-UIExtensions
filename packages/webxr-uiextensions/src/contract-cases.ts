@@ -1,12 +1,13 @@
 /**
  * The shared `WindowHost` contract, shipped as data rather than as tests.
  *
- * Every adapter promises the same five things, whatever engine sits behind
+ * Every adapter promises the same six things, whatever engine sits behind
  * it: it says whether bare panels work and behaves accordingly,
  * `createWindow` hands back a {@link WindowHandle}, `onReady` fires exactly
  * once and replays for a late subscriber, `onPanelReady` replays too, and
  * closing a window through the `WindowManager` tears it down so it is not
- * replayed afterwards.
+ * replayed afterwards, and `dispose()` closes the host's windows and leaves
+ * nothing to replay.
  * Running one suite from every adapter is what keeps those promises from
  * drifting apart, and gives a new adapter a starting test for free.
  *
@@ -183,6 +184,33 @@ const CASES: readonly WindowHostContractCase[] = [
         !ids.includes('contract-e'),
         `onPanelReady must not replay a window closed through the manager, got [${ids.join(', ')}]`,
       );
+    },
+  },
+  {
+    name: 'dispose closes the host windows, stops replay, and can be called twice',
+    run(setup) {
+      setup.createWindow('contract-f');
+      setup.attach?.('contract-f');
+      assert(
+        typeof setup.host.dispose === 'function',
+        'a WindowHost must implement dispose()',
+      );
+      setup.host.dispose();
+      assert(
+        !setup.manager.has('contract-f'),
+        'dispose() must close the windows the host opened',
+      );
+      const ids: string[] = [];
+      detach(setup.host.onPanelReady((event) => ids.push(event.id)), 'onPanelReady');
+      assert(
+        ids.length === 0,
+        `a disposed host must replay nothing to onPanelReady, got [${ids.join(', ')}]`,
+      );
+      try {
+        setup.host.dispose();
+      } catch (error) {
+        throw new Error(`a second dispose() must be a no-op, it threw: ${String(error)}`);
+      }
     },
   },
 ];

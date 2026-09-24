@@ -39,3 +39,6 @@ export * from './scene.js';
 
 // The WindowHost conformance suite, as data an adapter runs in its own runner
 export * from './contract-cases.js';
+export * from './scene-contract-cases.js';
+export * from './element-contract-cases.js';
+export * from './memory-window-host.js';

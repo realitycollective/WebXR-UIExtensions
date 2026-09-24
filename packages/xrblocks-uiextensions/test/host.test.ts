@@ -17,6 +17,7 @@ import type {
   QuatTuple,
 } from '@realitycollective/webxr-uiextensions';
 import { windowHostContract } from '../../webxr-uiextensions/test/helpers/window-host-contract.js';
+import { sceneTargetContract } from '../../webxr-uiextensions/test/helpers/scene-target-contract.js';
 import { UixWindowHost } from '../src/host.js';
 import { webxrHandPoseSource } from '../src/xrblocks.js';
 
@@ -84,6 +85,23 @@ describe('UixWindowHost', () => {
     expect(scene.children).toHaveLength(0);
     expect(host.window('w1')).toBeUndefined();
     expect(host.manager.get('w1')).toBeUndefined();
+  });
+
+  it('dispose removes every window and region it added, and stops following the manager', () => {
+    const { scene, host } = makeHost();
+    host.createRegion({ id: 'shelf', position: [0, 1, -1] });
+    host.createWindow({ id: 'w1', config: config(), region: 'shelf' });
+    host.createWindow({ id: 'w2', config: config() });
+
+    host.dispose();
+
+    expect(scene.children).toHaveLength(0);
+    expect(host.manager.has('w1')).toBe(false);
+    expect(host.manager.has('w2')).toBe(false);
+    // A window opened on the manager afterwards is no longer mirrored.
+    host.manager.open('late');
+    expect(host.window('late')).toBeUndefined();
+    expect(() => host.dispose()).not.toThrow();
   });
 
   it('minimize collapses the content element and restore expands it', () => {
@@ -494,4 +512,18 @@ describe('webxrHandPoseSource', () => {
     expect(webxrHandPoseSource(none).getHandPose('left')).toBeUndefined();
     expect(webxrHandPoseSource(none).hasHands?.()).toBe(false);
   });
+});
+
+sceneTargetContract('XR Blocks window host', () => {
+  const host = new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, loadConfig: async () => config() });
+  return {
+    target: host,
+    manager: host.manager,
+    // Configs load asynchronously, so a window opens once its load resolves.
+    settle: async (ids) => {
+      await vi.waitFor(() => {
+        for (const id of ids) expect(host.manager.has(id)).toBe(true);
+      });
+    },
+  };
 });
