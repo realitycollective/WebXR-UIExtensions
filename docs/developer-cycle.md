@@ -159,7 +159,7 @@ A PR can never touch production. Use deploys for sign-off and sharing, not for i
 
 ## Publishing (npmjs.com + GitHub Releases)
 
-`publish-npm.yml` (manual dispatch, **defaults to dry run**) publishes all four packages to npmjs.com under the `@realitycollective` scope, the same arrangement as `com.realitycollective.service-framework.ts` and the other WebXR repositories. Which dist-tag it publishes under depends on the branch you dispatch it from:
+`publish-npm.yml` (manual dispatch, **defaults to dry run**; CI also queues a dry run by itself after a pull request merges into `main` or `development`) publishes all four packages to npmjs.com under the `@realitycollective` scope, the same arrangement as `com.realitycollective.service-framework.ts` and the other WebXR repositories. Which dist-tag it publishes under depends on the branch you dispatch it from:
 
 - **`development`** publishes every package under the `preview` dist-tag, then bumps the preview counter (`0.1.1-preview.0` to `0.1.1-preview.1`) and pushes the bump back so the next run cannot collide.
 - **`main`** publishes every package under the `latest` dist-tag, creates the `v<version>` tag and GitHub Release with the tarballs attached, then merges `main` into `development` and re-seeds it at the next patch preview (`main` 0.1.0 leaves `development` at 0.1.1-preview.0).

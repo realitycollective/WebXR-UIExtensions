@@ -1,5 +1,10 @@
 # WebXR UI Extensions
 
+| Branch | Build | Publish | Published on npm |
+| --- | --- | --- | --- |
+| `main` | [![main build](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/ci.yml?branch=main&label=build)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/ci.yml?query=branch%3Amain) | [![main publish](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/publish-npm.yml?branch=main&label=publish)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/publish-npm.yml?query=branch%3Amain) | [![npm latest](https://img.shields.io/npm/v/@realitycollective/webxr-uiextensions/latest?label=npm%20latest)](https://www.npmjs.com/package/@realitycollective/webxr-uiextensions?activeTab=versions) |
+| `development` | [![development build](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/ci.yml?branch=development&label=build)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/ci.yml?query=branch%3Adevelopment) | [![development publish](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/publish-npm.yml?branch=development&label=publish)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/publish-npm.yml?query=branch%3Adevelopment) | [![npm preview](https://img.shields.io/npm/v/@realitycollective/webxr-uiextensions/preview?label=npm%20preview)](https://www.npmjs.com/package/@realitycollective/webxr-uiextensions?activeTab=versions) |
+
 A library for building user interfaces inside a WebXR scene. It gives you movable, resizable windows that can be dragged, snapped into fixed regions of the scene, and filled with buttons, sliders and other controls.
 
 The core logic is plain TypeScript with no dependency on any 3D engine. Small adapters connect it to [Meta's Immersive Web SDK](https://iwsdk.dev), to [Google XR Blocks](https://github.com/google/xr-blocks), to plain three.js, or - through `@realitycollective/native-uiextensions` - to a native app (OpenXR, visionOS) that embeds a JavaScript engine such as Hermes, renders panels itself and installs `globalThis.__rcHost`, per the Reality Collective native host contract shared across the WebXR family repositories. The repository also holds developer tooling and demo clients you can deploy.
@@ -121,8 +126,8 @@ Two workflows ship in every Reality Collective TypeScript repository, with the s
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
-| `ci.yml` | every PR + push to `main` / `development` | Build, typecheck, test with coverage gates, `verify:pack`, and all three demo builds. On a PR it then deploys to the `-test` Pages projects; on a push to `main`, to production, with short codes and QR codes in the step summary. The deploy steps skip when the Cloudflare secrets are absent, leaving a pure build gate |
-| `publish-npm.yml` | manual dispatch | packs all five packages and publishes to **npmjs.com** with provenance - `preview` dist-tag from `development`, `latest` from `main`. **Defaults to a dry run** |
+| `ci.yml` | every PR + push to `main` / `development` | Build, typecheck, test with coverage gates, `verify:pack`, and all three demo builds. On a PR it then deploys to the `-test` Pages projects; on a push to `main`, to production, with short codes and QR codes in the step summary. The deploy steps skip when the Cloudflare secrets are absent, leaving a pure build gate. After a merged PR passes, it queues a publish dry run on the branch the PR merged into |
+| `publish-npm.yml` | manual dispatch, plus the dry run CI queues after a merged PR | packs all five packages and publishes to **npmjs.com** with provenance - `preview` dist-tag from `development`, `latest` from `main`. **Defaults to a dry run** |
 
 A PR can never touch production - staging lives in its own isolated Pages projects.
 
