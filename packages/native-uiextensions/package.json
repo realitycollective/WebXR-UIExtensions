@@ -1,6 +1,6 @@
 {
   "name": "@realitycollective/native-uiextensions",
-  "version": "0.1.1-preview.0",
+  "version": "0.1.1-preview.1",
   "description": "Native app adapter for the Reality Collective UI Extensions - binds the engine-free @realitycollective/webxr-uiextensions windowing core onto a native host (OpenXR, visionOS) that embeds a JavaScript engine such as Hermes, renders panels itself and installs globalThis.__rcHost. No engine dependency: every value crossing the boundary is plain data.",
   "keywords": [
     "realitycollective",
@@ -36,7 +36,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@realitycollective/webxr-uiextensions": "^0.1.1-preview.0"
+    "@realitycollective/webxr-uiextensions": "^0.1.1-preview.1"
   },
   "devDependencies": {
     "typescript": "^5.5.0"
