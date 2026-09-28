@@ -1,3 +1,4 @@
+import { DEFAULT_WINDOW_FOLLOW } from '../src/index.js';
 import { describe, expect, it, vi } from 'vitest';
 import { DockMode } from '../src/core/dock-state.js';
 import {
@@ -322,6 +323,22 @@ describe('WindowManager', () => {
     const w = manager.open('w');
     manager.returnHome('w');
     expect(returnHome).toHaveBeenCalledWith(w);
+  });
+
+  it('carries follow options and setFollow emits only on change', () => {
+    const manager = new WindowManager();
+    const changes: Array<{ id: string; previousOffset: number[] }> = [];
+    manager.events.on('followChanged', ({ window, previous }) => changes.push({ id: window.id, previousOffset: [...previous.offset] }));
+    const opened = manager.open('w', { follow: { offset: [0.2, 0, -0.8], speed: 5 } });
+    expect(opened.follow).toEqual({ offset: [0.2, 0, -0.8], speed: 5, tolerance: DEFAULT_WINDOW_FOLLOW.tolerance, maxAngle: DEFAULT_WINDOW_FOLLOW.maxAngle });
+    expect(manager.open('plain').follow).toEqual(DEFAULT_WINDOW_FOLLOW);
+    manager.setFollow('w', { speed: 5 }); // nothing new
+    manager.setFollow('w', { offset: [0.2, 0, -0.8] }); // same offset, new array
+    expect(changes).toHaveLength(0);
+    manager.setFollow('w', { offset: [0, -0.3, -1.5], tolerance: 0.1 });
+    expect(changes).toEqual([{ id: 'w', previousOffset: [0.2, 0, -0.8] }]);
+    expect(manager.get('w')?.follow).toEqual({ offset: [0, -0.3, -1.5], speed: 5, tolerance: 0.1, maxAngle: DEFAULT_WINDOW_FOLLOW.maxAngle });
+    expect(() => manager.setFollow('none', { speed: 1 })).toThrow();
   });
 
   it('carries hand-menu options and setHandMenu emits only on change', () => {

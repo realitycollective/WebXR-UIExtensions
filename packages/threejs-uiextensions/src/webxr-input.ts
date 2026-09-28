@@ -19,6 +19,7 @@
  *   touch poll and ray hover/cursor reads the controller/hand objects' live
  *   world pose, which three already keeps current.
  */
+import { HoverTracker } from '@realitycollective/webxr-uiextensions';
 import { Quaternion, Vector3, type Object3D, type PerspectiveCamera } from 'three';
 import type { HandPoseSource, HeadPose, HeadPoseSource, QuatTuple, Vec3Tuple } from '@realitycollective/webxr-uiextensions';
 import { CursorVisual, type CursorVisualOptions } from './cursor-visual.js';
@@ -187,7 +188,7 @@ export function connectWebXrPointerInput(options: ConnectWebXrPointerInputOption
   const disposers: Array<() => void> = [];
   /** Controller/grip -> the target its press resolved to, so release ends the SAME gesture even if the ray has since moved off it. */
   const activePress = new Map<Object3D, Object3D>();
-  const hoverByController = new Map<Object3D, Object3D | undefined>();
+  const hover = new HoverTracker<Object3D>();
   /** One cursor disc per controller slot, `undefined` when no `scene` was given (cursors skipped). */
   const cursors: Array<CursorVisual> | undefined = options.scene
     ? Array.from({ length: controllerCount }, () => new CursorVisual(options.scene!, options.cursor))
@@ -245,16 +246,15 @@ export function connectWebXrPointerInput(options: ConnectWebXrPointerInputOption
     // never gated on hover/focus state.
     for (let index = 0; index < controllerCount; index += 1) {
       const controller = renderer.xr.getController(index);
-      const previous = hoverByController.get(controller);
       const detail = controller.visible
         ? bridge.rayCast(worldPositionOf(controller), worldRayDirectionOf(controller))
         : undefined;
-      const hit = detail?.target;
-      if (previous !== hit) {
-        if (previous) bridge.hoverExit(previous);
-        if (hit) bridge.hoverEnter(hit);
-        hoverByController.set(controller, hit);
-      }
+      // Hover per element is the core rule (`HoverTracker`): each pointer
+      // raises enter and leave on the element it moves onto and off, as
+      // IWSDK's pointer events do for uikit's :hover.
+      const change = hover.update(`ray:${index}`, detail?.target);
+      if (change.pointerLeave) bridge.hoverExit(change.pointerLeave);
+      if (change.pointerEnter) bridge.hoverEnter(change.pointerEnter);
       const cursor = cursors?.[index];
       if (cursor) {
         if (detail) cursor.showAtHit(detail.point, detail.normal, worldQuaternionOf(controller));
@@ -281,7 +281,7 @@ export function connectWebXrPointerInput(options: ConnectWebXrPointerInputOption
     for (const off of disposers) off();
     disposers.length = 0;
     activePress.clear();
-    hoverByController.clear();
+    hover.clear();
     for (const cursor of cursors ?? []) cursor.dispose();
   }
 

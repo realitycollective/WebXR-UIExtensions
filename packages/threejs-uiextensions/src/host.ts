@@ -345,6 +345,11 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         }
       }
     }));
+    this.subscriptions.push(this.manager.events.on('followChanged', ({ window }) => {
+      // A new offset re-aims a following window; a placed one takes it when it next follows.
+      const state = this.states.get(window.id);
+      if (state) state.followOffset = [...window.follow.offset] as Vec3Tuple;
+    }));
     this.subscriptions.push(this.manager.events.on('regionChanged', ({ window }) => {
       this.applyRegion(window);
     }));
@@ -641,6 +646,13 @@ export class UixWindowHost implements WindowHost, SceneTarget {
         dock: options.dockable ?? false,
       },
       ...(options.handMenu !== undefined ? { handMenu: options.handMenu } : {}),
+      // The follow settings live on the record, so `manager.setFollow` can
+      // change them after spawn on every platform alike.
+      follow: {
+        ...(options.followOffset !== undefined ? { offset: [...options.followOffset] as Vec3Tuple } : {}),
+        ...(options.followSpeed !== undefined ? { speed: options.followSpeed } : {}),
+        ...(options.followTolerance !== undefined ? { tolerance: options.followTolerance } : {}),
+      },
     });
     this.wireChrome(options, handle);
     this.applyChrome(record);
@@ -909,11 +921,14 @@ export class UixWindowHost implements WindowHost, SceneTarget {
   private stepWindowFollow(state: WindowState, deltaSeconds: number): void {
     const head = this.headPose.getHeadPose();
     const group = state.handle.group;
+    // The record's follow settings: the ones the window opened with, or
+    // whatever `manager.setFollow` changed them to since.
+    const follow = this.manager.get(state.handle.id)?.follow ?? DEFAULT_WINDOW_FOLLOW;
     if (!state.follow) {
       const position = state.truePosition;
       state.followOffset = state.placed
-        ? followOffsetFromPose(position, head, state.options.followOffset)
-        : state.options.followOffset;
+        ? followOffsetFromPose(position, head, follow.offset)
+        : follow.offset;
       state.follow = enterFollow(position);
     }
     const step = stepFollow(
@@ -921,9 +936,9 @@ export class UixWindowHost implements WindowHost, SceneTarget {
       head,
       {
         offset: state.followOffset,
-        speed: state.options.followSpeed,
-        tolerance: state.options.followTolerance,
-        maxAngle: DEFAULT_WINDOW_FOLLOW.maxAngle,
+        speed: follow.speed,
+        tolerance: follow.tolerance,
+        maxAngle: follow.maxAngle,
       },
       deltaSeconds,
     );

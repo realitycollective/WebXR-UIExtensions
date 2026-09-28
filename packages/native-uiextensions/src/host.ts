@@ -90,6 +90,10 @@ import {
   type WindowHost,
   type WindowOptionsBase,
   type WindowRecord,
+  HoverTracker,
+  type HoverUpdate,
+  ScrollState,
+  TextEntry,
 } from '@realitycollective/webxr-uiextensions';
 import { NativeUixElement, flattenByHandle } from './element.js';
 import {
@@ -149,7 +153,15 @@ export interface NativePointerEvent {
 }
 
 interface PanelState {
+  /** The host's panel id. */
+  id: string;
   handle: PanelHandle;
+  /** The host's raw node per handle, for what the element declared (scroll, input). */
+  nodes: Map<string, NativeElementNode>;
+  /** The core scroll rule per scrolling element, keyed by handle. */
+  scrolls: Map<string, ScrollState>;
+  /** Which scrolling element (handle) each pressed pointer is dragging. */
+  scrollDrags: Map<string, string>;
   root: NativeUixElement;
   elements: Map<string, NativeUixElement>;
   byId: Map<string, NativeUixElement>;
@@ -302,6 +314,10 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
   /** This frame's pointer samples, by pointer key, until the next `update`. */
   private readonly samples = new Map<string, NativePointerSample>();
   private readonly pointers = new Map<string, PointerState>();
+  private readonly hover = new HoverTracker<Target>((target) => target.element);
+  private readonly textEntry = new TextEntry<Target>();
+  /** Milliseconds of `update(dt)` so far, the clock the scroll drags measure velocity against. */
+  private clockMs = 0;
   private head: HeadPose | undefined;
   private windowSequence = 0;
   private panelSequence = 0;
@@ -322,7 +338,38 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
 
     this.subscriptions.push(
       this.host.onElementEvent((panelId, elementHandle, type, payload) => {
-        this.panels.get(panelId)?.elements.get(elementHandle)?.dispatch(type, payload);
+        // Hover is the binding's decision (the core rule below); a host that
+        // still raises it is ignored so an element never hears it twice.
+        if (type === 'pointerenter' || type === 'pointerleave') return;
+        const panel = this.panels.get(panelId);
+        const element = panel?.elements.get(elementHandle);
+        if (!panel || !element) return;
+        if (type === 'scrollextent') {
+          const extent = payload as { width: number; height: number; maxX: number; maxY: number };
+          let scroll = panel.scrolls.get(elementHandle);
+          if (!scroll) {
+            scroll = new ScrollState();
+            panel.scrolls.set(elementHandle, scroll);
+          }
+          scroll.setExtent(extent);
+          return;
+        }
+        if (type === 'input') {
+          // The keyboard reported the whole value: the core rule writes it
+          // onto the focused field and raises its valueChanged.
+          const value = (payload as { value: string }).value;
+          const field = this.textEntry.input(value);
+          if (field && field.element === element) {
+            element.setProperties({ value });
+            element.dispatch('valueChanged', { value });
+          }
+          return;
+        }
+        if (type === 'keyboardclosed') {
+          this.textEntry.blur();
+          return;
+        }
+        element.dispatch(type, payload);
       }),
       this.host.onPanelReady((windowId, panelId, tree) => {
         this.attachWindowPanel(windowId, panelId, tree);
@@ -363,6 +410,11 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
         this.applyChrome(window);
       }),
       events.on('handMenuChanged', ({ window }) => push(window)),
+      events.on('followChanged', ({ window }) => {
+        const state = this.windows.get(window.id);
+        if (state) state.followOffset = [...window.follow.offset] as Vec3Tuple;
+        push(window);
+      }),
       events.on('dragStarted', (record) => this.syncPinLabel(record)),
       events.on('dragEnded', (record) => this.syncPinLabel(record)),
       events.on('returnHome', ({ id }) => this.returnHome(id)),
@@ -385,6 +437,7 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
    */
   update(dt: number): void {
     if (this.disposed) return;
+    this.clockMs += dt * 1000;
     this.head = this.readHead();
     this.processPointers();
     const hands = this.readHands();
@@ -392,6 +445,7 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
       if (state.record) this.applyDock(state, state.record, hands);
     }
     this.stepDrags(dt);
+    this.stepScrolls(dt);
     this.stepRegions(dt);
     this.stepFollow(dt);
     for (const state of this.windows.values()) {
@@ -426,6 +480,8 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
     this.windows.clear();
     this.pointers.clear();
     this.samples.clear();
+    this.hover.clear();
+    this.textEntry.blur();
     this.ready.clear();
     this.readyListeners.clear();
     for (const unsubscribe of this.subscriptions) unsubscribe();
@@ -612,7 +668,19 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
         this.host.disposePanel(panelId);
       },
     };
-    const state: PanelState = { handle, root, elements, byId, parents, windowId };
+    const scrolls = new Map<string, ScrollState>();
+    const nodes = new Map<string, NativeElementNode>();
+    const seed = (node: NativeElementNode): void => {
+      nodes.set(node.handle, node);
+      if (node.scroll) {
+        const scroll = new ScrollState();
+        scroll.setExtent(node.scroll);
+        scrolls.set(node.handle, scroll);
+      }
+      for (const child of node.children) seed(child);
+    };
+    seed(tree);
+    const state: PanelState = { id: panelId, handle, root, elements, byId, parents, windowId, nodes, scrolls, scrollDrags: new Map() };
     this.panels.set(panelId, state);
     if (this.features.controls) {
       // Keyed by the root, so a portable client's own
@@ -657,6 +725,11 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
         },
         ...(options.region !== undefined ? { region: options.region } : {}),
         ...(options.handMenu !== undefined ? { handMenu: options.handMenu } : {}),
+        follow: {
+          ...(options.followOffset !== undefined ? { offset: [...options.followOffset] as Vec3Tuple } : {}),
+          ...(options.followSpeed !== undefined ? { speed: options.followSpeed } : {}),
+          ...(options.followTolerance !== undefined ? { tolerance: options.followTolerance } : {}),
+        },
       });
     } else {
       // The app opened the record itself first; adopt it, as IWSDK does.
@@ -923,14 +996,16 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
     if (!head) return;
     for (const state of this.windows.values()) {
       if (!state.record || !state.follow || state.drag.dragging) continue;
+      // Speed, dead zone and angle are the record's, so `manager.setFollow`
+      // changes them on the next frame; the offset is re-aimed on a change.
       const step = stepFollow(
         state.follow,
         head,
         {
           offset: state.followOffset,
-          speed: state.followSpeed,
-          tolerance: state.followTolerance,
-          maxAngle: DEFAULT_WINDOW_FOLLOW.maxAngle,
+          speed: state.record.follow.speed,
+          tolerance: state.record.follow.tolerance,
+          maxAngle: state.record.follow.maxAngle,
         },
         dt,
       );
@@ -1015,6 +1090,7 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
     for (let at: NativeUixElement | undefined = target.element; at && !stopped; at = target.panel.parents.get(at)) {
       at.dispatch(type, event);
     }
+    if (type === 'click') this.focusText(target);
   }
 
   /** The core press machines dispatch through this - one object per pointer, closing over it for `dispatch`'s event shape. */
@@ -1048,12 +1124,14 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
       }
       pointer.last = sample;
       const target = this.resolveTarget(sample);
+      this.applyHover(pointer, this.hover.update(key, target));
       switch (sample.pointer) {
         case 'touch':
           this.touch(pointer, sample, target);
           break;
         case 'ray':
           this.edge(pointer, sample.active === true, target);
+          this.scrollDrag(pointer, key, sample, target);
           break;
         case 'grab':
           this.edge(pointer, sample.active === true, target && this.onTitlebar(target) ? target : undefined);
@@ -1063,7 +1141,9 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
     this.samples.clear();
     for (const [key, pointer] of [...this.pointers]) {
       if (seen.has(key)) continue;
-      // Not reported this frame: the pointer is gone, and so is its press.
+      // Not reported this frame: the pointer is gone, and so is its press, its hover and its scroll drag.
+      this.applyHover(pointer, this.hover.remove(key));
+      this.endScrollDrags(key);
       if (pointer.touch) {
         dispatchTouchUpdate(pointer.touch.update(undefined), this.sinkFor(pointer) as PointerEventSink<Target | undefined>, NativeWindowHost.SAME_OPTIONAL_TARGET);
       } else if (pointer.edge?.isPressed) {
@@ -1071,6 +1151,110 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
       }
       this.pointers.delete(key);
     }
+  }
+
+  /**
+   * Hover per element is the core rule (`HoverTracker`, IWSDK's pointer
+   * events): each pointer raises `pointerenter` on the element it moves onto
+   * and `pointerleave` on the one it left, on that element alone, and the
+   * host is told to style an element while any pointer is over it.
+   */
+  private applyHover(pointer: PointerState, change: HoverUpdate<Target>): void {
+    if (change.pointerLeave) this.dispatchOn(change.pointerLeave, 'pointerleave', pointer);
+    if (change.hoverOff) this.host.setHover?.(change.hoverOff.panel.id, change.hoverOff.element.handle, false);
+    if (change.hoverOn) this.host.setHover?.(change.hoverOn.panel.id, change.hoverOn.element.handle, true);
+    if (change.pointerEnter) this.dispatchOn(change.pointerEnter, 'pointerenter', pointer);
+  }
+
+  /** An event delivered to one element only, without bubbling, as `pointerenter` and `pointerleave` are. */
+  private dispatchOn(target: Target, type: 'pointerenter' | 'pointerleave', pointer: PointerState): void {
+    const sample = pointer.last;
+    target.element.dispatch(type, {
+      type,
+      pointerType: pointer.kind,
+      sourceId: pointer.sourceId,
+      point: sample.point ? ([...sample.point] as Vec3Tuple) : null,
+    });
+  }
+
+  /**
+   * Scrolling is the core rule (`ScrollState`, uikit's drag): a ray held on
+   * an element that scrolls, or inside one, drags its content by the move
+   * of the hit point in the element's pixel space; releasing lets it coast.
+   * The host is told the new offset and draws it.
+   */
+  private scrollDrag(pointer: PointerState, key: string, sample: NativePointerSample, target: Target | undefined): void {
+    const active = sample.active === true;
+    for (const panel of this.panels.values()) {
+      const dragging = panel.scrollDrags.get(key);
+      if (dragging === undefined) continue;
+      // A drag always names a scrolling element the panel still has.
+      const scroll = panel.scrolls.get(dragging)!;
+      if (!active || target?.panel !== panel) {
+        scroll.endDrag(key);
+        panel.scrollDrags.delete(key);
+        continue;
+      }
+      if (sample.localPoint) {
+        const [x, y] = scroll.moveDrag(key, sample.localPoint, this.nowMs());
+        this.host.setScroll?.(panel.id, dragging, x, y);
+      }
+      return;
+    }
+    if (!active || !target || !sample.localPoint || pointer.edge?.isPressed !== true) return;
+    const handle = this.scrollingAncestor(target);
+    const scroll = handle === undefined ? undefined : target.panel.scrolls.get(handle);
+    if (handle === undefined || !scroll) return;
+    scroll.beginDrag(key, sample.localPoint, this.nowMs());
+    target.panel.scrollDrags.set(key, handle);
+  }
+
+  /** The nearest element that scrolls, from `target` up, by handle. */
+  private scrollingAncestor(target: Target): string | undefined {
+    for (let at: NativeUixElement | undefined = target.element; at; at = target.panel.parents.get(at)) {
+      if (target.panel.scrolls.has(at.handle)) return at.handle;
+    }
+    return undefined;
+  }
+
+  /** Coasting and rubber-band return for every scrolling element not being dragged. */
+  private stepScrolls(dt: number): void {
+    for (const panel of this.panels.values()) {
+      for (const [handle, scroll] of panel.scrolls) {
+        if (scroll.dragging || !scroll.settling) continue;
+        const [x, y] = scroll.frame(dt * 1000);
+        this.host.setScroll?.(panel.id, handle, x, y);
+      }
+    }
+  }
+
+  /** A pointer left: its scroll drag ends too. */
+  private endScrollDrags(key: string): void {
+    for (const panel of this.panels.values()) {
+      const dragging = panel.scrollDrags.get(key);
+      if (dragging === undefined) continue;
+      panel.scrolls.get(dragging)?.endDrag(key);
+      panel.scrollDrags.delete(key);
+    }
+  }
+
+  /**
+   * Text entry is the core rule (`TextEntry`, uikit's `Input`): a click on
+   * a text field focuses it and asks the host for the system keyboard with
+   * the field's value; the host's `"input"` reports replace the value.
+   */
+  private focusText(target: Target): void {
+    const node = target.panel.nodes.get(target.element.handle);
+    if (!node?.input) return;
+    const request = this.textEntry.focus(target, node.input.value, {
+      ...(node.input.multiline !== undefined ? { multiline: node.input.multiline } : {}),
+      ...(node.input.type !== undefined ? { type: node.input.type } : {}),
+    });
+    this.host.showKeyboard?.(target.panel.id, target.element.handle, request);
+  }
+
+  private nowMs(): number {
+    return this.clockMs;
   }
 
   /** A touch pointer: the core `TouchPress` decides from the signed distance, `dispatchTouchUpdate` raises the events. */

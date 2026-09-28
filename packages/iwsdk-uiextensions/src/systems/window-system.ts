@@ -154,12 +154,18 @@ export class UIWindowSystem extends createSystem({
       : '';
     this.entitiesById.set(id, entity);
     if (!this.manager.has(id)) {
+      const followOffset = entity.getVectorView(UIWindow, 'followOffset');
       this.manager.open(id, {
         title,
         dockMode,
         ...(region ? { region } : {}),
         chrome: this.chromeFlagsOf(entity),
         handMenu: this.handMenuOf(entity),
+        follow: {
+          offset: [followOffset[0] ?? 0, followOffset[1] ?? 0, followOffset[2] ?? 0],
+          speed: entity.getValue(UIWindow, 'followSpeed') as number,
+          tolerance: entity.getValue(UIWindow, 'followTolerance') as number,
+        },
       });
     }
     this.wireChrome(entity, id, title);

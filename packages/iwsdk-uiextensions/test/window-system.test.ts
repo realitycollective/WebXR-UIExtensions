@@ -226,6 +226,18 @@ describe('UIWindowSystem applies the manager', () => {
 
     document.element(WINDOW_CHROME_IDS.pin).fire('click');
     expect(manager.get('w')?.dockMode).toBe(DockMode.BodyFollow);
+    // The record carries the component's follow values, and setFollow reaches the live Follower.
+    expect(manager.get('w')?.follow.speed).toBe(entity.getValue(UIWindow, 'followSpeed'));
+    manager.setFollow('w', { offset: [0.4, -0.2, -1], speed: 7, tolerance: 0.2 });
+    world.update(1 / 60, 1);
+    if (entity.hasComponent(Follower)) {
+      const offset = [...entity.getVectorView(Follower, 'offsetPosition')];
+      expect(offset[0]).toBeCloseTo(0.4, 5);
+      expect(offset[1]).toBeCloseTo(-0.2, 5);
+      expect(offset[2]).toBeCloseTo(-1, 5);
+      expect(entity.getValue(Follower, 'speed')).toBe(7);
+      expect(entity.getValue(Follower, 'tolerance')).toBeCloseTo(0.2, 5);
+    }
     expect(entity.getValue(UIWindow, 'dockMode')).toBe(DockMode.BodyFollow);
 
     document.element(WINDOW_CHROME_IDS.close).fire('click');

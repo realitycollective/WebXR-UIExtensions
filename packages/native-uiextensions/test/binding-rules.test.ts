@@ -16,8 +16,7 @@ import {
   type FollowState,
   type HeadPose,
   type PoseTuple,
-  type Vec3Tuple,
-} from '@realitycollective/webxr-uiextensions';
+  type Vec3Tuple, WINDOW_CHROME_IDS } from '@realitycollective/webxr-uiextensions';
 import { describe, expect, it } from 'vitest';
 import { NativeWindowHost, type CreateWindowOptions } from '../src/host.js';
 import type { NativeUiInputHost, NativeUiInputSource } from '../src/native-types.js';
@@ -134,6 +133,235 @@ function expectPose(actual: PoseTuple | undefined, expected: PoseTuple, digits =
   const dot = Math.abs(actual!.quaternion.reduce((sum, value, i) => sum + value * expected.quaternion[i]!, 0));
   expect(dot).toBeCloseTo(1, digits);
 }
+
+describe('hover is decided by the binding from the pointer samples', () => {
+  it('raises pointerenter and pointerleave on the element itself, and tells the host to style it while any pointer is over it', () => {
+    const { fake, host, open, ray, touch, frame } = setup();
+    const handle = open('w');
+    const entered = listen(handle.panel, WINDOW_CHROME_IDS.title, 'pointerenter');
+    const left = listen(handle.panel, WINDOW_CHROME_IDS.title, 'pointerleave');
+    const windowEntered = listen(handle.panel, WINDOW_CHROME_IDS.window, 'pointerenter');
+    frame();
+    ray('right', 'w', WINDOW_CHROME_IDS.title, false, [0, 1.6, -1]);
+    frame();
+    expect(entered).toHaveLength(1);
+    expect(windowEntered).toHaveLength(0);
+    expect(fake.elementHovered!('w', WINDOW_CHROME_IDS.title)).toBe(true);
+    // A second pointer over the same element: it hears its own enter, the host is not told again.
+    touch('left', 'w', WINDOW_CHROME_IDS.title, 0.1);
+    ray('right', 'w', WINDOW_CHROME_IDS.title, false, [0, 1.6, -1]);
+    frame();
+    expect(entered).toHaveLength(2);
+    expect(fake.hoverCalls.filter((call) => call.hovered)).toHaveLength(1);
+    // The ray moves off: it leaves, the touch keeps the style on.
+    ray('right', 'w', null, false);
+    touch('left', 'w', WINDOW_CHROME_IDS.title, 0.1);
+    frame();
+    expect(left).toHaveLength(1);
+    expect(fake.elementHovered!('w', WINDOW_CHROME_IDS.title)).toBe(true);
+    // The touch stops reporting: it leaves, and the style comes off.
+    frame();
+    expect(left).toHaveLength(2);
+    expect(fake.elementHovered!('w', WINDOW_CHROME_IDS.title)).toBe(false);
+    expect((entered[0] as { pointerType: string }).pointerType).toBe('ray');
+  });
+
+  it('ignores a pointerenter or pointerleave the host raises itself, and needs no setHover on the host', () => {
+    const { fake, host, open, handle: handleOf, ray, frame } = setup();
+    const opened = open('w');
+    const entered = listen(opened.panel, WINDOW_CHROME_IDS.title, 'pointerenter');
+    fake.fireElementEvent('panel-w', handleOf('w', WINDOW_CHROME_IDS.title), 'pointerenter');
+    fake.fireElementEvent('panel-w', handleOf('w', WINDOW_CHROME_IDS.title), 'pointerleave');
+    expect(entered).toHaveLength(0);
+    const bare = { ...fake, setHover: undefined } as unknown as typeof fake;
+    const plain = new NativeWindowHost({ host: bare, input: scriptedInput() });
+    plain.createWindow({ id: 'p', config: CHROME_TREE });
+    fake.readyWindow('p', 'panel-p', CHROME_TREE);
+    expect(() => {
+      bare.pointer({ sourceId: 'r', pointer: 'ray', panelId: 'panel-p', elementHandle: handleOf('p', WINDOW_CHROME_IDS.title), point: [0, 1.6, -1], ray: { origin: [0, 1.6, 0], direction: [0, 0, -1] }, active: false });
+      plain.update(1 / 72);
+    }).not.toThrow();
+    plain.dispose();
+    host.dispose();
+    ray('right', null, null, false);
+    frame();
+  });
+});
+
+describe('scrolling and text entry are core rules; the host only draws and types', () => {
+  const SCROLL_TREE: FakeElementSpec = {
+    id: WINDOW_CHROME_IDS.window,
+    children: [
+      { id: WINDOW_CHROME_IDS.titlebar, children: [{ id: WINDOW_CHROME_IDS.title }] },
+      {
+        id: WINDOW_CHROME_IDS.content,
+        scroll: { width: 200, height: 100, maxX: 0, maxY: 400 },
+        children: [{ id: 'row' }, { id: 'name', input: { value: 'Ada', type: 'text' } }, { id: 'note', input: { value: '', multiline: true } }],
+      },
+    ],
+  };
+  function scrollSetup() {
+    const fake = createFakeNativeUiHost();
+    const input = scriptedInput();
+    const host = new NativeWindowHost({ host: fake, input });
+    host.createWindow({ id: 'w', config: SCROLL_TREE });
+    fake.readyWindow('w', 'panel-w', SCROLL_TREE);
+    const handle = (elementId: string) => fake.handleOf('panel-w', elementId);
+    const ray = (elementId: string | null, active: boolean, localPoint?: [number, number]) =>
+      fake.pointer({
+        sourceId: 'right',
+        pointer: 'ray',
+        panelId: elementId === null ? null : 'panel-w',
+        elementHandle: elementId === null ? null : handle(elementId),
+        point: [0, 1.6, -1],
+        ray: { origin: [0, 1.6, 0], direction: [0, 0, -1] },
+        active,
+        ...(localPoint ? { localPoint } : {}),
+      });
+    return { fake, host, handle, ray, frame: (dt = 1 / 60) => host.update(dt) };
+  }
+
+  it('a ray held on a scrolling element drags its content by the move of the hit point, coasts on release, and stops when the pointer goes', () => {
+    const { fake, handle, ray, frame } = scrollSetup();
+    frame();
+    ray('row', false, [50, 50]);
+    frame();
+    ray('row', true, [50, 50]);
+    frame();
+    expect(fake.scrollCalls).toHaveLength(0);
+    ray('row', true, [50, 30]);
+    frame();
+    expect(fake.scrollCalls.at(-1)).toEqual({ panelId: 'panel-w', elementHandle: handle(WINDOW_CHROME_IDS.content), x: 0, y: 20 });
+    expect(fake.scrollPosition!('w', WINDOW_CHROME_IDS.content)).toEqual([0, 20]);
+    // Released: the content coasts on for a few frames, then settles.
+    ray('row', false, [50, 30]);
+    frame();
+    const before = fake.scrollCalls.length;
+    frame();
+    expect(fake.scrollCalls.length).toBeGreaterThan(before);
+    expect(fake.scrollPosition!('w', WINDOW_CHROME_IDS.content)![1]).toBeGreaterThan(20);
+    for (let i = 0; i < 200; i++) frame();
+    const settled = fake.scrollCalls.length;
+    frame();
+    expect(fake.scrollCalls.length).toBe(settled);
+    // A drag whose pointer vanishes ends; a drag started off a scrolling element never begins.
+    ray('row', true, [50, 50]);
+    frame();
+    ray('row', true, [50, 40]);
+    frame();
+    const moved = fake.scrollCalls.length;
+    frame();
+    ray(WINDOW_CHROME_IDS.title, true, [10, 10]);
+    frame();
+    ray(WINDOW_CHROME_IDS.title, true, [10, 20]);
+    frame();
+    expect(fake.scrollCalls.length).toBeGreaterThanOrEqual(moved);
+    // A press without a local point cannot start a drag.
+    ray('row', false);
+    frame();
+    ray('row', true);
+    frame();
+    ray('row', true);
+    frame();
+    // A move off the panel while held ends the drag.
+    ray('row', false, [50, 50]);
+    frame();
+    ray('row', true, [50, 50]);
+    frame();
+    ray(null, true, [50, 60]);
+    frame();
+  });
+
+  it('a scrollextent event from the host resizes the range, for a new element too', () => {
+    const { fake, handle, ray, frame } = scrollSetup();
+    frame();
+    fake.fireElementEvent('panel-w', handle(WINDOW_CHROME_IDS.content), 'scrollextent', { width: 200, height: 100, maxX: 0, maxY: 10 });
+    fake.fireElementEvent('panel-w', handle('row'), 'scrollextent', { width: 200, height: 50, maxX: 0, maxY: 5 });
+    fake.fireElementEvent('panel-w', 'no-such-handle', 'scrollextent', { width: 1, height: 1, maxX: 0, maxY: 0 });
+    ray('row', false, [50, 50]);
+    frame();
+    ray('row', true, [50, 50]);
+    frame();
+    ray('row', true, [50, 0]);
+    frame();
+    // The row itself now scrolls (nearest scrolling ancestor), by at most its 5 px range plus the rubber band.
+    expect(fake.scrollCalls.at(-1)?.elementHandle).toBe(handle('row'));
+    expect(fake.scrollCalls.at(-1)?.y).toBeGreaterThan(5);
+  });
+
+  it('a click on a text field asks the host for the keyboard with its value, typed text lands on the element, and closing ends entry', () => {
+    const { fake, host, handle, ray, frame } = scrollSetup();
+    const changes = listen(host.createPanel(SCROLL_TREE), 'name', 'valueChanged');
+    void changes;
+    frame();
+    ray('name', false, [10, 10]);
+    frame();
+    ray('name', true, [10, 10]);
+    frame();
+    ray('name', false, [10, 10]);
+    frame();
+    expect(fake.keyboardCalls).toEqual([{ panelId: 'panel-w', elementHandle: handle('name'), value: 'Ada', multiline: false, type: 'text' }]);
+    fake.typeText('panel-w', handle('name'), 'Ada L');
+    expect(fake.elementProperties('w', 'name')).toEqual({ value: 'Ada L' });
+    fake.closeKeyboard();
+    fake.typeText('panel-w', handle('name'), 'gone');
+    expect(fake.elementProperties('w', 'name')).toEqual({ value: 'Ada L' });
+    // A click on an element that is not a field asks for nothing; typing for a stranger changes nothing.
+    ray('row', true, [10, 10]);
+    frame();
+    ray('row', false, [10, 10]);
+    frame();
+    expect(fake.keyboardCalls).toHaveLength(1);
+    ray('name', true, [10, 10]);
+    frame();
+    ray('name', false, [10, 10]);
+    frame();
+    fake.typeText('panel-w', handle('row'), 'elsewhere');
+    expect(fake.elementProperties('w', 'name')).toEqual({ value: 'Ada L' });
+    fake.typeText('panel-w', 'no-such-handle', 'nobody');
+    // A multi-line field with no declared type asks for a return key and the default type.
+    ray('note', true, [10, 10]);
+    frame();
+    ray('note', false, [10, 10]);
+    frame();
+    expect(fake.keyboardCalls.at(-1)).toEqual({ panelId: 'panel-w', elementHandle: handle('note'), value: '', multiline: true, type: 'text' });
+    host.dispose();
+  });
+
+  it('a drag frame with no local point holds the position, and a host without setScroll or showKeyboard is left alone', () => {
+    const { fake, handle, ray, frame } = scrollSetup();
+    frame();
+    ray('row', true, [50, 50]);
+    frame();
+    ray('row', true);
+    frame();
+    ray('row', true, [50, 40]);
+    frame();
+    expect(fake.scrollCalls.at(-1)?.y).toBe(10);
+    void handle;
+    const quiet = createFakeNativeUiHost();
+    const bare = { ...quiet, setScroll: undefined, showKeyboard: undefined } as unknown as typeof quiet;
+    const plain = new NativeWindowHost({ host: bare, input: scriptedInput() });
+    plain.createWindow({ id: 'q', config: SCROLL_TREE });
+    quiet.readyWindow('q', 'panel-q', SCROLL_TREE);
+    const press = (elementId: string, active: boolean, localPoint: [number, number]) =>
+      bare.pointer({ sourceId: 'r', pointer: 'ray', panelId: 'panel-q', elementHandle: quiet.handleOf('panel-q', elementId), point: [0, 1.6, -1], ray: { origin: [0, 1.6, 0], direction: [0, 0, -1] }, active, localPoint });
+    expect(() => {
+      press('row', true, [50, 50]);
+      plain.update(1 / 60);
+      press('row', true, [50, 40]);
+      plain.update(1 / 60);
+      press('row', false, [50, 40]);
+      plain.update(1 / 60);
+      for (let i = 0; i < 5; i++) plain.update(1 / 60);
+      press('name', true, [10, 10]);
+      plain.update(1 / 60);
+      press('name', false, [10, 10]);
+      plain.update(1 / 60);
+    }).not.toThrow();
+    plain.dispose();
+  });
+});
 
 describe('change 19: a window record opens when its panel attaches', () => {
   it('manager.has(id) is false until onPanelReady, then true', () => {
@@ -368,6 +596,38 @@ describe('change 2 and 3: the follow rule runs in the binding, and the host is h
       reference = step.state;
       expectPose(fake.windowPose('w'), step.pose);
     }
+  });
+
+  it('setFollow after spawn changes the offset and tuning the window follows with', () => {
+    const { fake, input, open, frame, host } = setup();
+    open('w', { dockMode: DockMode.BodyFollow, followOffset: [0, -0.15, -1.2], followSpeed: 5, followTolerance: 0.1 });
+    for (let i = 0; i < 20; i += 1) {
+      walk(input, i);
+      frame(1 / 72);
+    }
+    const before = fake.windowPose('w')!;
+    host.manager.setFollow('w', { offset: [0.5, -0.15, -1.2], speed: 9, tolerance: 0.05 });
+    expect(host.manager.get('w')?.follow).toEqual({ offset: [0.5, -0.15, -1.2], speed: 9, tolerance: 0.05, maxAngle: 30 });
+    // The window now follows half a metre to the viewer's right of where it did.
+    for (let i = 20; i < 200; i += 1) {
+      walk(input, i);
+      frame(1 / 72);
+    }
+    const after = fake.windowPose('w')!;
+    const head = input.head!;
+    const rightward = (pose: PoseTuple) => {
+      const dx = pose.position[0] - head.position[0];
+      const dz = pose.position[2] - head.position[2];
+      // The viewer's right axis from its yaw.
+      const [x, y, z, w] = head.quaternion;
+      const rx = 1 - 2 * (y * y + z * z);
+      const rz = 2 * (x * z - w * y);
+      return dx * rx + dz * rz;
+    };
+    expect(rightward(after) - rightward(before)).toBeGreaterThan(0.3);
+    // A record the app opened before the binding has a window for it takes the change quietly.
+    host.manager.open('early');
+    expect(() => host.manager.setFollow('early', { offset: [0, 0, -2] })).not.toThrow();
   });
 
   it('a world-locked window keeps its world pose', () => {
