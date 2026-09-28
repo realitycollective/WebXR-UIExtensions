@@ -8,7 +8,15 @@
  * components to realise dock modes rather than re-implementing them.
  */
 import { Types, createComponent } from '@iwsdk/core';
-import { DEFAULT_HAND_MENU, DockMode } from '@realitycollective/webxr-uiextensions';
+import {
+  DEFAULT_BILLBOARD_WHILE_DRAGGING,
+  DEFAULT_DRAG_DELAY,
+  DEFAULT_FOCUS_BIAS,
+  DEFAULT_HAND_MENU,
+  DEFAULT_REGION,
+  DEFAULT_WINDOW_FOLLOW,
+  DockMode,
+} from '@realitycollective/webxr-uiextensions';
 
 /** `HandMenuOptions.hand` as an enum object for the component schema. */
 export const HandChoice = { Left: 'left', Right: 'right', Either: 'either' } as const;
@@ -55,20 +63,20 @@ export const UIWindow = createComponent(
     /** The DOCK affordance, which returns the window to where it spawned. */
     dockable: { type: Types.Boolean, default: false },
     /** Keep the window yawed toward the viewer while it is being dragged. */
-    billboardWhileDragging: { type: Types.Boolean, default: true },
+    billboardWhileDragging: { type: Types.Boolean, default: DEFAULT_BILLBOARD_WHILE_DRAGGING },
     /**
      * Seconds a title-bar press must be held before it becomes a drag.
      * Shorter presses stay clicks, so title-bar buttons don't fight the drag.
      */
-    dragDelay: { type: Types.Float32, default: 0.3 },
+    dragDelay: { type: Types.Float32, default: DEFAULT_DRAG_DELAY },
     /** Head-relative offset used in `body-follow` mode (meters). */
-    followOffset: { type: Types.Vec3, default: [0, -0.15, -1.2] },
+    followOffset: { type: Types.Vec3, default: [...DEFAULT_WINDOW_FOLLOW.offset] },
     /** `Follower` lerp speed for body-follow. */
-    followSpeed: { type: Types.Float32, default: 3 },
+    followSpeed: { type: Types.Float32, default: DEFAULT_WINDOW_FOLLOW.speed },
     /** `Follower` positional deadzone for body-follow (meters). */
-    followTolerance: { type: Types.Float32, default: 0.35 },
+    followTolerance: { type: Types.Float32, default: DEFAULT_WINDOW_FOLLOW.tolerance },
     /** Meters the focused window is nudged toward the viewer per focus depth. */
-    focusBias: { type: Types.Float32, default: 0.02 },
+    focusBias: { type: Types.Float32, default: DEFAULT_FOCUS_BIAS },
     /**
      * Hand-menu placement, used while `dockMode` is `hand-locked`. These seed
      * the record's `handMenu` on adoption; after that
@@ -130,15 +138,15 @@ export const UIDockRegion = createComponent(
   'UIDockRegion',
   {
     regionId: { type: Types.String, default: '' },
-    flow: { type: Types.Enum, enum: RegionFlowType, default: RegionFlowType.Column },
+    flow: { type: Types.Enum, enum: RegionFlowType, default: DEFAULT_REGION.flow },
     /** Distance between slot origins (meters). */
-    pitch: { type: Types.Float32, default: 0.35 },
+    pitch: { type: Types.Float32, default: DEFAULT_REGION.pitch },
     /** Columns per row (grid flow only). */
-    columns: { type: Types.Float32, default: 2 },
+    columns: { type: Types.Float32, default: DEFAULT_REGION.columns },
     /** Max docked windows (0 = unlimited). */
-    capacity: { type: Types.Float32, default: 0 },
+    capacity: { type: Types.Float32, default: DEFAULT_REGION.capacity },
     /** Drop-capture radius (meters). */
-    snapRadius: { type: Types.Float32, default: 0.5 },
+    snapRadius: { type: Types.Float32, default: DEFAULT_REGION.snapRadius },
   },
   'UI Extensions layout region for docking windows',
 );

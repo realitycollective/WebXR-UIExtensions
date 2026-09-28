@@ -44,6 +44,7 @@ import type { UixElement } from './controls/element.js';
  *
  *  - `Vec3Tuple` - position as [x, y, z] in meters, world space unless stated
  *  - `QuatTuple` - orientation quaternion as [x, y, z, w]
+ *  - `RayTuple` - a ray as `{ origin, direction }`, direction normalised
  *  - `HeadPose` - a viewer (head) pose sample
  *  - `HeadPoseSource` - supplies that pose each frame, camera on desktop and
  *    HMD in XR
@@ -53,6 +54,7 @@ export type {
   HeadPoseSource,
   PoseTuple,
   QuatTuple,
+  RayTuple,
   Vec3Tuple,
 } from '@realitycollective/webxr-input';
 
@@ -61,21 +63,16 @@ export type {
  * `hand-menu.ts` documents (`-Z` toward the thumb, `+Y` up the arm, the palm
  * at `-X` on the right hand and `+X` on the left). A controller's grip and a
  * tracked hand's `gripSpace` both are one; hand JOINT spaces are not, and
- * must be converted. Returns `undefined` while that hand is not tracked;
- * a hand menu on it is then hidden. An adapter without hands at all (a
- * desktop) supplies no source and falls back to body-follow placement for
- * hand-locked windows.
+ * must be converted. Returns `undefined` while that hand is not tracked, or
+ * with no source at all - either way `evaluateHandMenu` finds nothing to
+ * ride, and a hand-locked window is hidden, the same on every platform. A
+ * platform never keeps a hand-locked window shown by some other rule (a
+ * body-follow fallback, say) merely because no hand is tracked; that would
+ * be a behaviour the reference has not decided (see the family's working
+ * rules, "one behaviour, every platform").
  */
 export interface HandPoseSource {
   getHandPose(hand: Hand): PoseTuple | undefined;
-  /**
-   * Whether hands can be tracked at all right now - an XR session with hand
-   * or controller input. Off (or absent from the session) means "no hands
-   * here", and hand-locked windows fall back to body-follow placement rather
-   * than staying hidden, so one page can serve a desktop and a headset.
-   * Omit it when the source is always inside a session.
-   */
-  hasHands?(): boolean;
 }
 
 /**
@@ -209,6 +206,15 @@ export interface WindowOptionsBase {
   maxHeight?: number;
   /** Whether the title bar drags the window. Default `true`. */
   movable?: boolean;
+  /**
+   * Seconds a title-bar ray press must be held before it becomes a drag.
+   * Shorter presses stay clicks, so title-bar buttons never fight the drag
+   * gesture. Default `DEFAULT_DRAG_DELAY` (0.3 s), the same default as
+   * IWSDK's `UIWindow.dragDelay` component field, which this option maps
+   * onto there. A near (grab) drag ignores this and starts at once on every
+   * platform, as it already does.
+   */
+  dragDelay?: number;
   /**
    * Title-bar buttons. Every button is OFF unless enabled here, or later
    * through `WindowManager.setChrome`. The chrome markup may still contain

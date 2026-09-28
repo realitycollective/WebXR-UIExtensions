@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@iwsdk/core": "0.5.3",
+    "@iwsdk/core": "1.0.0",
     "@pmndrs/pointer-events": "^6.6.30",
     "@pmndrs/uikit-horizon": "^1.0.74",
     "@realitycollective/iwsdk-uiextensions": "*",

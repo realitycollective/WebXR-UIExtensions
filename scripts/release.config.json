@@ -3,6 +3,7 @@
   "packages": [
     "webxr-uiextensions",
     "iwsdk-uiextensions",
+    "threejs-uiextensions",
     "xrblocks-uiextensions",
     "native-uiextensions",
     "uix-devtools"

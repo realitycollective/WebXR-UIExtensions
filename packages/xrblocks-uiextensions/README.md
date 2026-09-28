@@ -14,17 +14,22 @@
 | Portable scene descriptors (`applyScene`) | ✅ | ✅ implements `SceneTarget` |
 | Panel-ready wiring (`onPanelReady`) | ✅ | ✅ implements `WindowHost` |
 | Follow mode (body-follow, yaw-only, eased) | ✅ | ✅ pure `follow-math` |
-| Hand menus (`hand-locked`, palm gate, anchors) | ✅ from the player rig | ✅ from a `HandPoseSource`; `webxrHandPoseSource(renderer.xr)` reads the session's input sources, and without hands the menu follows the body |
+| Hand menus (`hand-locked`, palm gate, anchors) | ✅ from the player rig | ✅ from a `HandPoseSource`; `webxrHandPoseSource(renderer.xr)` reads the session's input sources. No tracked hand hides the menu, exactly as IWSDK and native - it never falls back to some other placement |
 | Dock regions (wall/belt, slots, follow) | ✅ | ✅ `createRegion`, `manager.dockTo` (`host.dock` forwards) |
 | Desktop mouse input (hover, click, drag-to-look) | ✅ | ✅ via `@pmndrs/pointer-events` |
 | Desktop locomotion (WASD, jump, crouch, sprint) | n/a | ✅ `DesktopControls` |
-| XR select-ray click forwarding | ✅ | ✅ minimal (`forwardClick`) |
+| Ray click on release, poke (touch), controller-tip poke | ✅ | ✅ `pointer-bridge.ts`'s `XrBlocksPointerBridge`, attached to every panel automatically - runs the core `TouchPress` and clicks on `onSelectEnd`, not on intersection |
+| Hover styles (`pointerenter`/`pointerleave`) | ✅ | ✅ relayed from `onHoverEnter`/`onHoverExit` |
 | Bare panels (`createPanel`) | ⬜ ECS owns the lifecycle | ✅ `supportsStandalonePanels` is `true` |
-| Title-bar ray drag (`@pmndrs/handle`) | ✅ | ⬜ roadmap (`movable` is accepted and ignored) |
-| Title-bar near grab (squeeze / pinch) | ✅ | ⬜ roadmap (needs drag) |
-| Guarded poke (one press per touch, front only) | ✅ `UITouchGuardSystem` over IWSDK's touch pointers | ⬜ no near touch here yet; the core `TouchPress` is ready for it |
-| Drop-to-dock by dragging | ✅ | ⬜ roadmap (needs drag) |
+| Title-bar ray drag, with a per-window `dragDelay` | ✅ (`@pmndrs/handle`) | ✅ `TitlebarDragController`, from `onSelectStart`/`onSelectEnd` on the title bar |
+| Title-bar near grab (squeeze / pinch), starts at once | ✅ | ✅ from `onObjectGrabStart`/`onObjectGrabEnd`, gated to the title bar as on native |
+| Billboard while dragging | ✅ | ✅ `billboardWhileDragging` (default on) |
+| Drop-to-dock by dragging | ✅ | ✅ the core `RegionRegistry.capture` |
+| Focus bias (the focused window drawn nearer) | ✅ | ✅ `applyFocusBias`, every frame, for every window including a docked one - `regionSlotPose` re-places every docked window every frame, not only on a dock change |
+| Guarded poke (one press per touch, front only) | ✅ `UITouchGuardSystem` over IWSDK's touch pointers | ✅ the same core `TouchPress`, fed from `onObjectTouching` |
 | System keyboard text input | ✅ | ⬜ untested on Android XR |
+
+A ray drag rides the ray at a fixed grab distance, the same laser math IWSDK and native use, when `input: xb.input` is supplied to `connectUIExtensions` (or `rayInput` to the host directly) - `xb.input.getFrame()`'s `raySources` give the controller's live ray, since `SelectEvent` itself carries none. With no `rayInput` wired it falls back to the controller's own position delta instead: correct, but not laser-distance.
 
 ## Required renderer setup (read this first)
 
@@ -45,15 +50,11 @@ IWSDK does this internally, which is why panels look right there with no setup. 
 
 ```ts
 import * as xb from 'xrblocks';
-import {
-  DockMode,
-  connectUIExtensions,
-  forwardClick,
-} from '@realitycollective/xrblocks-uiextensions';
+import { DockMode, connectUIExtensions } from '@realitycollective/xrblocks-uiextensions';
 
 class MyScript extends xb.Script {
   async init() {
-    this.uix = connectUIExtensions({ scene: this, camera: xb.camera });
+    this.uix = connectUIExtensions({ scene: this, camera: xb.camera, xr: xb.core.renderer.xr, input: xb.input });
     const config = await fetch('./ui/my-window.json').then((r) => r.json());
     this.uix.createWindow({
       id: 'status',
@@ -65,26 +66,23 @@ class MyScript extends xb.Script {
   update() {
     this.uix.update(xb.getDeltaTime());
   }
-  onSelectStart(event) {
-    /* raycast from event.target, then forwardClick(intersections) -
-       see demos/webxr-multiplatform for the complete wiring */
-  }
 }
 
 xb.add(new MyScript());
 await xb.init();
 ```
 
-Nothing here imports `xrblocks` - the glue binds to plain three.js shapes (`scene: Object3D`, `camera`), so the same host works in a hand-rolled three.js WebXR app.
+Nothing here imports `xrblocks` at the type level - the glue binds to plain three.js shapes (`scene: Object3D`, `camera`), so the same host works in a hand-rolled three.js WebXR app. Press, poke, drag and hover need no wiring in your own `Script`: `createWindow`/`createPanel` attach the pointer bridge to every panel automatically, driven by whichever of XR Blocks' `onSelectStart`/`onSelectEnd`, `onObjectTouchStart`/`onObjectTouching`/`onObjectTouchEnd`, `onObjectGrabStart`/`onObjectGrabEnd` and `onHoverEnter`/`onHoverExit` your scene calls.
 
 ### Window options and handles
 
 `createWindow` takes the portable `WindowOptionsBase` fields plus `config`, so an option means here what it means on the IWSDK adapter. Two notes specific to this host:
 
 - `id` is optional. Omit it and the window is named `uix-window-<n>`.
-- `movable` is accepted and recorded, but nothing acts on it yet: this host has no title-bar drag of its own, so there is no gate to close. It is in the options so a scene descriptor written for IWSDK loads here unchanged.
+- `movable` (default `true`) gates the title-bar drag: `false` never wires a press listener onto the title bar at all.
+- `dragDelay` (default `DEFAULT_DRAG_DELAY`, 0.3 s) is how long a ray press on the title bar is held before it becomes a drag; a grab (near drag) always starts at once. `billboardWhileDragging` (default `true`) keeps the window yawed toward the viewer while it is dragged, and once more settling at the drop. Pass `input: xb.input` to `connectUIExtensions` (or `rayInput` to the host) so a ray drag rides the actual controller ray at a fixed distance, as IWSDK and native do; without it, a ray drag falls back to the controller's own position delta.
 - The four chrome flags (`closable`, `minimizable`, `pinnable`, `dockable`) are off unless set, as on IWSDK; `host.manager.setChrome(id, {...})` changes them later. `host.manager.hide/show`, `dockTo/undock/returnHome` and `close` all take effect here, so a menu written against the manager needs no host-specific code.
-- `handMenu` and `dockMode: 'hand-locked'` make a hand menu. Pass `xr: renderer.xr` to `connectUIExtensions` (or `handPose` to the host) so it rides the session's tracked hands; on a page that also serves a desktop the source reports no hands outside a session and the menu follows the body until one starts.
+- `handMenu` and `dockMode: 'hand-locked'` make a hand menu. Pass `xr: renderer.xr` to `connectUIExtensions` (or `handPose` to the host) so it rides the session's tracked hands. With no hand tracked - no source at all, or a session with neither palm raised - the menu is hidden, exactly as IWSDK and native; it never falls back to some other placement.
 
 The handle it returns satisfies the core `WindowHandle` and adds the three.js specifics:
 

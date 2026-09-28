@@ -14,6 +14,11 @@ import {
 } from '@iwsdk/core';
 import { UIDockRegion, UIDockedTo, UIWindow, RegionFlowType } from './components.js';
 import {
+  DEFAULT_BILLBOARD_WHILE_DRAGGING,
+  DEFAULT_DRAG_DELAY,
+  DEFAULT_REGION,
+  DEFAULT_REGION_FOLLOW,
+  DEFAULT_WINDOW_FOLLOW,
   DockMode,
   resolveHandMenu,
   type WindowOptionsBase,
@@ -60,10 +65,11 @@ export function createUIWindow(world: World, options: CreateWindowOptions): Enti
       minimizable: options.minimizable ?? false,
       pinnable: options.pinnable ?? false,
       dockable: options.dockable ?? false,
-      billboardWhileDragging: options.billboardWhileDragging ?? true,
-      followOffset: options.followOffset ?? [0, -0.15, -1.2],
-      followSpeed: options.followSpeed ?? 3,
-      followTolerance: options.followTolerance ?? 0.35,
+      billboardWhileDragging: options.billboardWhileDragging ?? DEFAULT_BILLBOARD_WHILE_DRAGGING,
+      dragDelay: options.dragDelay ?? DEFAULT_DRAG_DELAY,
+      followOffset: options.followOffset ?? [...DEFAULT_WINDOW_FOLLOW.offset],
+      followSpeed: options.followSpeed ?? DEFAULT_WINDOW_FOLLOW.speed,
+      followTolerance: options.followTolerance ?? DEFAULT_WINDOW_FOLLOW.tolerance,
       hand: handMenu.hand,
       handAnchor: handMenu.anchor,
       handAnchorDistance: handMenu.anchorDistance,
@@ -103,11 +109,12 @@ export interface CreateDockRegionOptions {
 export function createDockRegion(world: World, options: CreateDockRegionOptions): Entity {
   const entity = world.createTransformEntity().addComponent(UIDockRegion, {
     regionId: options.id,
-    flow: options.flow ?? RegionFlowType.Column,
-    pitch: options.pitch ?? 0.35,
-    columns: options.columns ?? 2,
-    capacity: options.capacity ?? 0,
-    snapRadius: options.snapRadius ?? 0.5,
+    // One set of region defaults: the core's DEFAULT_REGION.
+    flow: options.flow ?? DEFAULT_REGION.flow,
+    pitch: options.pitch ?? DEFAULT_REGION.pitch,
+    columns: options.columns ?? DEFAULT_REGION.columns,
+    capacity: options.capacity ?? DEFAULT_REGION.capacity,
+    snapRadius: options.snapRadius ?? DEFAULT_REGION.snapRadius,
   });
   if (options.position) {
     entity.object3D?.position.set(...options.position);
@@ -116,7 +123,7 @@ export function createDockRegion(world: World, options: CreateDockRegionOptions)
     entity.addComponent(Follower, {
       // Camera, not player.head - the head rig is origin-locked outside XR.
       target: world.camera,
-      offsetPosition: options.followOffset ?? [0, -0.2, -1.4],
+      offsetPosition: options.followOffset ?? [...DEFAULT_REGION_FOLLOW.offset],
       behavior: FollowBehavior.PivotY,
     });
   }
