@@ -22,6 +22,7 @@ import { Quaternion, Vector3, type Object3D, type PerspectiveCamera } from 'thre
 import type { HandPoseSource, HeadPose, HeadPoseSource } from '@realitycollective/webxr-uiextensions';
 import type { Kit } from '@pmndrs/uikitml';
 import { UixWindowHost } from './host.js';
+import type { XrBlocksRayInputAccess } from './ray-input.js';
 
 /** The slice of an XR Blocks Script / three.js app the host binds to. */
 export interface EngineContext {
@@ -33,9 +34,17 @@ export interface EngineContext {
   kit?: Kit;
   /**
    * `renderer.xr`, so hand menus can ride the tracked hands in a session.
-   * Leave it out on a desktop; hand-locked windows then follow the body.
+   * Leave it out on a desktop; a hand-locked window is then hidden, the same
+   * as it is anywhere with no hand tracked (see `HandPoseSource`).
    */
   xr?: WebXRFrameAccess;
+  /**
+   * `xb.input`, so a title-bar RAY drag rides the actual controller ray
+   * (laser-distance math, as IWSDK and native) rather than the controller's
+   * own position (point-delta). Leave it out and a ray drag falls back to
+   * point-delta - see `pointer-bridge.ts`'s `beginTitlebarDrag`.
+   */
+  input?: XrBlocksRayInputAccess;
 }
 
 /**
@@ -57,10 +66,6 @@ export interface WebXRFrameAccess {
  */
 export function webxrHandPoseSource(xr: WebXRFrameAccess): HandPoseSource {
   return {
-    hasHands() {
-      const session = xr.getSession();
-      return session !== null && session.inputSources.length > 0;
-    },
     getHandPose(hand) {
       const frame = xr.getFrame();
       const referenceSpace = xr.getReferenceSpace();
@@ -113,5 +118,6 @@ export function connectUIExtensions(context: EngineContext): UixWindowHost {
     headPose: cameraHeadPoseSource(context.camera),
     ...(context.xr ? { handPose: webxrHandPoseSource(context.xr) } : {}),
     ...(context.kit ? { kit: context.kit } : {}),
+    ...(context.input ? { rayInput: context.input } : {}),
   });
 }

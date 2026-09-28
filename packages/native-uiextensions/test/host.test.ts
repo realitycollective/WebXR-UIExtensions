@@ -97,7 +97,7 @@ describe('NativeWindowHost', () => {
     const button = panel!.getElementById('uix-button') as NativeUixElement;
 
     button.setProperties({ text: 'X' });
-    expect(fake.propertyWrites).toEqual([
+    expect(fake.propertyWrites.filter((write) => write.elementHandle === button.handle)).toEqual([
       { panelId: 'panel-w1', elementHandle: button.handle, props: { text: 'X' } },
     ]);
 
@@ -112,18 +112,18 @@ describe('NativeWindowHost', () => {
     expect(seen).toEqual([{ ok: true }]);
   });
 
-  it('a panel-ready report for an unknown or already-closed window is ignored', () => {
+  it('a panel-ready report for an unknown window, or a second report for one, is ignored', () => {
     const { fake, host } = makeSetup();
     // Never created:
     expect(() => fake.readyWindow('ghost', 'panel-ghost', PANEL_TREE)).not.toThrow();
+    expect(host.manager.has('ghost')).toBe(false);
 
-    // Created, then closed before the host reports readiness:
-    host.createWindow({ id: 'w1', config: PANEL_TREE });
-    host.manager.close('w1');
-    expect(() => fake.readyWindow('w1', 'panel-w1', PANEL_TREE)).not.toThrow();
-    const ids: string[] = [];
-    host.onPanelReady((event) => ids.push(event.id));
-    expect(ids).not.toContain('w1');
+    // Reported twice: the first report wins.
+    const handle = host.createWindow({ id: 'w1', config: PANEL_TREE });
+    fake.readyWindow('w1', 'panel-w1', PANEL_TREE);
+    const first = handle.panel;
+    expect(() => fake.readyWindow('w1', 'panel-w1-again', PANEL_TREE)).not.toThrow();
+    expect(handle.panel).toBe(first);
   });
 
   it('unsubscribing onReady before the panel attaches drops the listener', () => {
@@ -193,7 +193,8 @@ describe('NativeWindowHost', () => {
       config: PANEL_TREE,
       options: {
         id: 'minimal',
-        title: '',
+        // The record's default, so the host never paints a blank title.
+        title: 'minimal',
         dockMode: DockMode.WorldLocked,
         movable: true,
         closable: false,
@@ -209,7 +210,8 @@ describe('NativeWindowHost', () => {
 
   it('mirrors every WindowManager state change to the host as applyWindow', () => {
     const { fake, host } = makeSetup();
-    host.createWindow({ id: 'w1', config: PANEL_TREE }); // opened, focused
+    host.createWindow({ id: 'w1', config: PANEL_TREE });
+    fake.readyWindow('w1', 'panel-w1', PANEL_TREE); // opened, focused
     host.manager.minimize('w1'); // minimized
     host.manager.restore('w1'); // restored, focused
     host.manager.hide('w1'); // hidden
@@ -225,10 +227,11 @@ describe('NativeWindowHost', () => {
     );
   });
 
-  it('closing a window with no attached panel yet still tells the host, without disposing a panel', () => {
+  it('disposing before a panel attaches tells the host the window is gone, without disposing a panel', () => {
     const { fake, host } = makeSetup();
     host.createWindow({ id: 'w1', config: PANEL_TREE });
-    host.manager.close('w1');
+    expect(host.manager.has('w1')).toBe(false);
+    host.dispose();
     expect(fake.closedWindows).toEqual(['w1']);
     expect(fake.disposedPanels).toEqual([]);
   });
@@ -310,20 +313,21 @@ describe('NativeWindowHost as a SceneTarget', () => {
     ],
   };
 
-  it('hands regions to the native app and spawns windows with the descriptor config path', () => {
+  it('keeps regions itself and spawns windows with the descriptor config path', () => {
     const fake = createFakeNativeUiHost();
     const host = new NativeWindowHost({ host: fake });
 
     applyScene(host, SCENE);
 
-    expect(fake.createdRegions).toEqual([
-      { id: 'shelf', flow: 'row', position: [0, 1.2, -1], follow: true, followOffset: [0, -0.2, -1] },
-      { id: 'rail' },
-    ]);
+    // Regions are the binding's: the host is told nothing about them.
+    expect(Object.keys(fake)).not.toContain('createRegion');
     expect(fake.createWindowCalls.map((call) => [call.windowId, call.config])).toEqual([
       ['stats', '/ui/stats.uikitml'],
       ['log', '/ui/log.uikitml'],
     ]);
+    // The record opens when the panel attaches, as on IWSDK.
+    expect(host.manager.has('stats')).toBe(false);
+    fake.readyWindow('stats', 'panel-stats', PANEL_TREE);
     expect(host.manager.get('stats')?.region).toBe('shelf');
     expect(fake.createWindowCalls[0]?.options).toMatchObject({
       position: [0.2, 1.4, -1],
@@ -332,19 +336,27 @@ describe('NativeWindowHost as a SceneTarget', () => {
     });
   });
 
-  it('removes the regions it created on dispose', () => {
+  it('closes every descriptor window on dispose, attached or not', () => {
     const fake = createFakeNativeUiHost();
     const host = new NativeWindowHost({ host: fake });
     applyScene(host, SCENE);
+    fake.readyWindow('stats', 'panel-stats', PANEL_TREE);
 
     host.dispose();
 
-    expect(fake.removedRegions).toEqual(['shelf', 'rail']);
     expect(fake.closedWindows).toEqual(['stats', 'log']);
   });
 });
 
 sceneTargetContract('NativeWindowHost', () => {
-  const host = new NativeWindowHost({ host: createFakeNativeUiHost() });
-  return { target: host, manager: host.manager };
+  const fake = createFakeNativeUiHost();
+  const host = new NativeWindowHost({ host: fake });
+  return {
+    target: host,
+    manager: host.manager,
+    // The host reports each panel ready, which is when the record opens.
+    settle: (ids) => {
+      for (const id of ids) fake.readyWindow(id, `panel-${id}`, PANEL_TREE);
+    },
+  };
 });

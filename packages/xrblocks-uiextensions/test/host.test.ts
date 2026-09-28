@@ -397,7 +397,10 @@ describe('UixWindowHost hand menus', () => {
     expect(handle.group.visible).toBe(true);
   });
 
-  it('falls back to body-follow placement where there are no hands', () => {
+  it('a hand-locked window is hidden, not shown by body-follow, where there is no hand source at all', () => {
+    // No `handPose` supplied - a desktop page with no hand tracking. Native
+    // and IWSDK hide a hand-locked window with no hand to ride; a platform
+    // never keeps it shown by some other rule (see the family's rule 1).
     const { host } = makeHost();
     const handle = host.createWindow({
       id: 'menu',
@@ -407,19 +410,14 @@ describe('UixWindowHost hand menus', () => {
       followOffset: [0, -0.15, -1.2],
       followTolerance: 0.05,
     });
-    const target = { x: 0, y: 1.45, z: -1.2 } as never;
-    const before = handle.group.position.distanceTo(target);
     for (let i = 0; i < 60; i += 1) {
       host.update(1 / 60);
     }
-    expect(handle.group.visible).toBe(true);
-    expect(handle.group.position.distanceTo(target)).toBeLessThan(before);
+    expect(handle.group.visible).toBe(false);
   });
 
-  it('falls back to body-follow while the source reports no hands, then rides them', () => {
+  it('a hand-locked window is hidden while a real hand source reports no tracked hand, then shows once one is raised', () => {
     const { poses, source } = makeHands();
-    let hasHands = false;
-    source.hasHands = () => hasHands;
     const { host } = makeHost(source);
     const handle = host.createWindow({
       id: 'menu',
@@ -428,11 +426,6 @@ describe('UixWindowHost hand menus', () => {
       position: [3, 0, 3],
       followTolerance: 0.05,
     });
-    const before = handle.group.position.distanceTo({ x: 0, y: 1.45, z: -1.2 } as never);
-    host.update(1 / 60);
-    expect(handle.group.visible).toBe(true);
-    expect(handle.group.position.distanceTo({ x: 0, y: 1.45, z: -1.2 } as never)).toBeLessThan(before);
-    hasHands = true; // a session started, nothing raised yet
     host.update(1 / 60);
     expect(handle.group.visible).toBe(false);
     poses.left = { position: [-0.3, 1.2, -0.4], quaternion: PALM_UP };
@@ -489,8 +482,6 @@ describe('webxrHandPoseSource', () => {
   it('reads the grip space of the matching input source', () => {
     const grip = {};
     const { xr, asked } = makeXR([{ handedness: 'left', gripSpace: grip, targetRaySpace: {} }]);
-    expect(webxrHandPoseSource(xr).hasHands?.()).toBe(true);
-    expect(webxrHandPoseSource(makeXR([]).xr).hasHands?.()).toBe(false);
     const pose = webxrHandPoseSource(xr).getHandPose('left');
     expect(pose).toEqual({ position: [1, 2, 3], quaternion: [0, 0, 1, 0] });
     expect(asked).toEqual([grip]);
@@ -510,7 +501,6 @@ describe('webxrHandPoseSource', () => {
     expect(webxrHandPoseSource(unposed).getHandPose('left')).toBeUndefined();
     const none = { getFrame: () => null, getReferenceSpace: () => null, getSession: () => null };
     expect(webxrHandPoseSource(none).getHandPose('left')).toBeUndefined();
-    expect(webxrHandPoseSource(none).hasHands?.()).toBe(false);
   });
 });
 

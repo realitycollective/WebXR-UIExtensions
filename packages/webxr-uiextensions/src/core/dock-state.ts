@@ -6,8 +6,16 @@
  * - `world-locked` - placed in space; the window keeps its world transform.
  * - `body-follow`  - lazily follows the player (IWSDK `Follower` on the head),
  *                    with a deadzone so it doesn't jitter.
- * - `head-locked`  - rigidly attached to the view (IWSDK `ScreenSpace` outside
- *                    XR / a zero-tolerance follow inside XR). Use sparingly.
+ * - `head-locked`  - a HUD. Inside an immersive session it FOLLOWS exactly as
+ *                    `body-follow` does: the lazy yaw follow of `follow.ts`
+ *                    (`stepFollow`), dead zone and lag included, because
+ *                    IWSDK's `ScreenSpaceUISystem` hands the panel back to
+ *                    world space while presenting and leaves its `Follower`
+ *                    in charge (`@iwsdk/core/dist/ui/screenspace.js:72-77`).
+ *                    Only outside a session (a desktop page) is it pinned to
+ *                    the screen through `ScreenSpace`. There is no rigid
+ *                    in-session mode; a platform that has no screen space
+ *                    (a native headset host) applies the follow rule always.
  * - `hand-locked`  - rides on a hand and shows while the palm is raised toward
  *                    the viewer: a hand menu. Placement and the palm gate are
  *                    `hand-menu.ts`; the window's `handMenu` options say which
@@ -31,9 +39,9 @@ export type DockModeValue = (typeof DockMode)[keyof typeof DockMode];
 
 /** Engine-agnostic description of what a dock mode requires. */
 export interface DockRecipe {
-  /** Requires an IWSDK `Follower` targeting the player's head. */
+  /** Follows the viewer with the follow rule (`stepFollow`; an IWSDK `Follower`). */
   follower: boolean;
-  /** Requires an IWSDK `ScreenSpace` component (non-XR HUD lock). */
+  /** Pinned to the screen OUTSIDE an immersive session only (IWSDK `ScreenSpace`); in a session the follower rules. */
   screenSpace: boolean;
   /** Placed from a hand pose each frame, and gated on the palm (a hand menu). */
   handAnchor: boolean;

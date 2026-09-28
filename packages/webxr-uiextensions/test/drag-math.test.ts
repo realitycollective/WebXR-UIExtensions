@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { beginDrag, dragPosition, faceViewerYaw, normalize } from '../src/core/drag-math.js';
+import { beginDrag, dragPosition, faceViewerYaw, intersectRayPlane, normalize } from '../src/core/drag-math.js';
 
 describe('drag-math', () => {
   it('normalize scales to unit length and rejects zero vectors', () => {
@@ -31,6 +31,28 @@ describe('drag-math', () => {
     const session = beginDrag([0, 1, 0], [0, 1, -1], [0, 1, -1]);
     const position = dragPosition(session, [3, 1, 0], [0, 0, -1]);
     expect(position).toEqual([3, 1, -1]);
+  });
+
+  describe('intersectRayPlane', () => {
+    it('finds where a straight-ahead ray meets a plane facing the viewer', () => {
+      const point = intersectRayPlane([0, 1.6, 0], [0, 0, -1], [0, 1.6, -2], [0, 0, 1]);
+      expect(point).toEqual([0, 1.6, -2]);
+    });
+
+    it('finds an off-axis intersection', () => {
+      const point = intersectRayPlane([0, 0, 0], [0, 0, -1], [1, 2, -4], [0, 0, 1]);
+      // Ray travels straight along -Z only, so it meets the plane's Z but
+      // keeps the ray's own X/Y (0, 0), not the plane point's.
+      expect(point).toEqual([0, 0, -4]);
+    });
+
+    it('is undefined for a ray parallel to the plane', () => {
+      expect(intersectRayPlane([0, 0, 0], [1, 0, 0], [0, 0, -2], [0, 0, 1])).toBeUndefined();
+    });
+
+    it('is undefined when the plane is behind the ray origin', () => {
+      expect(intersectRayPlane([0, 0, -5], [0, 0, -1], [0, 0, 0], [0, 0, 1])).toBeUndefined();
+    });
   });
 
   describe('faceViewerYaw', () => {

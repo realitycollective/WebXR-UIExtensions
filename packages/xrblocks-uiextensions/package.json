@@ -37,6 +37,7 @@
   "dependencies": {
     "@pmndrs/uikit": "^1.0.76",
     "@pmndrs/uikitml": "^0.1.12",
+    "@realitycollective/threejs-uiextensions": "^0.1.1-preview.1",
     "@realitycollective/webxr-uiextensions": "^0.1.1-preview.1"
   },
   "peerDependencies": {

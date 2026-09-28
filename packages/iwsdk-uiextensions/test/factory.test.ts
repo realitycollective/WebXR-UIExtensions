@@ -15,7 +15,7 @@ import {
   RayInteractable,
   World,
 } from '@iwsdk/core';
-import { DockMode } from '@realitycollective/webxr-uiextensions';
+import { DEFAULT_DRAG_DELAY, DockMode } from '@realitycollective/webxr-uiextensions';
 import { describe, expect, it } from 'vitest';
 import {
   RegionFlowType,
@@ -92,6 +92,7 @@ describe('createUIWindow', () => {
     expect(flag(UIWindow.data.pinnable, entity.index)).toBe(false);
     expect(flag(UIWindow.data.dockable, entity.index)).toBe(false);
     expect(flag(UIWindow.data.billboardWhileDragging, entity.index)).toBe(true);
+    expect(UIWindow.data.dragDelay[entity.index]).toBeCloseTo(DEFAULT_DRAG_DELAY, 5);
     expect(UIWindow.data.targetWidth[entity.index]).toBe(0);
     expect(UIWindow.data.targetHeight[entity.index]).toBe(0);
     expect(UIWindow.data.followSpeed[entity.index]).toBe(3);
@@ -117,6 +118,7 @@ describe('createUIWindow', () => {
       pinnable: true,
       dockable: true,
       billboardWhileDragging: false,
+      dragDelay: 0.05,
       followOffset: [0.1, -0.2, -1],
       followSpeed: 5,
       followTolerance: 0.1,
@@ -132,6 +134,7 @@ describe('createUIWindow', () => {
     expect(flag(UIWindow.data.pinnable, entity.index)).toBe(true);
     expect(flag(UIWindow.data.dockable, entity.index)).toBe(true);
     expect(flag(UIWindow.data.billboardWhileDragging, entity.index)).toBe(false);
+    expect(UIWindow.data.dragDelay[entity.index]).toBeCloseTo(0.05, 5);
     expect(UIWindow.data.targetWidth[entity.index]).toBeCloseTo(0.8, 5);
     expect(UIWindow.data.targetHeight[entity.index]).toBeCloseTo(0.6, 5);
     expect(UIWindow.data.followSpeed[entity.index]).toBe(5);
@@ -209,5 +212,34 @@ describe('createDockRegion', () => {
     });
     expect(entity.object3D).toBeUndefined();
     expect(UIDockRegion.data.regionId[entity.index]).toBe('rail');
+  });
+});
+
+describe('one set of defaults, in the core (handover change 23)', () => {
+  it('the dock-region component and factory defaults are the core DEFAULT_REGION', async () => {
+    const { DEFAULT_REGION } = await import('@realitycollective/webxr-uiextensions');
+    const { UIDockRegion } = await import('../src/components.js');
+    const schema = (UIDockRegion as unknown as { schema: Record<string, { default: unknown }> }).schema;
+    expect({
+      flow: schema['flow']?.default,
+      pitch: schema['pitch']?.default,
+      columns: schema['columns']?.default,
+      capacity: schema['capacity']?.default,
+      snapRadius: schema['snapRadius']?.default,
+    }).toEqual({ ...DEFAULT_REGION });
+    // The values themselves, as published in 0.1.1-preview.0 and unchanged.
+    expect(DEFAULT_REGION).toEqual({ flow: 'column', pitch: 0.35, columns: 2, capacity: 0, snapRadius: 0.5 });
+  });
+
+  it('the window component defaults are the core follow, focus and drag defaults', async () => {
+    const core = await import('@realitycollective/webxr-uiextensions');
+    const { UIWindow } = await import('../src/components.js');
+    const schema = (UIWindow as unknown as { schema: Record<string, { default: unknown }> }).schema;
+    expect(schema['followOffset']?.default).toEqual([...core.DEFAULT_WINDOW_FOLLOW.offset]);
+    expect(schema['followSpeed']?.default).toBe(core.DEFAULT_WINDOW_FOLLOW.speed);
+    expect(schema['followTolerance']?.default).toBe(core.DEFAULT_WINDOW_FOLLOW.tolerance);
+    expect(schema['focusBias']?.default).toBe(core.DEFAULT_FOCUS_BIAS);
+    expect(schema['dragDelay']?.default).toBe(core.DEFAULT_DRAG_DELAY);
+    expect(schema['billboardWhileDragging']?.default).toBe(core.DEFAULT_BILLBOARD_WHILE_DRAGGING);
   });
 });

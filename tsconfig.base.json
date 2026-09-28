@@ -24,6 +24,9 @@
       "@realitycollective/iwsdk-uiextensions": [
         "./packages/iwsdk-uiextensions/src/index.ts"
       ],
+      "@realitycollective/threejs-uiextensions": [
+        "./packages/threejs-uiextensions/src/index.ts"
+      ],
       "@realitycollective/xrblocks-uiextensions": [
         "./packages/xrblocks-uiextensions/src/index.ts"
       ],

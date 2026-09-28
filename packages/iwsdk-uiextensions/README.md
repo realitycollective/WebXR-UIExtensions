@@ -21,7 +21,7 @@ Everything is authored in plain UIKitML (HTML/CSS-like) - no new markup language
 
 ```bash
 npm install @realitycollective/iwsdk-uiextensions
-# peers: @iwsdk/core >=0.5.0 <0.6.0 and three >=0.170.0 (every IWSDK app already has both)
+# peers: @iwsdk/core >=1.0.0 <2.0.0 and three >=0.170.0 (every IWSDK app already has both)
 ```
 
 ## Quick start

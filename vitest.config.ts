@@ -12,6 +12,9 @@ export default defineConfig({
       "@realitycollective/iwsdk-uiextensions": pkg(
         "./packages/iwsdk-uiextensions/src/index.ts",
       ),
+      "@realitycollective/threejs-uiextensions": pkg(
+        "./packages/threejs-uiextensions/src/index.ts",
+      ),
       "@realitycollective/xrblocks-uiextensions": pkg(
         "./packages/xrblocks-uiextensions/src/index.ts",
       ),

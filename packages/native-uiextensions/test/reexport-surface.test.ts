@@ -21,10 +21,19 @@ describe('native adapter re-export surface', () => {
   it('exports what every platform adapter exports, and keeps its internals private', () => {
     const index = read('../src/index.ts');
     expect(index).toContain("export { NativeWindowHost } from './host.js';");
-    expect(index).toContain("export type { CreateWindowOptions, NativeWindowHostOptions } from './host.js';");
-    expect(index).toContain("export type { NativeElementNode, NativeUiHost } from './native-types.js';");
+    expect(index).toContain("export type { CreateWindowOptions, NativePointerEvent, NativeWindowHostOptions } from './host.js';");
+    expect(index).toContain('NativeUiHost,');
+    expect(index).toContain('NativeUiTestHost,');
+    expect(index).toContain("export { nativeUiHostConformanceCases } from './conformance.js';");
     // Implementation helpers are not platform API: no other adapter has them.
-    for (const internal of ['NativeUixElement', 'flattenByHandle', 'readNativeUiHost', './element.js']) {
+    for (const internal of [
+      'NativeUixElement',
+      'flattenByHandle',
+      'readNativeUiHost',
+      'readNativeUiInput',
+      'readNativeUiFrames',
+      './element.js',
+    ]) {
       expect(index, `index.ts must not export ${internal}`).not.toContain(internal);
     }
   });
