@@ -27,6 +27,10 @@ export interface FakeElementSpec {
   id?: string;
   componentName?: string;
   attributes?: Record<string, string>;
+  /** The element scrolls, with this size and range in pixels. */
+  scroll?: { width: number; height: number; maxX: number; maxY: number };
+  /** The element is a text field with this value. */
+  input?: { value: string; multiline?: boolean; type?: string };
   children?: FakeElementSpec[];
 }
 
@@ -63,6 +67,16 @@ export interface FakeNativeUiHost extends NativeUiHost, NativeUiTestHost {
   readonly poseCalls: RecordedWindowPose[];
   /** Every `setTargetDimensions` call, in order. */
   readonly dimensionCalls: Array<{ panelId: string; width: number; height: number }>;
+  /** Every `setHover` call, in order. */
+  readonly hoverCalls: Array<{ panelId: string; elementHandle: string; hovered: boolean }>;
+  /** Every `setScroll` call, in order. */
+  readonly scrollCalls: Array<{ panelId: string; elementHandle: string; x: number; y: number }>;
+  /** Every `showKeyboard` call, in order. */
+  readonly keyboardCalls: Array<{ panelId: string; elementHandle: string; value: string; multiline: boolean; type: string }>;
+  /** Simulate the user typing on the keyboard: the whole value. */
+  typeText(panelId: string, elementHandle: string, value: string): void;
+  /** Simulate the user dismissing the keyboard. */
+  closeKeyboard(): void;
   /** Simulate the native renderer finishing a window's panel. */
   readyWindow(windowId: string, panelId: string, tree: FakeElementSpec): NativeElementNode;
   /** Simulate a host-owned element event (hover, a value change). */
@@ -83,6 +97,8 @@ function buildNode(spec: FakeElementSpec): NativeElementNode {
     ...(spec.id !== undefined ? { id: spec.id } : {}),
     ...(spec.componentName !== undefined ? { componentName: spec.componentName } : {}),
     ...(spec.attributes !== undefined ? { attributes: { ...spec.attributes } } : {}),
+    ...(spec.scroll !== undefined ? { scroll: { ...spec.scroll } } : {}),
+    ...(spec.input !== undefined ? { input: { ...spec.input } } : {}),
     children: (spec.children ?? []).map(buildNode),
   };
 }
@@ -107,6 +123,14 @@ export function createFakeNativeUiHost(): FakeNativeUiHost {
   const createWindowCalls: RecordedCreateWindow[] = [];
   const poseCalls: RecordedWindowPose[] = [];
   const dimensionCalls: Array<{ panelId: string; width: number; height: number }> = [];
+  const hoverCalls: Array<{ panelId: string; elementHandle: string; hovered: boolean }> = [];
+  const scrollCalls: Array<{ panelId: string; elementHandle: string; x: number; y: number }> = [];
+  const keyboardCalls: Array<{ panelId: string; elementHandle: string; value: string; multiline: boolean; type: string }> = [];
+  /** panel id -> handle -> scroll offset, as last told. */
+  const scrolled = new Map<string, Map<string, [number, number]>>();
+  let keyboard: { panelId: string; elementHandle: string; value: string } | null = null;
+  /** panel id -> handle -> hovered, as last told. */
+  const hovered = new Map<string, Map<string, boolean>>();
   /** panel id -> markup id -> handle. */
   const markup = new Map<string, Map<string, string>>();
   /** panel id -> handle -> merged properties. */
@@ -130,6 +154,9 @@ export function createFakeNativeUiHost(): FakeNativeUiHost {
     createWindowCalls,
     poseCalls,
     dimensionCalls,
+    hoverCalls,
+    scrollCalls,
+    keyboardCalls,
 
     createPanel(panelId: string, config: unknown): NativeElementNode {
       const node = buildNode(config as FakeElementSpec);
@@ -175,6 +202,50 @@ export function createFakeNativeUiHost(): FakeNativeUiHost {
       dimensionCalls.push({ panelId, width, height });
     },
 
+    setScroll(panelId, elementHandle, x, y) {
+      scrollCalls.push({ panelId, elementHandle, x, y });
+      const panel = scrolled.get(panelId) ?? new Map<string, [number, number]>();
+      panel.set(elementHandle, [x, y]);
+      scrolled.set(panelId, panel);
+    },
+
+    showKeyboard(panelId, elementHandle, request) {
+      keyboardCalls.push({ panelId, elementHandle, ...request });
+      keyboard = { panelId, elementHandle, value: request.value };
+    },
+
+    hideKeyboard() {
+      keyboard = null;
+    },
+
+    typeText(panelId, elementHandle, value) {
+      if (keyboard) keyboard = { ...keyboard, value };
+      for (const listener of elementEventListeners) listener(panelId, elementHandle, 'input', { value });
+    },
+
+    closeKeyboard() {
+      const closing = keyboard;
+      keyboard = null;
+      if (closing) for (const listener of elementEventListeners) listener(closing.panelId, closing.elementHandle, 'keyboardclosed', undefined);
+    },
+
+    scrollPosition(windowId, elementId) {
+      const panelId = panelByWindow.get(windowId);
+      const handle = panelId === undefined ? undefined : markup.get(panelId)?.get(elementId);
+      return panelId === undefined || handle === undefined ? undefined : (scrolled.get(panelId)?.get(handle) ?? [0, 0]);
+    },
+
+    keyboardShown() {
+      return keyboard;
+    },
+
+    setHover(panelId, elementHandle, isHovered) {
+      hoverCalls.push({ panelId, elementHandle, hovered: isHovered });
+      const panel = hovered.get(panelId) ?? new Map<string, boolean>();
+      panel.set(elementHandle, isHovered);
+      hovered.set(panelId, panel);
+    },
+
     disposePanel(panelId: string): void {
       disposedPanels.push(panelId);
     },
@@ -197,6 +268,18 @@ export function createFakeNativeUiHost(): FakeNativeUiHost {
 
     windowHidden(windowId) {
       return hidden.get(windowId);
+    },
+
+    elementHandle(windowId, elementId) {
+      const panelId = panelByWindow.get(windowId);
+      const handle = panelId === undefined ? undefined : markup.get(panelId)?.get(elementId);
+      return panelId === undefined || handle === undefined ? undefined : { panelId, elementHandle: handle };
+    },
+
+    elementHovered(windowId, elementId) {
+      const panelId = panelByWindow.get(windowId);
+      const handle = panelId === undefined ? undefined : markup.get(panelId)?.get(elementId);
+      return panelId === undefined || handle === undefined ? undefined : (hovered.get(panelId)?.get(handle) ?? false);
     },
 
     elementProperties(windowId, elementId) {

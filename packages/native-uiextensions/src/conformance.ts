@@ -31,6 +31,7 @@ import {
   type HeadPose,
   type PoseTuple,
   type Vec3Tuple,
+  WINDOW_CHROME_IDS,
 } from '@realitycollective/webxr-uiextensions';
 import { NativeWindowHost } from './host.js';
 import type { NativeUiHost, NativeUiInputHost, NativeUiInputSource, NativeUiTestHost } from './native-types.js';
@@ -242,6 +243,71 @@ export function nativeUiHostConformanceCases(): NativeUiHostConformanceCase[] {
           if (!samePose(front, { position: [0, 1.6, -1.18], quaternion: [0, 0, 0, 1] })) {
             fail(name, `the focused window is drawn at ${show(front)}, expected 0.02 m nearer`);
           }
+        } finally {
+          binding.dispose();
+        }
+    }),
+    hostCase('ui/hover is decided by the binding; the host styles an element exactly as told', async (setup, name) => {
+        if (typeof setup.ui.setHover !== 'function') fail(name, 'the host has no setHover, so no element can show a hover style');
+        if (typeof setup.testHost.elementHovered !== 'function' || typeof setup.testHost.elementHandle !== 'function') {
+          fail(name, 'the test host has no elementHovered or elementHandle readback');
+        }
+        const binding = await openWindow(setup, scripted(HEAD), 'rc-kit-hover', { position: [0, 1.6, -1] });
+        try {
+          binding.update(FRAME);
+          const ids = setup.testHost.elementHandle('rc-kit-hover', WINDOW_CHROME_IDS.title);
+          if (!ids) fail(name, 'the window has no title element to hover');
+          const { panelId, elementHandle: title } = ids;
+          setup.ui.setHover(panelId, title, true);
+          if (setup.testHost.elementHovered('rc-kit-hover', WINDOW_CHROME_IDS.title) !== true) {
+            fail(name, 'told to style the title as hovered, the host does not');
+          }
+          setup.ui.setHover(panelId, title, false);
+          if (setup.testHost.elementHovered('rc-kit-hover', WINDOW_CHROME_IDS.title) !== false) {
+            fail(name, 'told to remove the hover style, the host keeps it');
+          }
+        } finally {
+          binding.dispose();
+        }
+    }),
+    hostCase("ui/the host scrolls an element's content exactly as told", async (setup, name) => {
+        if (typeof setup.ui.setScroll !== 'function') fail(name, 'the host has no setScroll, so nothing can scroll');
+        if (typeof setup.testHost.scrollPosition !== 'function' || typeof setup.testHost.elementHandle !== 'function') {
+          fail(name, 'the test host has no scrollPosition or elementHandle readback');
+        }
+        const binding = await openWindow(setup, scripted(HEAD), 'rc-kit-scroll', { position: [0, 1.6, -1] });
+        try {
+          binding.update(FRAME);
+          const ids = setup.testHost.elementHandle('rc-kit-scroll', WINDOW_CHROME_IDS.content);
+          if (!ids) fail(name, 'the window has no content element to scroll');
+          setup.ui.setScroll(ids.panelId, ids.elementHandle, 0, 40);
+          const at = setup.testHost.scrollPosition('rc-kit-scroll', WINDOW_CHROME_IDS.content);
+          if (!at || Math.abs(at[0]) > POSITION_TOLERANCE || Math.abs(at[1] - 40) > POSITION_TOLERANCE) {
+            fail(name, `told to scroll the content to (0, 40), the host draws it at ${JSON.stringify(at)}`);
+          }
+        } finally {
+          binding.dispose();
+        }
+    }),
+    hostCase('ui/the host shows its keyboard for a text field when told, and hides it when told', async (setup, name) => {
+        if (typeof setup.ui.showKeyboard !== 'function' || typeof setup.ui.hideKeyboard !== 'function') {
+          fail(name, 'the host has no showKeyboard or hideKeyboard, so no text can be entered');
+        }
+        if (typeof setup.testHost.keyboardShown !== 'function' || typeof setup.testHost.elementHandle !== 'function') {
+          fail(name, 'the test host has no keyboardShown or elementHandle readback');
+        }
+        const binding = await openWindow(setup, scripted(HEAD), 'rc-kit-keys', { position: [0, 1.6, -1] });
+        try {
+          binding.update(FRAME);
+          const ids = setup.testHost.elementHandle('rc-kit-keys', WINDOW_CHROME_IDS.title);
+          if (!ids) fail(name, 'the window has no title element to type into');
+          setup.ui.showKeyboard(ids.panelId, ids.elementHandle, { value: 'rc', multiline: false, type: 'text' });
+          const shown = setup.testHost.keyboardShown();
+          if (!shown || shown.elementHandle !== ids.elementHandle || shown.value !== 'rc') {
+            fail(name, `told to show the keyboard for the title with "rc", the host shows ${JSON.stringify(shown)}`);
+          }
+          setup.ui.hideKeyboard();
+          if (setup.testHost.keyboardShown() !== null) fail(name, 'told to hide the keyboard, the host keeps it up');
         } finally {
           binding.dispose();
         }

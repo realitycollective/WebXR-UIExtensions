@@ -20,6 +20,7 @@
  * takes it out of its region first. The manager holds this rule so every
  * platform lays out the same descriptor the same way.
  */
+import { resolveFollow, type FollowOptions } from './follow.js';
 import { Emitter } from './events.js';
 import { DockMode, DockModeValue, isDockMode, togglePinned } from './dock-state.js';
 import { resolveHandMenu, type HandMenuOptions } from './hand-menu.js';
@@ -62,6 +63,12 @@ export interface WindowRecord {
   chrome: WindowChrome;
   /** Hand, anchor and palm gate used while the window is `hand-locked`. */
   handMenu: HandMenuOptions;
+  /**
+   * Offset, speed, dead zone and angle used while the window follows
+   * (`body-follow`). `DEFAULT_WINDOW_FOLLOW` unless the app said otherwise;
+   * `setFollow` changes it after spawn, on every platform.
+   */
+  follow: FollowOptions;
 }
 
 export interface WindowManagerEvents extends Record<string, unknown> {
@@ -79,6 +86,8 @@ export interface WindowManagerEvents extends Record<string, unknown> {
   returnHome: WindowRecord;
   chromeChanged: { window: WindowRecord; previous: WindowChrome };
   handMenuChanged: { window: WindowRecord; previous: HandMenuOptions };
+  /** `setFollow` changed a window's follow offset or tuning; a binding following it applies the new values from the next frame. */
+  followChanged: { window: WindowRecord; previous: FollowOptions };
   dragStarted: WindowRecord;
   dragEnded: WindowRecord;
 }
@@ -94,6 +103,8 @@ export interface OpenWindowOptions {
   chrome?: Partial<WindowChrome>;
   /** Hand-menu placement, used when `dockMode` is (or becomes) `hand-locked`. */
   handMenu?: Partial<HandMenuOptions>;
+  /** Follow placement, used when `dockMode` is (or becomes) `body-follow`: the offset in the viewer's yaw frame, metres, and the follow tuning. */
+  follow?: Partial<FollowOptions>;
 }
 
 /**
@@ -144,6 +155,7 @@ export class WindowManager {
       region: options.region,
       chrome: { ...NO_CHROME, ...options.chrome },
       handMenu: resolveHandMenu(options.handMenu),
+      follow: resolveFollow(options.follow ?? {}),
     };
     this.windows.set(id, record);
     this.focusStack.push(id);
@@ -337,6 +349,29 @@ export class WindowManager {
     const previous = record.handMenu;
     record.handMenu = next;
     this.events.emit('handMenuChanged', { window: record, previous });
+  }
+
+  /**
+   * Change where a following window sits relative to the viewer (its offset
+   * in the viewer's yaw frame, metres) or how it follows, after spawn. Takes
+   * effect at once while the window is `body-follow`, and is remembered
+   * otherwise. Every binding reads the record's `follow` when it steps the
+   * core follow rule, so the change lands on every platform the same way.
+   */
+  setFollow(id: string, options: Partial<FollowOptions>): void {
+    const record = this.require(id);
+    const next = resolveFollow({ ...record.follow, ...options });
+    const same =
+      next.speed === record.follow.speed &&
+      next.tolerance === record.follow.tolerance &&
+      next.maxAngle === record.follow.maxAngle &&
+      next.offset.every((value, index) => value === record.follow.offset[index]);
+    if (same) {
+      return;
+    }
+    const previous = record.follow;
+    record.follow = next;
+    this.events.emit('followChanged', { window: record, previous });
   }
 
   /** Track an active title-bar drag; emits dragStarted/dragEnded on change. */

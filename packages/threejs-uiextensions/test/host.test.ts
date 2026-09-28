@@ -133,6 +133,22 @@ describe('UixWindowHost', () => {
     expect(after).toBeLessThan(before);
   });
 
+  it('setFollow after spawn re-aims a following window at the new offset', () => {
+    const { host } = makeHost();
+    const handle = host.createWindow({ id: 'w1', config: config(), dockMode: DockMode.BodyFollow, followOffset: [0, -0.15, -1.2], followTolerance: 0.05 });
+    for (let i = 0; i < 120; i += 1) host.update(1 / 60);
+    const settled = handle.group.position.clone();
+    host.manager.setFollow('w1', { offset: [0.6, -0.15, -1.2], speed: 8 });
+    for (let i = 0; i < 120; i += 1) host.update(1 / 60);
+    expect(handle.group.position.x).toBeGreaterThan(settled.x + 0.3);
+    // A window that is not following keeps the change on its record for when it next follows.
+    host.createWindow({ id: 'w2', config: config(), position: [1, 1, -1] });
+    host.manager.setFollow('w2', { offset: [-0.6, 0, -1] });
+    host.update(1 / 60);
+    expect(host.manager.get('w2')?.follow.offset).toEqual([-0.6, 0, -1]);
+    expect(() => host.manager.setFollow('gone-before-open', { offset: [0, 0, -1] })).toThrow();
+  });
+
   it('world-locked windows do not move on update', () => {
     const { host } = makeHost();
     const handle = host.createWindow({ id: 'w1', config: config(), position: [1, 1, -1] });

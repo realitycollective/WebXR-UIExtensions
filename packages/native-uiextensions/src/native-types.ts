@@ -47,6 +47,20 @@ export interface NativeElementNode {
    * their settings and their id from these, so a native app must send them.
    */
   attributes?: Record<string, string>;
+  /**
+   * Present when the element scrolls (uikit `overflow: scroll`): its size in
+   * pixels and how far its content can scroll. The binding runs the core
+   * scroll rule for it and hands the host `setScroll`. Report a change of
+   * size or range through `onElementEvent` with type `"scrollextent"` and
+   * the new extent as payload.
+   */
+  scroll?: { width: number; height: number; maxX: number; maxY: number };
+  /**
+   * Present when the element is a text field (uikit `Input`): its value, and
+   * whether it is multi-line and which input type it declared. A click on it
+   * makes the binding ask the host for the keyboard (`showKeyboard`).
+   */
+  input?: { value: string; multiline?: boolean; type?: string };
   children: NativeElementNode[];
 }
 
@@ -95,6 +109,14 @@ export interface NativePointerSample {
   ray?: RayTuple;
   /** `ray`: select held. `grab`: squeeze or pinch held. */
   active?: boolean;
+  /**
+   * `ray` only, over an element that scrolls or sits inside one: the hit
+   * point in that scrolling element's own pixel space, x right and y down
+   * from its top left corner. The binding scrolls by the drag of this point
+   * (the core `ScrollState`, uikit's drag rule). Without it a press on a
+   * scrolling element does not scroll.
+   */
+  localPoint?: [number, number];
 }
 
 /**
@@ -136,14 +158,48 @@ export interface NativeUiHost {
    */
   setProperties(panelId: string, elementHandle: string, props: Record<string, unknown>): void;
   /**
-   * An element raised an event the host owns: `pointerenter` and
-   * `pointerleave` for hover styles (UIKit's `:hover`), or a value change.
-   * Delivered to that element only. Pointer presses and clicks do NOT come
-   * through here; they come from `onPointerSample`.
+   * An element raised an event the host owns: a value change from a host
+   * control. Delivered to that element only. Pointer presses, clicks, hover
+   * enter and hover leave do NOT come through here: they are decided by the
+   * binding from `onPointerSample` (the core press machines and the core
+   * `HoverTracker`), and a `pointerenter` or `pointerleave` a host sends
+   * here is ignored.
    */
   onElementEvent(
     cb: (panelId: string, elementHandle: string, type: string, payload: unknown) => void,
   ): () => void;
+  /**
+   * Apply, or remove, the hover style of one element: uikit's `:hover`
+   * appearance on the web. The binding decides hover per element from the
+   * pointer samples (the core rule: an element is hovered while any pointer
+   * is over it, IWSDK's pointer events), and tells the host only on a
+   * change. A host restyles and decides nothing. Without this member the
+   * host shows no hover style, and the conformance kit fails it.
+   */
+  setHover?(panelId: string, elementHandle: string, hovered: boolean): void;
+  /**
+   * Scroll an element's content to `x`, `y` pixels from its top left, as
+   * the binding decided (the core `ScrollState`: uikit's drag, coast and
+   * rubber band, so the position may briefly lie past the range while it
+   * springs back). The host draws the content at that offset and decides
+   * nothing. Called whenever the position changes. Without this member
+   * nothing scrolls on the host.
+   */
+  setScroll?(panelId: string, elementHandle: string, x: number, y: number): void;
+  /**
+   * Show the platform's system keyboard for a text field the user clicked,
+   * with the field's current `value`; `multiline` asks for a return key
+   * that inserts a line break, `type` is the HTML input type the field
+   * declared. This is the web's hidden HTML input taking focus (uikit
+   * `Input`). While it is up the host reports every change through
+   * `onElementEvent` with type `"input"` and payload `{ value }` (the WHOLE
+   * value, each time), and `"keyboardclosed"` when the user dismissed it or
+   * focus moved; the binding writes the value onto the element and raises
+   * its `valueChanged`. Without this member text cannot be entered.
+   */
+  showKeyboard?(panelId: string, elementHandle: string, request: { value: string; multiline: boolean; type: string }): void;
+  /** Dismiss the keyboard from the app's side. */
+  hideKeyboard?(): void;
   /**
    * Every pointer measurement this frame, one call per pointer. See
    * {@link NativePointerSample} for what to report and when. The binding
@@ -229,6 +285,14 @@ export interface NativeUiTestHost {
    * check the host's measurement without a hand.
    */
   measureTouch(windowId: string, point: Vec3Tuple): { signedDistance: number; elementId: string | null } | undefined;
+  /** Whether the host is drawing the element with markup `elementId` in its hover style now, as last told through `setHover`. Optional; the hover case fails without it. */
+  elementHovered?(windowId: string, elementId: string): boolean | undefined;
+  /** The host's own ids for the element with markup `elementId` in a window's panel, so a case can address it. Optional; the hover case fails without it. */
+  elementHandle?(windowId: string, elementId: string): { panelId: string; elementHandle: string } | undefined;
+  /** The scroll offset the host draws an element's content at now, pixels, as last told through `setScroll`. Optional; the scroll case fails without it. */
+  scrollPosition?(windowId: string, elementId: string): [number, number] | undefined;
+  /** The keyboard the host is showing now, or null. Optional; the keyboard case fails without it. */
+  keyboardShown?(): { panelId: string; elementHandle: string; value: string } | null;
 }
 
 /** The shape of `globalThis.__rcHost` this package cares about. */
