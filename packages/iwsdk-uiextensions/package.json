@@ -12,7 +12,10 @@
     "windowing",
     "uikitml",
     "spatial-ui",
-    "typescript"
+    "typescript",
+    "hand-menu",
+    "pointer",
+    "docking"
   ],
   "license": "MIT",
   "author": "Reality Collective",
@@ -39,6 +42,7 @@
     "@drawcall/uikitml": "0.1.8",
     "zod": "^4.4.3",
     "@pmndrs/handle": "^6.6.16",
+    "@realitycollective/webxr-input": "^0.1.8-preview.0",
     "@realitycollective/webxr-uiextensions": "^0.1.1-preview.3"
   },
   "peerDependencies": {

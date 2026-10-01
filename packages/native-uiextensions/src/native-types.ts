@@ -26,7 +26,8 @@
  * viewer looks down -Z at rest.
  */
 
-import type { HeadPose, PoseTuple, RayTuple, Vec3Tuple } from '@realitycollective/webxr-uiextensions';
+import type { PointerDisplayConfig } from '@realitycollective/webxr-input';
+import type { HeadPose, PoseTuple, PresentedPointer, RayTuple, Vec3Tuple } from '@realitycollective/webxr-uiextensions';
 
 /**
  * One element of a panel's tree, as the native host reports it. `handle` is
@@ -39,7 +40,16 @@ export interface NativeElementNode {
   handle: string;
   /** Markup id, when the element carries one. */
   id?: string;
-  /** The `uix-*` custom element name, when the element was declared as one. */
+  /**
+   * The `uix-*` custom element name, when the element was declared as one:
+   * the markup tag itself, such as `"uix-stepper"`. The binding upgrades a
+   * control by this name. Whatever loads the app's panels for the host (a
+   * build-time cook step or a run-time parser) must accept every tag in the
+   * core's `UIX_ELEMENT_TAGS` as a plain container, report it here, and keep
+   * its `data-*` attributes. A loader that rejects or drops one leaves the
+   * panel without its controls; IWSDK's validating parser needs the same
+   * declaration on the web (`uixComponentSet`).
+   */
   componentName?: string;
   /**
    * The element's `data-*` attributes exactly as the markup wrote them, such
@@ -105,6 +115,16 @@ export interface NativePointerSample {
   point: Vec3Tuple | null;
   /** `touch` only: metres from the panel plane along its normal, positive in front. */
   signedDistance?: number;
+  /**
+   * Metres the pointer arbitration compares this sample with an
+   * interactable's candidate on the same source (IWSDK's `MultiPointer`
+   * keeps, per pointer kind, the nearest of everything it reaches): for
+   * `ray` the ray parameter of the hit, for `touch` and `grab` the unsigned
+   * distance from the fingertip or grip to the panel. Report it when the
+   * host can; the binding otherwise derives it from `ray` and `point`, from
+   * `|signedDistance|`, or takes 0 for a grab over the title bar.
+   */
+  distance?: number;
   /** `ray` only: the ray this frame, origin in metres, direction normalised. */
   ray?: RayTuple;
   /** `ray`: select held. `grab`: squeeze or pinch held. */
@@ -193,9 +213,17 @@ export interface NativeUiHost {
    * declared. This is the web's hidden HTML input taking focus (uikit
    * `Input`). While it is up the host reports every change through
    * `onElementEvent` with type `"input"` and payload `{ value }` (the WHOLE
-   * value, each time), and `"keyboardclosed"` when the user dismissed it or
-   * focus moved; the binding writes the value onto the element and raises
-   * its `valueChanged`. Without this member text cannot be entered.
+   * value, each time), and `"keyboardclosed"` when entry ended: the user
+   * dismissed the keyboard, focus moved, or the binding called
+   * `hideKeyboard`. A host that cannot observe the dismissal itself (an
+   * Android `NativeActivity` host has no focus event from the system
+   * keyboard) reports `"keyboardclosed"` from the two things it can see:
+   * its own `hideKeyboard` (the binding calls it when a press lands outside
+   * the field, on every platform), and a key event that ends entry (Enter on
+   * a single-line field, Back or Escape). It never reports it twice for one
+   * entry, and never before `"input"` with the value that ended it. The
+   * binding writes the value onto the element and raises its `valueChanged`.
+   * Without this member text cannot be entered.
    */
   showKeyboard?(panelId: string, elementHandle: string, request: { value: string; multiline: boolean; type: string }): void;
   /** Dismiss the keyboard from the app's side. */
@@ -248,15 +276,44 @@ export interface NativeUiInputSource {
 }
 
 /**
- * The `input` slice, as far as windows read it: the viewer's head for
- * follow, focus bias and billboarding, and the hands' grip poses for hand
- * menus. The same slice `@realitycollective/native-interactions` reads.
+ * The `input` slice, as far as windows use it: the viewer's head for
+ * follow, focus bias and billboarding, the hands' grip poses for hand
+ * menus, and the two members that draw the pointers. The same slice
+ * `@realitycollective/native-interactions` reads and writes.
  */
 export interface NativeUiInputHost {
   /** The viewer's head pose this frame, world space. Absent until the host tracks a head. */
   getHeadPose?(): HeadPose;
   /** This frame's tracked sources. A hand that is not tracked is absent. */
   sample(): readonly NativeUiInputSource[];
+  /**
+   * Draw this source's ray and cursor exactly as given, until told otherwise:
+   * the ray only while `ray` is true, from `rayFrom` to `rayTo` metres along
+   * the source's ray, and the cursor disc at `cursorPoint` (world space,
+   * metres) only while `cursor` is true. The host decides none of it. This is
+   * the member `@realitycollective/native-interactions` defines on the same
+   * slice (`NativeInputHost.applyPointerVisuals`) and the record is the same.
+   *
+   * This binding calls it only when it was given no shared pointer arbiter
+   * (`NativeWindowHostOptions.pointers`), which is an app with windows and no
+   * interactables: once per frame for every source that reported a pointer
+   * sample, `sourceId` being the sample's, and once more with `ray` and
+   * `cursor` false when a source stops reporting. With a shared arbiter the
+   * Interactions binding makes the calls. Optional: a host without it draws
+   * no pointer for such an app. IWSDK: the ray and cursor it draws itself
+   * for every hand (`RayPointer`, `CursorVisual`).
+   */
+  applyPointerVisuals?(sourceId: string, visuals: PresentedPointer): void;
+  /**
+   * The app's pointer display settings, handed over when the window host is
+   * created and on every change (`PointerDisplay.set`), so a host can size
+   * its meshes or log the configuration. Only when this binding presents the
+   * pointers (see `applyPointerVisuals`). Informational: every per-frame
+   * decision already arrives resolved in `applyPointerVisuals`, so a host
+   * needs nothing from here to draw correctly. Optional. The same member
+   * `@realitycollective/native-interactions` defines.
+   */
+  applyPointerDisplay?(config: PointerDisplayConfig): void;
 }
 
 /** The app's frame callback, the root member of `__rcHost`. Delta in seconds. */

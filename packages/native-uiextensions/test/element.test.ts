@@ -63,6 +63,27 @@ describe('NativeUixElement', () => {
     expect(setProperties).toHaveBeenCalledWith('h-root', { text: 'hi' });
   });
 
+  it('a function-valued property stays in the binding as a callback; only plain data reaches the host', () => {
+    const setProperties = vi.fn();
+    const root = new NativeUixElement(TREE, { setProperties });
+    const changes: unknown[] = [];
+    root.setProperties({ onValueChange: (value: unknown) => changes.push(value) });
+    expect(setProperties).not.toHaveBeenCalled();
+    root.setProperties({ text: 'hi', onValueChange: (value: unknown) => changes.push(['second', value]) });
+    expect(setProperties).toHaveBeenCalledTimes(1);
+    expect(setProperties).toHaveBeenCalledWith('h-root', { text: 'hi' });
+    root.call('onValueChange', 'Ada');
+    expect(changes).toEqual([['second', 'Ada']]);
+    // Clearing the callback removes it and sends nothing; clearing a plain property is still data.
+    root.setProperties({ onValueChange: undefined });
+    root.call('onValueChange', 'gone');
+    expect(changes).toHaveLength(1);
+    expect(setProperties).toHaveBeenCalledTimes(1);
+    root.setProperties({ text: null });
+    expect(setProperties).toHaveBeenLastCalledWith('h-root', { text: null });
+    root.call('neverSet');
+  });
+
   it('addEventListener registers locally; dispatch runs every listener for that type only', () => {
     const root = new NativeUixElement(TREE, { setProperties: vi.fn() });
     const clicks: unknown[] = [];

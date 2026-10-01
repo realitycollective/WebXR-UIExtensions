@@ -49,7 +49,12 @@ class UixShowcaseScript extends xb.Script {
   }
 }
 
-export async function bootXRBlocks(): Promise<void> {
+export async function bootXRBlocks(container: HTMLElement): Promise<void> {
   xb.add(new UixShowcaseScript());
   await xb.init();
+  // XR Blocks appends its own root to <body>. Move it into the mount point, as the other two
+  // pipelines draw there, so "did the page render anything" is answered by #scene-container.
+  const canvas = xb.core.renderer.domElement as HTMLCanvasElement;
+  const root = canvas.parentElement && canvas.parentElement !== document.body ? canvas.parentElement : canvas;
+  container.appendChild(root);
 }

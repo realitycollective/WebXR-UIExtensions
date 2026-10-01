@@ -15,7 +15,8 @@
  * CORRECT XR Blocks would, from its published type declarations.
  */
 import { parse } from '@pmndrs/uikitml';
-import { Group, Object3D, Quaternion, Vector3 } from 'three';
+import { Group, Mesh, Object3D, PlaneGeometry, Quaternion, Vector3 } from 'three';
+import { PointerArbiter } from '@realitycollective/webxr-input';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_FOCUS_BIAS,
@@ -25,11 +26,12 @@ import {
   dragPosition,
   focusBiasAmount,
   intersectRayPlane,
+  WINDOW_CHROME_IDS,
   type HeadPoseSource,
   type Vec3Tuple,
 } from '@realitycollective/webxr-uiextensions';
 import { UixWindowHost } from '../src/host.js';
-import { worldForwardOf, worldPositionOf, type XrBlocksController } from '../src/pointer-bridge.js';
+import { XrBlocksPointerBridge, worldForwardOf, worldPositionOf, type XrBlocksController } from '../src/pointer-bridge.js';
 import type { XrBlocksRayInputAccess } from '../src/ray-input.js';
 
 const PANEL_SOURCE = `
@@ -205,30 +207,6 @@ describe('a ray clicks on release, not on select-start (intersection)', () => {
     host.manager.hide('w');
     bridged(body).onSelectStart({ target: fakeController() });
     expect(downs).toHaveLength(0);
-  });
-});
-
-describe('hover enter/leave reach the panel', () => {
-  it('dispatches pointerenter and pointerleave', () => {
-    const { host } = makeHost();
-    const handle = host.createWindow({ id: 'w', config: config() });
-    const body = handle.document.getElementById('body')!;
-    const enters = listen(body, 'pointerenter');
-    const leaves = listen(body, 'pointerleave');
-    bridged(body).onHoverEnter();
-    expect(enters).toHaveLength(1);
-    bridged(body).onHoverExit();
-    expect(leaves).toHaveLength(1);
-  });
-
-  it('a hidden window does not hover-enter', () => {
-    const { host } = makeHost();
-    const handle = host.createWindow({ id: 'w', config: config() });
-    const body = handle.document.getElementById('body')!;
-    const enters = listen(body, 'pointerenter');
-    host.manager.hide('w');
-    bridged(body).onHoverEnter();
-    expect(enters).toHaveLength(0);
   });
 });
 
@@ -484,5 +462,325 @@ describe('DockMode still applies while these run', () => {
     titlebar.onObjectGrabEnd();
     host.update(0.01);
     expect(host.manager.get('w')?.dragging).toBe(false);
+  });
+});
+
+/** A wired fake panel: a root group at `position` holding a 1 m plane, its normal +Z as a uikit panel's is. */
+function fakePanel(bridge: XrBlocksPointerBridge, position: [number, number, number] = [0, 0, -2]) {
+  const root = new Group();
+  root.position.set(...position);
+  const mesh = new Mesh(new PlaneGeometry(1, 1));
+  root.add(mesh);
+  root.updateMatrixWorld(true);
+  bridge.wire(root);
+  return { root, mesh, api: bridged(mesh) };
+}
+
+/** A fake XR Blocks controller; `handedness` is its input source's, omitted for none. */
+function fakeSided(handedness?: string): XrBlocksController {
+  const controller = fakeController();
+  if (handedness !== undefined) (controller as unknown as { inputSource: { handedness: string } }).inputSource = { handedness };
+  return controller;
+}
+
+/** An `xb.input.getFrame()` value whose sources all point down -Z from x offsets. */
+function frameOf(...sources: Array<{ controller: object; x?: number }>) {
+  return {
+    raySources: sources.map(({ controller, x = 0 }) => ({
+      controller,
+      ray: { origin: { x, y: 0, z: 0 }, direction: { x: 0, y: 0, z: -1 } },
+    })),
+  };
+}
+
+describe('hover is per pointer, from the bridge own raycast', () => {
+  it('each source enters and leaves on its own ray, and the ray is offered to the arbiter', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const enters = listen(panel.mesh, 'pointerenter');
+    const leaves = listen(panel.mesh, 'pointerleave');
+    const left = fakeSided('left');
+    const right = fakeSided('right');
+
+    bridge.updateRays(frameOf({ controller: left }, { controller: right }));
+    expect(enters).toHaveLength(2);
+    const decision = arbiter.decision('left')!;
+    expect(decision.active).toBe('ray');
+    expect(decision.candidate?.targetId).toBe(panel.root.uuid);
+    expect(decision.candidate?.distance).toBeCloseTo(2, 5);
+    expect(decision.candidate?.point[2]).toBeCloseTo(-2, 5);
+
+    bridge.updateRays(frameOf({ controller: left }, { controller: right }));
+    expect(enters).toHaveLength(2); // steady: no repeat events
+
+    bridge.updateRays(frameOf({ controller: left, x: 5 }, { controller: right }));
+    expect(leaves).toHaveLength(1); // only the left pointer left
+
+    bridge.updateRays(frameOf({ controller: left, x: 5 }));
+    expect(leaves).toHaveLength(2); // the right source vanished: it leaves too
+    bridge.updateRays(frameOf({ controller: left, x: 5 }));
+    expect(leaves).toHaveLength(2);
+  });
+
+  it('raises hover only while the ray owns the source', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const enters = listen(panel.mesh, 'pointerenter');
+    const other = arbiter.registerSet('interactions', 'object');
+    other.offer('left', 'ray', { targetId: 'cube', point: [0, 0, -0.5], distance: 0.5 });
+    bridge.updateRays(frameOf({ controller: fakeSided('left') }));
+    expect(enters).toHaveLength(0);
+    expect(arbiter.decision('left')?.candidate?.targetId).toBe('cube');
+  });
+
+  it('a hidden panel is not raycast, and a hit element that is not live does not enter', () => {
+    let live = true;
+    let mute = false;
+    const bridge = new XrBlocksPointerBridge({ isLive: (element) => live && !(mute && element instanceof Mesh) });
+    const panel = fakePanel(bridge);
+    const enters = listen(panel.mesh, 'pointerenter');
+    mute = true;
+    bridge.updateRays(frameOf({ controller: fakeSided('left') }));
+    expect(enters).toHaveLength(0);
+    live = false;
+    bridge.updateRays(frameOf({ controller: fakeSided('left') }));
+    expect(enters).toHaveLength(0);
+  });
+
+  it('the nearest wired panel wins, a missed panel is ignored, and unwire stops raycasting', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    fakePanel(bridge, [0, 0, -4]);
+    const near = fakePanel(bridge, [0, 0, -1]);
+    fakePanel(bridge, [0, 0, -3]);
+    fakePanel(bridge, [9, 0, -1]);
+    const enters = listen(near.mesh, 'pointerenter');
+    const frame = frameOf({ controller: fakeSided('left') });
+    bridge.updateRays(frame);
+    expect(enters).toHaveLength(1);
+    expect(arbiter.decision('left')?.candidate?.distance).toBeCloseTo(1, 5);
+    bridge.unwire(near.root);
+    bridge.updateRays(frame);
+    expect(arbiter.decision('left')?.candidate?.distance).toBeCloseTo(3, 5);
+  });
+
+  it('the XR Blocks hover callbacks are handled no-ops', () => {
+    const bridge = new XrBlocksPointerBridge();
+    const panel = fakePanel(bridge);
+    const enters = listen(panel.mesh, 'pointerenter');
+    const leaves = listen(panel.mesh, 'pointerleave');
+    expect(panel.api.onHoverEnter()).toBe(true);
+    expect(panel.api.onHoverExit()).toBe(true);
+    expect(enters).toHaveLength(0);
+    expect(leaves).toHaveLength(0);
+  });
+});
+
+describe('a ray press takes part in the shared arbitration', () => {
+  it('presses and clicks when the ray owns the source, keyed by handedness', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    const clicks = listen(panel.mesh, 'click');
+    const left = fakeSided('left');
+    bridge.updateRays(frameOf({ controller: left }));
+    panel.api.onSelectStart({ target: left });
+    expect(downs).toHaveLength(1);
+    // The press locks the source: a nearer object offer no longer takes it.
+    const other = arbiter.registerSet('interactions', 'object');
+    other.offer('left', 'ray', { targetId: 'cube', point: [0, 0, -0.5], distance: 0.5 });
+    bridge.updateRays(frameOf({ controller: left }));
+    expect(arbiter.decision('left')?.candidate?.targetId).toBe(panel.root.uuid);
+    panel.api.onSelectEnd();
+    expect(clicks).toHaveLength(1);
+    bridge.updateRays(frameOf({ controller: left }));
+    expect(arbiter.decision('left')?.candidate?.targetId).toBe('cube'); // released: the nearer object wins
+  });
+
+  it('does not press while another set owns the ray, and the release does not click', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    const clicks = listen(panel.mesh, 'click');
+    const other = arbiter.registerSet('interactions', 'object');
+    other.offer('right', 'ray', { targetId: 'cube', point: [0, 0, -0.5], distance: 0.5 });
+    const right = fakeSided('right');
+    bridge.updateRays(frameOf({ controller: right }));
+    panel.api.onSelectStart({ target: right });
+    panel.api.onSelectEnd();
+    expect(downs).toHaveLength(0);
+    expect(clicks).toHaveLength(0);
+  });
+
+  it('without ray input the SDK hit is offered at select time, and a nearer object still wins', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    panel.api.onSelectStart({ target: fakeSided('right') });
+    expect(downs).toHaveLength(1);
+    expect(arbiter.decision('right')?.candidate?.distance).toBeCloseTo(2, 5);
+    panel.api.onSelectEnd();
+
+    const other = arbiter.registerSet('interactions', 'object');
+    other.offer('left', 'ray', { targetId: 'cube', point: [0, 0, -0.5], distance: 0.5 });
+    panel.api.onSelectStart({ target: fakeSided('left') });
+    expect(downs).toHaveLength(1);
+  });
+
+  it('a hidden element is not pressed, and a release after hiding raises no events', () => {
+    let live = true;
+    const bridge = new XrBlocksPointerBridge({ isLive: () => live });
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    const ups = listen(panel.mesh, 'pointerup');
+    live = false;
+    panel.api.onSelectStart({ target: fakeSided('left') });
+    expect(downs).toHaveLength(0);
+    live = true;
+    panel.api.onSelectStart({ target: fakeSided('left') });
+    expect(downs).toHaveLength(1);
+    live = false;
+    panel.api.onSelectEnd();
+    expect(ups).toHaveLength(0);
+  });
+
+  it('a controller with no handedness is keyed by its position in the ray sources', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    const first = fakeSided();
+    const second = fakeSided('none');
+    bridge.updateRays(frameOf({ controller: first, x: 5 }, { controller: second }));
+    expect(arbiter.decision('controller:0')?.active).toBeNull();
+    expect(arbiter.decision('controller:1')?.active).toBe('ray');
+    panel.api.onSelectStart({ target: second });
+    expect(downs).toHaveLength(1);
+    panel.api.onSelectEnd();
+    // A controller the frame does not list gets an unknown-position key of its own.
+    panel.api.onSelectStart({ target: fakeSided() });
+    expect(arbiter.decision('controller:-1')?.active).toBe('ray');
+  });
+});
+
+describe('a touch takes part in the shared arbitration', () => {
+  const touchAt = (z: number, handIndex = 0) => ({ handIndex, touchPosition: { x: 0, y: 0, z: -2 + z } });
+
+  it('offers touch for the hand and presses once it owns the source', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    const clicks = listen(panel.mesh, 'click');
+    panel.api.onObjectTouching(touchAt(0.05, 1));
+    panel.api.onObjectTouching(touchAt(0.01, 1));
+    expect(downs).toHaveLength(1);
+    const decision = arbiter.decision('right')!;
+    expect(decision.active).toBe('touch');
+    expect(decision.candidate?.distance).toBeCloseTo(0.01, 5);
+    panel.api.onObjectTouching(touchAt(0.05, 1));
+    expect(clicks).toHaveLength(1);
+    panel.api.onObjectTouchEnd(touchAt(0.05, 1));
+    expect(arbiter.decision('right')?.active).toBeNull();
+  });
+
+  it('does not press when another set has the nearer touch, and never steals a held press', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    const other = arbiter.registerSet('interactions', 'object');
+    other.offer('left', 'touch', { targetId: 'cube', point: [0, 0, 0], distance: 0.005 });
+    panel.api.onObjectTouching(touchAt(0.05));
+    panel.api.onObjectTouching(touchAt(0.01));
+    expect(downs).toHaveLength(0);
+    expect(arbiter.decision('left')?.candidate?.targetId).toBe('cube');
+
+    // The object touch ends; the panel presses; a nearer object touch later cannot take the hold.
+    other.offer('left', 'touch', null);
+    panel.api.onObjectTouching(touchAt(0.05));
+    panel.api.onObjectTouching(touchAt(0.01));
+    expect(downs).toHaveLength(1);
+    other.offer('left', 'touch', { targetId: 'cube', point: [0, 0, 0], distance: 0.001 });
+    panel.api.onObjectTouching(touchAt(0.012));
+    expect(arbiter.decision('left')?.candidate?.targetId).toBe(panel.root.uuid);
+  });
+
+  it('a hidden element offers nothing', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter, isLive: () => false });
+    const panel = fakePanel(bridge);
+    panel.api.onObjectTouching(touchAt(0.01));
+    expect(arbiter.decision('left')).toBeUndefined();
+  });
+});
+
+describe('a grab takes part in the shared arbitration', () => {
+  it('offers the grip position at distance 0 and locks the source until released', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    panel.mesh.userData['id'] = WINDOW_CHROME_IDS.titlebar;
+    const downs = listen(panel.mesh, 'pointerdown');
+    const clicks = listen(panel.mesh, 'click');
+    const hand = fakeController([0.1, 0.2, -1.9]);
+    panel.api.onObjectGrabStart({ handIndex: 1, hand });
+    expect(downs).toHaveLength(1);
+    const decision = arbiter.decision('right')!;
+    expect(decision.active).toBe('grab');
+    expect(decision.candidate?.distance).toBe(0);
+    expect(decision.candidate?.point[0]).toBeCloseTo(0.1, 5);
+    expect(decision.candidate?.point[1]).toBeCloseTo(0.2, 5);
+    expect(decision.candidate?.point[2]).toBeCloseTo(-1.9, 5);
+    panel.api.onObjectGrabEnd();
+    expect(clicks).toHaveLength(1);
+    expect(arbiter.decision('right')?.active).toBeNull();
+    panel.api.onObjectGrabEnd(); // a second release is ignored
+    expect(clicks).toHaveLength(1);
+  });
+
+  it('a grab off the title bar locks the hand but presses nothing', () => {
+    const bridge = new XrBlocksPointerBridge();
+    const panel = fakePanel(bridge);
+    const downs = listen(panel.mesh, 'pointerdown');
+    const clicks = listen(panel.mesh, 'click');
+    panel.api.onObjectGrabStart({ handIndex: 0, hand: fakeController() });
+    panel.api.onObjectGrabEnd();
+    expect(downs).toHaveLength(0);
+    expect(clicks).toHaveLength(0);
+  });
+
+  it('does not grab while another set owns the hand with a higher-priority pointer', () => {
+    const arbiter = new PointerArbiter();
+    const bridge = new XrBlocksPointerBridge({ pointers: arbiter });
+    const panel = fakePanel(bridge);
+    panel.mesh.userData['id'] = WINDOW_CHROME_IDS.titlebar;
+    const downs = listen(panel.mesh, 'pointerdown');
+    const other = arbiter.registerSet('interactions', 'object');
+    other.offer('left', 'touch', { targetId: 'cube', point: [0, 0, 0], distance: 0.01 });
+    panel.api.onObjectGrabStart({ handIndex: 0, hand: fakeController() });
+    panel.api.onObjectGrabEnd();
+    expect(downs).toHaveLength(0);
+  });
+
+  it('a hidden element is not grabbed, and a release after hiding raises no events', () => {
+    let live = true;
+    const bridge = new XrBlocksPointerBridge({ isLive: () => live });
+    const panel = fakePanel(bridge);
+    panel.mesh.userData['id'] = WINDOW_CHROME_IDS.titlebar;
+    const ups = listen(panel.mesh, 'pointerup');
+    live = false;
+    panel.api.onObjectGrabStart({ handIndex: 0, hand: fakeController() });
+    panel.api.onObjectGrabEnd();
+    live = true;
+    panel.api.onObjectGrabStart({ handIndex: 0, hand: fakeController() });
+    live = false;
+    panel.api.onObjectGrabEnd();
+    expect(ups).toHaveLength(0);
   });
 });

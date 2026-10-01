@@ -118,6 +118,19 @@ export class ScenePointerBridge {
     this.roots.delete(root);
   }
 
+  /** The registered root `element` sits under, or `undefined` for an element of no wired panel. */
+  rootOf(element: Object3D): Object3D | undefined {
+    for (let at: Object3D | null = element; at; at = at.parent) {
+      if (this.roots.has(at)) return at;
+    }
+    return undefined;
+  }
+
+  /** Whether slot `handIndex`'s touch machine is pressing this frame (the arbiter's selection lock). */
+  isTouchPressed(handIndex: number): boolean {
+    return this.touches.get(handIndex)?.held === true;
+  }
+
   /**
    * The nearest live registered descendant a world-space ray hits, with its
    * hit point and (when the geometry reports one) its world-space surface

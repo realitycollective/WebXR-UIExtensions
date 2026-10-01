@@ -23,6 +23,7 @@
  */
 import type { Object3D, PerspectiveCamera } from 'three';
 import type { Kit } from '@pmndrs/uikitml';
+import type { PointerArbiter } from '@realitycollective/webxr-input';
 import type { CursorVisualOptions } from './cursor-visual.js';
 import { UixWindowHost, type UixWindowHostOptions } from './host.js';
 import { ScenePointerBridge } from './pointer-bridge.js';
@@ -64,6 +65,13 @@ export interface EngineContext {
    * no `renderer`.
    */
   cursor?: CursorVisualOptions;
+  /**
+   * The pointer arbiter shared with `createThreeInteractions({ pointers })`,
+   * so one decision per source covers panels and interactables, as IWSDK's
+   * `MultiPointer` does. With it the Interactions binding draws every
+   * cursor, panels included, and this host draws none. Omit for a UI-only app.
+   */
+  pointers?: PointerArbiter;
 }
 
 export interface ConnectedUIExtensions extends UixWindowHost {
@@ -113,6 +121,7 @@ export function connectUIExtensions(context: EngineContext): ConnectedUIExtensio
       ...(context.touchDistance !== undefined ? { touchDistance: context.touchDistance } : {}),
       ...(context.grabDistance !== undefined ? { grabDistance: context.grabDistance } : {}),
       ...(context.cursor !== undefined ? { cursor: context.cursor } : {}),
+      ...(context.pointers !== undefined ? { pointers: context.pointers } : {}),
     });
   }
 

@@ -21,7 +21,7 @@
     "webxr-uiextensions-showcase": "*",
     "three": "npm:super-three@0.181.0",
     "uix-devtools-playground": "*",
-    "xrblocks": "^0.19.0"
+    "xrblocks": "^0.21.1"
   },
   "devDependencies": {
     "@types/three": "0.184.0",

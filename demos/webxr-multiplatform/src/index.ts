@@ -52,7 +52,7 @@ async function boot(engine: UixEngine): Promise<void> {
   if (engine === 'desktop') {
     await import('./pipelines/desktop-pipeline.js').then((m) => m.bootDesktop(container));
   } else if (engine === 'xrblocks') {
-    await import('./pipelines/xrblocks-pipeline.js').then((m) => m.bootXRBlocks());
+    await import('./pipelines/xrblocks-pipeline.js').then((m) => m.bootXRBlocks(container));
   } else {
     await import('./pipelines/iwsdk-pipeline.js').then((m) => m.bootIWSDK(container));
   }

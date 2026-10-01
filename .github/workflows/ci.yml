@@ -80,6 +80,11 @@ jobs:
       - name: Verify the published artifact is consumable
         run: npm run verify:pack -- --skip-build
 
+      # CI compiles the native harness (typecheck, bundle gates, Hermes bytecode) and never runs it:
+      # a native build runs only on a developer's machine or a headset.
+      - name: Compile the native harness (no run)
+        run: npm run harness:compile -- --require-hermes
+
       - name: Build showcase (static Vite bundle)
         run: npm run build:showcase
 

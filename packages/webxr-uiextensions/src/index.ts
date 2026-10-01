@@ -22,6 +22,7 @@ export * from './core/cursor.js';
 export * from './core/touch-press.js';
 export * from './core/pointer-events.js';
 export * from './core/hover.js';
+export * from './core/pointer-offers.js';
 export * from './core/scroll.js';
 export * from './core/text-entry.js';
 export * from './core/titlebar-drag.js';
