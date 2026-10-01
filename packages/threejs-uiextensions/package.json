@@ -40,7 +40,7 @@
   "dependencies": {
     "@pmndrs/uikit": "^1.0.76",
     "@pmndrs/uikitml": "^0.1.12",
-    "@realitycollective/webxr-input": "^0.1.8-preview.0",
+    "@realitycollective/webxr-input": "^0.1.8",
     "@realitycollective/webxr-uiextensions": "^0.1.1-preview.3"
   },
   "peerDependencies": {
