@@ -35,7 +35,10 @@
  * `attachToHost: true` to be driven by `__rcHost.onFrame`, as
  * `createNativeInteractions` is.
  */
+import { PointerDisplay, type PointerArbiter, type PointerDisplayConfig } from '@realitycollective/webxr-input';
 import {
+  PanelPointerOffers,
+  type PanelPointerCandidate,
   DEFAULT_BILLBOARD_WHILE_DRAGGING,
   DEFAULT_DRAG_DELAY,
   DEFAULT_FOCUS_BIAS,
@@ -140,6 +143,27 @@ export interface NativeWindowHostOptions {
   controls?: boolean;
   /** Touch press thresholds, metres, signed, positive in front. Default: the core's `DEFAULT_TOUCH_PRESS`. */
   touchPress?: Partial<TouchPressOptions>;
+  /**
+   * The pointer arbiter shared with `createNativeInteractions({ pointers })`,
+   * so one decision per source covers panels and interactables (the core
+   * `PanelPointerOffers`): this host offers each sample's panel and acts with
+   * a pointer only while it owns the source; the Interactions binding then
+   * hands the host a panel cursor through `applyPointerVisuals`. Omit when
+   * the app has no interactables; the host then owns every source it sees
+   * and presents the pointers itself (`pointerDisplay`).
+   * Update this host before the Interactions binding each frame.
+   */
+  pointers?: PointerArbiter;
+  /**
+   * How the pointers are drawn when this host presents them, which is when
+   * `pointers` is omitted: the app's settings, or a `PointerDisplay` the app
+   * keeps and changes at run time. Defaults are the core's
+   * (`POINTER_DISPLAY_DEFAULTS`, IWSDK 1.0's look: the ray only while it hits
+   * something, a cursor on objects and on panels). With a shared arbiter the
+   * Interactions binding presents and its own `pointerDisplay` applies; this
+   * one is then unused.
+   */
+  pointerDisplay?: PointerDisplay | Partial<PointerDisplayConfig>;
 }
 
 /** A pointer event the binding raises on an element. It bubbles to the panel root. */
@@ -314,6 +338,10 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
   /** This frame's pointer samples, by pointer key, until the next `update`. */
   private readonly samples = new Map<string, NativePointerSample>();
   private readonly pointers = new Map<string, PointerState>();
+  /** The one pointer decision per source shared with the Interactions family. */
+  private readonly offers: PanelPointerOffers;
+  /** The app's pointer display settings, applied to what this host presents while it owns the arbiter. */
+  private readonly pointerDisplay: PointerDisplay;
   private readonly hover = new HoverTracker<Target>((target) => target.element);
   private readonly textEntry = new TextEntry<Target>();
   /** Milliseconds of `update(dt)` so far, the clock the scroll drags measure velocity against. */
@@ -328,6 +356,14 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
   constructor(options: NativeWindowHostOptions = {}) {
     this.host = readNativeUiHost(options.host);
     this.input = readNativeUiInput(options.input);
+    this.offers = new PanelPointerOffers(options.pointers);
+    this.pointerDisplay = options.pointerDisplay instanceof PointerDisplay ? options.pointerDisplay : new PointerDisplay(options.pointerDisplay);
+    // Whoever owns the arbiter presents the pointers (the core rule in `pointer-offers.ts`). The host keeps the settings too.
+    const applyDisplay = this.offers.ownArbiter ? this.input?.applyPointerDisplay?.bind(this.input) : undefined;
+    if (applyDisplay) {
+      applyDisplay({ ...this.pointerDisplay.get() });
+      this.subscriptions.push(this.pointerDisplay.onChange((config) => applyDisplay({ ...config })));
+    }
     this.features = {
       drag: options.drag !== false,
       nearDrag: options.nearDrag !== false,
@@ -356,11 +392,14 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
         }
         if (type === 'input') {
           // The keyboard reported the whole value: the core rule writes it
-          // onto the focused field and raises its valueChanged.
+          // onto the focused field and raises its `onValueChange`, the
+          // callback property uikit's Input calls on the web, then the
+          // `valueChanged` event for a listener.
           const value = (payload as { value: string }).value;
           const field = this.textEntry.input(value);
           if (field && field.element === element) {
             element.setProperties({ value });
+            element.call('onValueChange', value);
             element.dispatch('valueChanged', { value });
           }
           return;
@@ -462,6 +501,7 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.offers.dispose();
     for (const [id, state] of [...this.windows]) {
       if (state.record && this.manager.has(id)) {
         this.manager.close(id);
@@ -1107,6 +1147,23 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
 
   private processPointers(): void {
     const seen = new Set<string>();
+    // The arbitration first: every sample's panel is offered, then each
+    // source is decided across panels and interactables, and a pointer acts
+    // below only while it owns its source (IWSDK's MultiPointer over every
+    // pointer-event object).
+    const sources = new Set<string>();
+    // What this host presents per source this frame: whether it carries a ray, and whether its owning pointer is pressing.
+    const presented = new Map<string, { hasRay: boolean; selecting: boolean }>();
+    for (const sample of this.samples.values()) {
+      if (sample.pointer === 'grab' && !this.features.nearDrag) continue;
+      sources.add(sample.sourceId);
+      const shown = presented.get(sample.sourceId) ?? { hasRay: false, selecting: false };
+      if (sample.ray) shown.hasRay = true;
+      presented.set(sample.sourceId, shown);
+      const target = this.resolveTarget(sample);
+      this.offers.offer(sample.sourceId, sample.pointer, target ? this.candidateOf(sample, target) : undefined);
+    }
+    for (const sourceId of sources) this.offers.resolve(sourceId);
     for (const [key, sample] of this.samples) {
       if (sample.pointer === 'grab' && !this.features.nearDrag) continue;
       seen.add(key);
@@ -1123,7 +1180,11 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
         this.pointers.set(key, pointer);
       }
       pointer.last = sample;
-      const target = this.resolveTarget(sample);
+      // A pointer that does not own its source (an interactable's touch took
+      // the hand, or another kind of pointer holds it) hovers, presses and
+      // drags nothing here: it is treated as reaching no panel.
+      const owned = this.offers.owns(sample.sourceId, sample.pointer);
+      const target = owned ? this.resolveTarget(sample) : undefined;
       this.applyHover(pointer, this.hover.update(key, target));
       switch (sample.pointer) {
         case 'touch':
@@ -1137,6 +1198,10 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
           this.edge(pointer, sample.active === true, target && this.onTitlebar(target) ? target : undefined);
           break;
       }
+      // The selection lock: a pressing pointer keeps its source.
+      const pressing = sample.pointer === 'touch' ? pointer.touch?.held === true : pointer.edge?.isPressed === true;
+      this.offers.setSelecting(sample.sourceId, sample.pointer, pressing);
+      if (pressing && owned) presented.get(sample.sourceId)!.selecting = true;
     }
     this.samples.clear();
     for (const [key, pointer] of [...this.pointers]) {
@@ -1150,7 +1215,57 @@ export class NativeWindowHost implements WindowHost, SceneTarget {
         pointer.edge.update(false, undefined, this.sinkFor(pointer), NativeWindowHost.SAME_TARGET);
       }
       this.pointers.delete(key);
+      this.offers.offer(pointer.sourceId, pointer.kind, undefined);
+      this.offers.setSelecting(pointer.sourceId, pointer.kind, false);
+      this.offers.resolve(pointer.sourceId);
+      // A source that stopped reporting is presented once more, with nothing to draw.
+      if (!presented.has(pointer.sourceId)) presented.set(pointer.sourceId, { hasRay: false, selecting: false });
     }
+    this.presentPointers(presented);
+  }
+
+  /**
+   * Hand the host each source's ray and cursor drawing. Only while this host
+   * owns the arbiter: with a shared one the Interactions binding presents
+   * every source, panel cursor included. The drawing is the core's
+   * (`PanelPointerOffers.present`); nothing is decided here.
+   */
+  private presentPointers(presented: Map<string, { hasRay: boolean; selecting: boolean }>): void {
+    const input = this.input;
+    if (!this.offers.ownArbiter || !input?.applyPointerVisuals) return;
+    for (const [sourceId, shown] of presented) {
+      input.applyPointerVisuals(sourceId, this.offers.present(sourceId, shown.hasRay, shown.selecting, this.pointerDisplay));
+    }
+  }
+
+  /** The pointer display settings this host presents with while it owns the arbiter. Change them with `set`. */
+  getPointerDisplay(): PointerDisplay {
+    return this.pointerDisplay;
+  }
+
+  /**
+   * What this sample offers the arbiter: the panel, the point the cursor
+   * sits at, and the distance IWSDK's pointer of that kind would compare
+   * (the host's `distance`, else derived: the ray parameter from `ray` and
+   * `point`, the unsigned `signedDistance` for a touch, 0 for a grab).
+   */
+  private candidateOf(sample: NativePointerSample, target: Target): PanelPointerCandidate {
+    // A hit with no measured point is a host defect the contract names; it is
+    // still offered (at the ray's origin, or the world origin) so the press
+    // machines behave as before, rather than silently losing the panel.
+    const point = sample.point ?? sample.ray?.origin ?? [0, 0, 0];
+    let distance = sample.distance;
+    if (distance === undefined) {
+      if (sample.pointer === 'ray' && sample.ray && sample.point) {
+        const o = sample.ray.origin;
+        distance = Math.hypot(point[0] - o[0], point[1] - o[1], point[2] - o[2]);
+      } else if (sample.pointer === 'touch' && sample.signedDistance !== undefined) {
+        distance = Math.abs(sample.signedDistance);
+      } else {
+        distance = 0;
+      }
+    }
+    return { panelId: target.panel.id, point: [point[0], point[1], point[2]], distance };
   }
 
   /**

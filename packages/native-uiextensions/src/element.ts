@@ -25,6 +25,7 @@ export class NativeUixElement implements UixElement {
   readonly children: NativeUixElement[];
   private readonly context: NativeElementContext;
   private readonly listeners = new Map<string, Set<(event?: unknown) => void>>();
+  private readonly callbacks = new Map<string, (...args: unknown[]) => void>();
 
   constructor(node: NativeElementNode, context: NativeElementContext) {
     this.handle = node.handle;
@@ -53,8 +54,35 @@ export class NativeUixElement implements UixElement {
     forType.add(listener);
   }
 
+  /**
+   * Only plain data crosses to the native app. A function-valued property is
+   * a callback (uikit's `onValueChange` on an `Input`, for one) and stays
+   * here, where the binding calls it; setting it to `undefined` or `null`
+   * removes it. Everything else is sent to the host as element state.
+   */
   setProperties(props: Record<string, unknown>): void {
-    this.context.setProperties(this.handle, props);
+    const data: Record<string, unknown> = {};
+    let hasData = false;
+    for (const [key, value] of Object.entries(props)) {
+      if (typeof value === 'function') {
+        this.callbacks.set(key, value as (...args: unknown[]) => void);
+      } else if ((value === undefined || value === null) && this.callbacks.has(key)) {
+        this.callbacks.delete(key);
+      } else {
+        data[key] = value;
+        hasData = true;
+      }
+    }
+    if (hasData) this.context.setProperties(this.handle, data);
+  }
+
+  /**
+   * Calls the callback property `name`, if the app set one. Called by the
+   * host binding where uikit itself would call it; not part of the
+   * `UixElement` contract, so app code never calls it directly.
+   */
+  call(name: string, ...args: unknown[]): void {
+    this.callbacks.get(name)?.(...args);
   }
 
   /**

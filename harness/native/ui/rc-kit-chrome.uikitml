@@ -1,0 +1,22 @@
+<style>
+  .uix-window { display: flex; flex-direction: column; width: 100%; background-color: #101c2b; border-radius: 12; }
+  .uix-titlebar { display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 8; background-color: #1a2f47; }
+  .uix-title { font-size: 12; font-weight: bold; color: #dce9f7; }
+  .uix-titlebar-buttons { display: flex; flex-direction: row; }
+  .uix-titlebar-button { padding: 4; margin-left: 4; font-size: 10; color: #dce9f7; background-color: #24405e; }
+  .uix-content { display: flex; flex-direction: column; width: 100%; padding: 10; }
+</style>
+<div id="uix-window" class="uix-window">
+  <div id="uix-titlebar" class="uix-titlebar">
+    <span id="uix-title" class="uix-title">.</span>
+    <div class="uix-titlebar-buttons">
+      <div id="uix-pin" class="uix-titlebar-button">PIN</div>
+      <div id="uix-dock" class="uix-titlebar-button">DOCK</div>
+      <div id="uix-minimize" class="uix-titlebar-button">MIN</div>
+      <div id="uix-close" class="uix-titlebar-button">X</div>
+    </div>
+  </div>
+  <div id="uix-content" class="uix-content">
+    <span id="kit-body">kit</span>
+  </div>
+</div>

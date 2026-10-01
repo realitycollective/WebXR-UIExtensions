@@ -2,7 +2,7 @@
 
 Windowing, docking, layout regions and extra controls for [Meta's Immersive Web SDK](https://iwsdk.dev) (`@iwsdk/core`).
 
-**This is the Meta IWSDK adapter** - and the reference implementation - for the engine-free [`@realitycollective/webxr-uiextensions`](../webxr-uiextensions/README.md) core, which it re-exports in full: one dependency gets IWSDK apps the whole surface. (A sibling [`@realitycollective/xrblocks-uiextensions`](../xrblocks-uiextensions/README.md) adapter binds the same core to Google XR Blocks, experimentally.)
+**This is the Meta IWSDK adapter** - and the reference implementation - for the engine-free [`@realitycollective/webxr-uiextensions`](../webxr-uiextensions/README.md) core, which it re-exports in full: one dependency gets IWSDK apps the whole surface. Sibling adapters bind the same core to plain three.js ([`@realitycollective/threejs-uiextensions`](../threejs-uiextensions/README.md)), Google XR Blocks ([`@realitycollective/xrblocks-uiextensions`](../xrblocks-uiextensions/README.md), experimental) and native apps ([`@realitycollective/native-uiextensions`](../native-uiextensions/README.md)).
 
 **Reuse, not recreation.** The IWSDK already ships an excellent spatial UI stack - UIKitML markup, `@pmndrs/uikit` rendering, `Follower`/`ScreenSpace` anchoring, grab/ray/poke interaction. This package adds the missing layer above it:
 
@@ -13,6 +13,8 @@ Windowing, docking, layout regions and extra controls for [Meta's Immersive Web 
 | **Dock states** | `world-locked` (place in space) ⇄ `body-follow` (lazy follow) ⇄ `head-locked`, realised with the IWSDK's own `Follower`/`ScreenSpace` |
 | **Manipulation** | Drag windows by the title bar with the far ray or a near grab (controller squeeze, hand pinch), powered by `@pmndrs/handle`, the same library behind IWSDK grabbing; billboard-while-dragging, drop-to-dock |
 | **Layout regions** | Named regions (row / column / grid slots) windows snap into; regions can themselves follow the player |
+| **Shared pointers** | `registerUIExtensions(world, { pointers })` registers `UIPointerOfferSystem`, which offers each hand's panel candidates to the `PointerArbiter` the Interactions binding uses, so one pointer per hand is decided across panels and interactables, as IWSDK's own `MultiPointer` does |
+| **Follow and placement** | `WindowManager.setFollow(id, options)` and the core's `stepFollow`, proved frame for frame against IWSDK's own `Follower`; focus bias and region slots by the same core rules every platform runs |
 | **Controls** | `<uix-*>` custom-element upgrades: **stepper**, **toggle**, **expandable multi-line label**, **log/list view** - plus everything UIKitML already has (buttons, inputs, textareas, images, and the horizon kit's Slider/Checkbox/…) |
 
 Everything is authored in plain UIKitML (HTML/CSS-like) - no new markup language, no custom renderer, no wrapper widgets around things the IWSDK already does.
@@ -46,7 +48,7 @@ createDockRegion(world, { id: 'wall', flow: 'column', position: [1.5, 1.8, -1.5]
 createUIWindow(world, {
   id: 'status',
   title: 'Player Status',
-  config: './ui/status.uikitml', // UIKitML source; IWSDK 0.5 parses it at runtime
+  config: './ui/status.uikitml', // UIKitML source; IWSDK parses it at runtime
   dockMode: DockMode.BodyFollow,   // follows until the user pins it
   pinnable: true,                  // title-bar buttons are off unless asked for
   minimizable: true,
@@ -95,7 +97,7 @@ A control is a custom element, `<uix-stepper>`, `<uix-toggle>`, `<uix-expandable
 </uix-stepper>
 ```
 
-IWSDK 0.5 validates every tag against a component schema, so a world whose panels use controls must register the set, or the panel fails to parse and never attaches:
+IWSDK validates every tag against a component schema (since 0.5), so a world whose panels use controls must register the set, or the panel fails to parse and never attaches:
 
 ```ts
 import { uixComponentSet } from '@realitycollective/iwsdk-uiextensions';
@@ -152,7 +154,7 @@ Use `HAND_MENU_SNIPPET` from the core as the markup starting point: the same `ui
 
 ### Driving windows from code
 
-`registerUIExtensions` returns the `WindowManager`, and it is the one API app code needs to change a window - a hand menu, a keyboard shortcut, a voice command. Every call is applied by the systems, and the same calls work on the XR Blocks adapter:
+`registerUIExtensions` returns the `WindowManager`, and it is the one API app code needs to change a window - a hand menu, a keyboard shortcut, a voice command. Every call is applied by the systems, and the same calls work on every adapter:
 
 | Call | Effect |
 | --- | --- |
@@ -164,7 +166,6 @@ Use `HAND_MENU_SNIPPET` from the core as the markup starting point: the same `ui
 | `setChrome(id, { pin, dock, minimize, close })` | Enable or disable title-bar buttons at runtime |
 | `focus(id)` | Bring to the front |
 | `close(id)` | Destroy the window's entity |
-
 | `setHandMenu(id, { hand, anchor, ... })` | Move a hand menu to the other hand or another anchor |
 
 The record is always what the scene shows: a drag that docks a window, or a PIN click, is written back into `windows.get(id)`, and every change emits a typed event (`hidden`, `shown`, `regionChanged`, `returnHome`, `chromeChanged`, `handMenuChanged`, alongside the existing ones) so a menu can keep its labels honest. See `Examples/basic-window/`.
@@ -236,4 +237,4 @@ All decision logic (window manager, dock state machine, region slot math, drag m
 
 ## License
 
-MIT © Reality Collective
+MIT - see [LICENSE](./LICENSE).

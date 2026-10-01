@@ -81,4 +81,4 @@ The demo's `vite.config.ts` must allow the tunnel host and, when driven by the C
 
 ## License
 
-MIT © Reality Collective
+MIT - see [LICENSE](./LICENSE).

@@ -2,11 +2,21 @@
 
 The native app adapter for [`@realitycollective/webxr-uiextensions`](../webxr-uiextensions/README.md): the same `WindowManager`, `data-uix` controls and `WindowHost` contract, bound to a **native** host - an OpenXR (Quest) or visionOS (CompositorServices) app that embeds a JavaScript engine such as Hermes, renders panels itself and installs one object, `globalThis.__rcHost`.
 
-> **Maturity:** headless-tested against a reference fake host. The host conformance kit this package ships is what proves a real native host on its device.
+```sh
+npm install @realitycollective/native-uiextensions
+```
+
+It re-exports everything from the core, so this is the only UI Extensions package your app needs.
+
+## Tested on a headset
+
+A native app built with this package passed on a Meta Quest 3 on 1 October 2026, played by a person and checked by its conformance kit.
+
+Known issue on native: the system keyboard for a text field opens outside the wearer's view on a Quest 3, so text cannot be typed yet. Pressing a field focuses it and asks for the keyboard as it should; where Horizon OS places the keyboard is the host's to fix.
 
 ## A host is handed results, not rules
 
-On IWSDK, five ECS systems apply the core's window rules to the engine. A native host has no such systems, and a host that re-derives the rules drifts from the web. So everything those systems do runs in this package, from the same core logic, and the host only renders, measures and reports:
+On IWSDK, ECS systems apply the core's window rules to the engine. A native host has no such systems, and a host that re-derives the rules drifts from the web. So everything those systems do runs in this package, from the same core logic, and the host only renders, measures and reports:
 
 | IWSDK system | What this package does in its place |
 | --- | --- |
@@ -19,6 +29,8 @@ On IWSDK, five ECS systems apply the core's window rules to the engine. A native
 | `UIControlsSystem` | Every panel's `data-uix` controls are upgraded, keyed by the panel root, so a portable client's own `upgradePanel(panel.root, panel.root)` returns the same handles. |
 
 The host receives `setWindowPose` for placement, `applyWindow` for the shown flag and `setProperties` for element state. It reports panels ready, hover and pointer samples. It never places a window or decides a press.
+
+With `pointers` (the `PointerArbiter` shared with `@realitycollective/native-interactions`) every `onPointerSample` is offered to the one pointer decision per hand, the press machines run only while that pointer owns its source, and the panel cursor reaches the host through the Interactions binding's `applyPointerVisuals` with `targetKind: "panel"`. Without `pointers`, an app with windows and no interactables, the window host presents the pointers itself: each frame it hands the host every source's ray and cursor through the `input` slice's `applyPointerVisuals`, shaped by the app's `pointerDisplay` settings, so the app shows where it points as it does on the web. `NativePointerSample.distance` is the distance IWSDK's pointer of that kind compares. `showKeyboard` states what a host that cannot observe the keyboard's dismissal reports as `keyboardclosed`.
 
 ## The `ui` slice this package reads
 
@@ -57,6 +69,12 @@ The head and hands come from the `input` slice (`getHeadPose()`, and `sample()` 
 
 Every slice is read by injection, or by falling back to `globalThis.__rcHost`. A missing `ui` slice throws one clear error at construction.
 
+## Panels with controls
+
+Whatever turns the app's UIKitML into what the host draws (a build-time cook step, or a parser in the host) must accept every `<uix-*>` element in the core's `UIX_ELEMENT_TAGS` as a plain container, report its tag as the element's `componentName`, and keep its `data-*` attributes. IWSDK's validating parser needs the same declaration on the web (`uixComponentSet`); a loader without it rejects any panel that uses a stepper, toggle, expandable label or log view.
+
+Only plain data crosses to the host. A function-valued element property, such as the `onValueChange` an app sets on a text field, stays in this binding, which calls it when the keyboard reports text, as uikit's `Input` does on the web.
+
 ## Usage
 
 ```ts
@@ -83,7 +101,7 @@ handle.onReady((panel) => {
 
 ## Proving a host: the conformance kit
 
-`nativeUiHostConformanceCases()` returns the host cases, as runner-free data named `ui/<master row>`. A native app runs them on its device against its real `ui` slice, with the test readbacks of `NativeUiTestHost` (`windowPose`, `windowHidden`, `elementProperties`, `measureTouch`) installed in a test build:
+`nativeUiHostConformanceCases()` returns the host cases, as runner-free data named `ui/<row>`. A native app runs them on its device against its real `ui` slice, with the test readbacks of `NativeUiTestHost` (`windowPose`, `windowHidden`, `elementProperties`, `measureTouch`) installed in a test build:
 
 ```ts
 import { nativeUiHostConformanceCases } from '@realitycollective/native-uiextensions';
@@ -98,3 +116,7 @@ Each case drives the real host through this package with a scripted head and han
 ## Testing
 
 `test/helpers/fake-native-ui-host.ts` is a reference fake of the `ui` slice that behaves as a correct host would and implements the test readbacks. `test/binding-rules.test.ts` holds one binding case per rule this package now applies, `test/host-conformance.test.ts` runs the conformance kit against the fake (and checks it fails a host that misplaces a window or drops the sign of a touch distance), and `test/host.test.ts` runs the shared `windowHostContractCases()` and `sceneTargetContractCases()`.
+
+## License
+
+MIT - see [LICENSE](./LICENSE).

@@ -121,6 +121,8 @@ describe('connectWebXrPointerInput', () => {
     mesh.addEventListener('pointerup', (e) => ups.push(e));
 
     const input = connectWebXrPointerInput({ renderer: { xr }, bridge });
+    // A press needs this frame's decision: the ray owns the source once update() has offered its hit.
+    input.update();
     (controllers[0] as unknown as { dispatchEvent(e: { type: string }): void }).dispatchEvent({ type: 'selectstart' });
     expect(downs).toHaveLength(1);
     (controllers[0] as unknown as { dispatchEvent(e: { type: string }): void }).dispatchEvent({ type: 'selectend' });
@@ -153,6 +155,7 @@ describe('connectWebXrPointerInput', () => {
     const bridge = new ScenePointerBridge();
     const mesh = wirePanel(bridge, [0, 0, -1]);
     // The grip (not the controller/ray) is where a near/grab press is sampled from.
+    grips[0]!.visible = true;
     grips[0]!.position.set(0, 0, -1.05); // within the default 0.12 m grab distance
     grips[0]!.updateMatrixWorld(true);
 
@@ -161,6 +164,8 @@ describe('connectWebXrPointerInput', () => {
 
     const input = connectWebXrPointerInput({ renderer: { xr }, bridge });
     const dispatch = (type: string) => (controllers[0] as unknown as { dispatchEvent(e: { type: string }): void }).dispatchEvent({ type });
+    // The grip's panel is offered on update(); the squeeze then presses while the grab owns the source.
+    input.update();
     dispatch('squeezestart');
     expect(downs).toHaveLength(1);
     dispatch('squeezeend');

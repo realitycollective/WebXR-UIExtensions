@@ -6,12 +6,17 @@ web_modules/
 # Build output
 dist/
 build/Release
+harness/native/build/
 *.tsbuildinfo
 
 # Test output
 coverage/
 *.lcov
 .nyc_output/
+
+# Local run output - never commit: agent scratch files and recorded input traces
+.scratch/
+/traces/
 
 # Logs
 logs/

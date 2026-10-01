@@ -13,7 +13,11 @@
     "windowing",
     "spatial-ui",
     "uikitml",
-    "typescript"
+    "typescript",
+    "hand-menu",
+    "pointer",
+    "docking",
+    "conformance"
   ],
   "license": "MIT",
   "author": "Reality Collective",
@@ -36,6 +40,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@realitycollective/webxr-input": "^0.1.8",
     "@realitycollective/webxr-uiextensions": "^0.1.1-preview.3"
   },
   "devDependencies": {

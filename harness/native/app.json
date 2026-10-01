@@ -1,0 +1,26 @@
+{
+  "id": "rc-uiextensions-harness",
+  "name": "RC UI Extensions Harness",
+  "applicationId": "com.realitycollective.harness.uiextensions",
+  "version": "0.1.1",
+  "versionCode": 1,
+  "entry": "entry.ts",
+  "web": "../..",
+  "content": {
+    "ui": "./ui",
+    "files": [
+      { "from": "../../demos/showcase/public/images/nebula.png", "to": "images/nebula.png" }
+    ]
+  },
+  "targets": [
+    "quest"
+  ],
+  "capabilities": [
+    "handTracking"
+  ],
+  "checks": {
+    "run": [
+      { "mode": "kits", "ticks": 600 }
+    ]
+  }
+}

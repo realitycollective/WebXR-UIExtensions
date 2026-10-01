@@ -204,7 +204,7 @@ describe('scrolling and text entry are core rules; the host only draws and types
     const fake = createFakeNativeUiHost();
     const input = scriptedInput();
     const host = new NativeWindowHost({ host: fake, input });
-    host.createWindow({ id: 'w', config: SCROLL_TREE });
+    const win = host.createWindow({ id: 'w', config: SCROLL_TREE });
     fake.readyWindow('w', 'panel-w', SCROLL_TREE);
     const handle = (elementId: string) => fake.handleOf('panel-w', elementId);
     const ray = (elementId: string | null, active: boolean, localPoint?: [number, number]) =>
@@ -218,7 +218,7 @@ describe('scrolling and text entry are core rules; the host only draws and types
         active,
         ...(localPoint ? { localPoint } : {}),
       });
-    return { fake, host, handle, ray, frame: (dt = 1 / 60) => host.update(dt) };
+    return { fake, host, handle, ray, frame: (dt = 1 / 60) => host.update(dt), panel: () => win.panel! };
   }
 
   it('a ray held on a scrolling element drags its content by the move of the hit point, coasts on release, and stops when the pointer goes', () => {
@@ -290,9 +290,15 @@ describe('scrolling and text entry are core rules; the host only draws and types
   });
 
   it('a click on a text field asks the host for the keyboard with its value, typed text lands on the element, and closing ends entry', () => {
-    const { fake, host, handle, ray, frame } = scrollSetup();
-    const changes = listen(host.createPanel(SCROLL_TREE), 'name', 'valueChanged');
-    void changes;
+    const { fake, host, handle, ray, frame, panel: windowPanel } = scrollSetup();
+    // The window's own panel: the one the keyboard types into.
+    const panel = windowPanel();
+    const changes = listen(panel, 'name', 'valueChanged');
+    // The app binds the field as it does on the web: uikit's `onValueChange` callback property.
+    const typed: string[] = [];
+    (panel as unknown as { getElementById(id: string): { setProperties(props: Record<string, unknown>): void } })
+      .getElementById('name')
+      .setProperties({ onValueChange: (value: string) => typed.push(value) });
     frame();
     ray('name', false, [10, 10]);
     frame();
@@ -303,6 +309,9 @@ describe('scrolling and text entry are core rules; the host only draws and types
     expect(fake.keyboardCalls).toEqual([{ panelId: 'panel-w', elementHandle: handle('name'), value: 'Ada', multiline: false, type: 'text' }]);
     fake.typeText('panel-w', handle('name'), 'Ada L');
     expect(fake.elementProperties('w', 'name')).toEqual({ value: 'Ada L' });
+    // The callback never crossed to the host, and both the callback and the event carry the typed value.
+    expect(typed).toEqual(['Ada L']);
+    expect(changes).toEqual([{ value: 'Ada L' }]);
     fake.closeKeyboard();
     fake.typeText('panel-w', handle('name'), 'gone');
     expect(fake.elementProperties('w', 'name')).toEqual({ value: 'Ada L' });

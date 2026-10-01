@@ -26,12 +26,16 @@
     "dev:playground": "npm --workspace uix-devtools-playground run dev",
     "dev:multiplatform": "npm --workspace webxr-multiplatform-demo run dev",
     "dev:live": "npm --workspace @realitycollective/uix-devtools run build && node packages/uix-devtools/bin/uix-dev.mjs tunnel --cwd demos/devtools-playground",
-    "smoke": "node scripts/smoke-deploy.mjs"
+    "smoke": "node scripts/smoke-deploy.mjs",
+    "harness:ui": "node harness/native/scripts/write-ui.mjs",
+    "harness:compile": "tsc -p harness/native/tsconfig.json --noEmit && node harness/native/compile.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.1.8",
+    "esbuild": "^0.28.2",
+    "hermes-compiler": "^250829098.0.19",
     "jsdom": "^27.4.0",
     "playwright-core": "^1.61.1",
     "publint": "^0.3.24",

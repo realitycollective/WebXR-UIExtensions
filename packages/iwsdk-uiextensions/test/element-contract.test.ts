@@ -5,7 +5,8 @@
  * tree, properties and events do not.
  */
 import { instantiate, parse } from '@drawcall/uikitml';
-import { CONTRACT_PANEL_MARKUP, type UixElement } from '@realitycollective/webxr-uiextensions';
+import { describe, expect, it } from 'vitest';
+import { CONTRACT_PANEL_MARKUP, UIX_ELEMENT_TAGS, type UixElement } from '@realitycollective/webxr-uiextensions';
 import { uixElementContract } from '../../webxr-uiextensions/test/helpers/uix-element-contract.js';
 import { uixComponentSet } from '../src/component-set.js';
 
@@ -24,4 +25,10 @@ uixElementContract('IWSDK', () => {
       fire: (element, type) => (element as unknown as UikitElement).dispatchEvent({ type }),
     },
   };
+});
+
+describe('uixComponentSet', () => {
+  it('declares exactly the element vocabulary the core publishes', () => {
+    expect(Object.keys(uixComponentSet)).toEqual([...UIX_ELEMENT_TAGS]);
+  });
 });

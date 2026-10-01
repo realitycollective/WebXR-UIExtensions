@@ -21,6 +21,7 @@
 import { Quaternion, Vector3, type Object3D, type PerspectiveCamera } from 'three';
 import type { HandPoseSource, HeadPose, HeadPoseSource } from '@realitycollective/webxr-uiextensions';
 import type { Kit } from '@pmndrs/uikitml';
+import type { PointerArbiter } from '@realitycollective/webxr-input';
 import { UixWindowHost } from './host.js';
 import type { XrBlocksRayInputAccess } from './ray-input.js';
 
@@ -45,6 +46,12 @@ export interface EngineContext {
    * point-delta - see `pointer-bridge.ts`'s `beginTitlebarDrag`.
    */
   input?: XrBlocksRayInputAccess;
+  /**
+   * The app's shared pointer arbiter (the Interactions runtime's). Panels
+   * offer their touch, grab and ray candidates to it and act only with a
+   * pointer kind it says owns the source. Also needs `input` for rays.
+   */
+  pointers?: PointerArbiter;
 }
 
 /**
@@ -119,5 +126,6 @@ export function connectUIExtensions(context: EngineContext): UixWindowHost {
     ...(context.xr ? { handPose: webxrHandPoseSource(context.xr) } : {}),
     ...(context.kit ? { kit: context.kit } : {}),
     ...(context.input ? { rayInput: context.input } : {}),
+    ...(context.pointers ? { pointers: context.pointers } : {}),
   });
 }

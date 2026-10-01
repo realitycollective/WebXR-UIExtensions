@@ -19,11 +19,12 @@
  *   touch poll and ray hover/cursor reads the controller/hand objects' live
  *   world pose, which three already keeps current.
  */
-import { HoverTracker } from '@realitycollective/webxr-uiextensions';
+import { HoverTracker, PANEL_GRAB_RADIUS, PanelPointerOffers } from '@realitycollective/webxr-uiextensions';
+import type { PointerArbiter } from '@realitycollective/webxr-input';
 import { Quaternion, Vector3, type Object3D, type PerspectiveCamera } from 'three';
 import type { HandPoseSource, HeadPose, HeadPoseSource, QuatTuple, Vec3Tuple } from '@realitycollective/webxr-uiextensions';
 import { CursorVisual, type CursorVisualOptions } from './cursor-visual.js';
-import type { ScenePointerBridge } from './pointer-bridge.js';
+import type { ProximityHit, RayHit, ScenePointerBridge } from './pointer-bridge.js';
 
 /**
  * The slice of three's `WebXRManager` (`renderer.xr`) this module needs.
@@ -146,6 +147,16 @@ export interface ConnectWebXrPointerInputOptions {
   scene?: Object3D;
   /** Cursor disc radius/offset. Ignored with no `scene`. */
   cursor?: CursorVisualOptions;
+  /**
+   * The pointer arbiter shared with `createThreeInteractions({ pointers })`:
+   * one decision per source over panels and interactables (the core
+   * `PanelPointerOffers`). This module then offers each controller's ray
+   * hit, each fingertip's panel and each grip's panel, and hovers, presses
+   * and touches only while it owns the source; the Interactions binding
+   * draws the panel cursor, so no disc is drawn here. Omit for a UI-only
+   * app: the host owns every source and draws its own cursors.
+   */
+  pointers?: PointerArbiter;
 }
 
 /**
@@ -189,38 +200,55 @@ export function connectWebXrPointerInput(options: ConnectWebXrPointerInputOption
   /** Controller/grip -> the target its press resolved to, so release ends the SAME gesture even if the ray has since moved off it. */
   const activePress = new Map<Object3D, Object3D>();
   const hover = new HoverTracker<Object3D>();
-  /** One cursor disc per controller slot, `undefined` when no `scene` was given (cursors skipped). */
-  const cursors: Array<CursorVisual> | undefined = options.scene
+  const offers = new PanelPointerOffers(options.pointers);
+  /** One cursor disc per controller slot, `undefined` when no `scene` was given, or when the Interactions binding draws the cursors (a shared arbiter). */
+  const cursors: Array<CursorVisual> | undefined = options.scene && offers.ownArbiter
     ? Array.from({ length: controllerCount }, () => new CursorVisual(options.scene!, options.cursor))
     : undefined;
+  /** The arbiter's name for a slot: the session input source's handedness, which the Interactions runtime aliases to its own id. */
+  const keyOf = (index: number): string => {
+    const source = renderer.xr.getSession()?.inputSources?.[index];
+    const handedness = source?.handedness;
+    return handedness === 'left' || handedness === 'right' ? handedness : `slot:${index}`;
+  };
+  /** Squared distance helper for a ray hit's parameter. */
+  const distanceAlong = (from: Vec3Tuple, to: Vec3Tuple): number => Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
 
   for (let index = 0; index < controllerCount; index += 1) {
     const controller = renderer.xr.getController(index);
     const grip = renderer.xr.getControllerGrip(index);
 
     const onSelectStart = (): void => {
+      // A press only while the ray owns this source (the arbiter's decision
+      // over panels and interactables); the lock then keeps it until release.
+      if (!offers.owns(keyOf(index), 'ray')) return;
       const hit = bridge.rayHit(worldPositionOf(controller), worldRayDirectionOf(controller));
       if (hit) {
         activePress.set(controller, hit);
+        offers.setSelecting(keyOf(index), 'ray', true);
         bridge.pointerDown(hit, { controller });
       }
     };
     const onSelectEnd = (): void => {
       const hit = activePress.get(controller);
+      offers.setSelecting(keyOf(index), 'ray', false);
       if (hit) {
         bridge.pointerUp(hit);
         activePress.delete(controller);
       }
     };
     const onSqueezeStart = (): void => {
+      if (!offers.owns(keyOf(index), 'grab')) return;
       const hit = bridge.touchHit(worldPositionOf(grip), grabDistance);
       if (hit) {
         activePress.set(grip, hit.target);
+        offers.setSelecting(keyOf(index), 'grab', true);
         bridge.pointerDown(hit.target, { hand: grip });
       }
     };
     const onSqueezeEnd = (): void => {
       const hit = activePress.get(grip);
+      offers.setSelecting(keyOf(index), 'grab', false);
       if (hit) {
         bridge.pointerUp(hit);
         activePress.delete(grip);
@@ -240,15 +268,35 @@ export function connectWebXrPointerInput(options: ConnectWebXrPointerInputOption
   }
 
   function update(): void {
-    // Hover (and the cursor disc, ui/pointer-cursor): one ray cast per
-    // visible controller serves both - the hover target diffed against last
-    // frame's, and the disc shown at the SAME hit (or hidden with none),
-    // never gated on hover/focus state.
+    // Offers first: what each slot's ray, fingertip and grip reach on a
+    // panel this frame goes to the arbiter, which decides per source across
+    // panels and interactables; the hover, cursor, press and touch below act
+    // only while this host owns the source with that pointer.
+    const rayHits = new Map<number, RayHit | undefined>();
+    const touchHits = new Map<number, ProximityHit | undefined>();
     for (let index = 0; index < controllerCount; index += 1) {
       const controller = renderer.xr.getController(index);
-      const detail = controller.visible
-        ? bridge.rayCast(worldPositionOf(controller), worldRayDirectionOf(controller))
-        : undefined;
+      const origin = worldPositionOf(controller);
+      const detail = controller.visible ? bridge.rayCast(origin, worldRayDirectionOf(controller)) : undefined;
+      rayHits.set(index, detail);
+      const key = keyOf(index);
+      offers.offer(key, 'ray', detail ? { panelId: panelIdOf(detail.target), point: detail.point, distance: distanceAlong(origin, detail.point) } : undefined);
+      const hand = renderer.xr.getHand(index);
+      const tip = hand.visible ? hand.joints['index-finger-tip'] : undefined;
+      const touch = tip ? bridge.touchHit(worldPositionOf(tip), touchDistance) : undefined;
+      touchHits.set(index, touch);
+      offers.offer(key, 'touch', touch && tip ? { panelId: panelIdOf(touch.target), point: worldPositionOf(tip), distance: Math.abs(touch.signedDistance) } : undefined);
+      const grip = renderer.xr.getControllerGrip(index);
+      const near = grip.visible ? bridge.touchHit(worldPositionOf(grip), PANEL_GRAB_RADIUS) : undefined;
+      offers.offer(key, 'grab', near ? { panelId: panelIdOf(near.target), point: worldPositionOf(grip), distance: Math.abs(near.signedDistance) } : undefined);
+      offers.resolve(key);
+    }
+
+    // Hover (and, with no shared arbiter, the cursor disc, ui/pointer-cursor):
+    // the ray's hit this frame, while the ray owns the source.
+    for (let index = 0; index < controllerCount; index += 1) {
+      const controller = renderer.xr.getController(index);
+      const detail = offers.owns(keyOf(index), 'ray') ? rayHits.get(index) : undefined;
       // Hover per element is the core rule (`HoverTracker`): each pointer
       // raises enter and leave on the element it moves onto and off, as
       // IWSDK's pointer events do for uikit's :hover.
@@ -264,17 +312,20 @@ export function connectWebXrPointerInput(options: ConnectWebXrPointerInputOption
 
     // Touch: every tracked hand's index-finger-tip, every frame - handIndex
     // addresses the same slot a controller-tip poke would, so both
-    // press through one shared `TouchPress` sequence per slot.
+    // press through one shared `TouchPress` sequence per slot. A fingertip
+    // whose source another pointer owns (an interactable's touch, a held
+    // ray) touches no panel.
     for (let index = 0; index < controllerCount; index += 1) {
-      const hand = renderer.xr.getHand(index);
-      const tip = hand.visible ? hand.joints['index-finger-tip'] : undefined;
-      if (!tip) {
-        bridge.touch(index, undefined);
-        continue;
-      }
-      const hit = bridge.touchHit(worldPositionOf(tip), touchDistance);
+      const hit = offers.owns(keyOf(index), 'touch') ? touchHits.get(index) : undefined;
       bridge.touch(index, hit ? { signedDistance: hit.signedDistance, target: hit.target } : undefined);
+      offers.setSelecting(keyOf(index), 'touch', bridge.isTouchPressed(index));
     }
+  }
+
+  /** The panel a hit element belongs to, for the arbiter's candidate: the registered root's uuid. */
+  function panelIdOf(element: Object3D): string {
+    const root = bridge.rootOf(element);
+    return root ? root.uuid : element.uuid;
   }
 
   function dispose(): void {
@@ -283,6 +334,7 @@ export function connectWebXrPointerInput(options: ConnectWebXrPointerInputOption
     activePress.clear();
     hover.clear();
     for (const cursor of cursors ?? []) cursor.dispose();
+    offers.dispose();
   }
 
   return { update, dispose };

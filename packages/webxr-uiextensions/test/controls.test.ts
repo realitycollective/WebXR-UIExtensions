@@ -5,7 +5,7 @@ import { StepperHandle } from '../src/controls/stepper.js';
 import { ToggleHandle } from '../src/controls/toggle.js';
 import { ExpandableLabelHandle } from '../src/controls/expandable-label.js';
 import { LogViewHandle } from '../src/controls/log-view.js';
-import { panelControlsFor, upgradePanel } from '../src/controls/upgrade.js';
+import { UIX_CONTROL_TAGS, UIX_ELEMENT_TAGS, UIX_ROLE_TAGS, panelControlsFor, upgradePanel } from '../src/controls/upgrade.js';
 
 /** Minimal stand-in for a uikit element tree. */
 class FakeElement implements UixElement {
@@ -97,6 +97,19 @@ describe('upgradePanel', () => {
     const first = upgradePanel(doc, root);
     const second = upgradePanel(doc, root);
     expect(second).toBe(first);
+  });
+
+  it('publishes the element vocabulary a panel loader must accept: every control and every role, once each', () => {
+    expect(UIX_ELEMENT_TAGS).toEqual([...UIX_CONTROL_TAGS, ...UIX_ROLE_TAGS]);
+    expect(new Set(UIX_ELEMENT_TAGS).size).toBe(UIX_ELEMENT_TAGS.length);
+    expect(UIX_ELEMENT_TAGS.every((tag) => tag.startsWith('uix-'))).toBe(true);
+    // A role on its own is accepted silently: it belongs to whichever control claims it.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const root = new FakeElement();
+    for (const tag of UIX_ROLE_TAGS) root.add(new FakeElement({ customElement: { componentName: tag } }));
+    upgradePanel({}, root);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('skips unknown markers with a warning and auto-ids anonymous controls', () => {

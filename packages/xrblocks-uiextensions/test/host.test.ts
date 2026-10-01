@@ -6,7 +6,8 @@
  * input - those need the browser demo.
  */
 import { parse } from '@pmndrs/uikitml';
-import { Group } from 'three';
+import { Group, Object3D, Quaternion, Vector3 } from 'three';
+import { PointerArbiter } from '@realitycollective/webxr-input';
 import { describe, expect, it, vi } from 'vitest';
 import { DockMode } from '@realitycollective/webxr-uiextensions';
 import type {
@@ -19,7 +20,8 @@ import type {
 import { windowHostContract } from '../../webxr-uiextensions/test/helpers/window-host-contract.js';
 import { sceneTargetContract } from '../../webxr-uiextensions/test/helpers/scene-target-contract.js';
 import { UixWindowHost } from '../src/host.js';
-import { webxrHandPoseSource } from '../src/xrblocks.js';
+import { connectUIExtensions, webxrHandPoseSource } from '../src/xrblocks.js';
+import type { XrBlocksRayInputAccess } from '../src/ray-input.js';
 
 const PANEL_SOURCE = `
 <div id="uix-window">
@@ -516,4 +518,42 @@ sceneTargetContract('XR Blocks window host', () => {
       });
     },
   };
+});
+
+describe('UixWindowHost shared pointer arbitration', () => {
+  const camera = { getWorldPosition: (v: Vector3) => v.set(0, 1.6, 0), getWorldQuaternion: (q: Quaternion) => q.set(0, 0, 0, 1) };
+  const leftController = Object.assign(new Object3D(), { inputSource: { handedness: 'left' } });
+  const input = (): XrBlocksRayInputAccess => ({
+    getFrame: () => ({ raySources: [{ controller: leftController, ray: { origin: { x: 0, y: 0, z: 0 }, direction: { x: 0, y: 0, z: -1 } } }] }),
+  });
+
+  it('connectUIExtensions passes the arbiter and ray input on: update raycasts and resolves each source', () => {
+    const pointers = new PointerArbiter();
+    const host = connectUIExtensions({ scene: new Group(), camera, input: input(), pointers });
+    host.update(0.016);
+    expect(pointers.decision('left')).toBeDefined();
+    expect(pointers.getSets().map((set) => set.id)).toContain('uix');
+  });
+
+  it('a host with no arbiter still resolves rays into an arbiter of its own', () => {
+    const host = new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, rayInput: input() });
+    expect(() => host.update(0.016)).not.toThrow();
+  });
+
+  it('refuses the input of an xrblocks older than 0.20, which has no getFrame, once and by name', () => {
+    // xrblocks 0.19's `xb.input`: no per-frame input frame, so every update would throw.
+    const old = {} as unknown as XrBlocksRayInputAccess;
+    expect(() => new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, rayInput: old })).toThrow(/xrblocks 0\.20/);
+  });
+
+  it('without ray input, or with a caller-supplied bridge, update reads no ray frame', () => {
+    const getFrame = vi.fn(() => ({ raySources: [] }));
+    const wire = vi.fn();
+    const custom = new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, rayInput: { getFrame }, pointerBridgeFactory: () => ({ wire }) });
+    custom.update(0.016);
+    expect(getFrame).not.toHaveBeenCalled();
+    const xr = { getFrame: () => null, getReferenceSpace: () => null, getSession: () => null };
+    const plain = connectUIExtensions({ scene: new Group(), camera, xr, kit: {} as never });
+    expect(() => plain.update(0.016)).not.toThrow();
+  });
 });

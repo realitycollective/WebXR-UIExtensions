@@ -19,6 +19,7 @@ import { UIDragSystem } from './systems/drag-system.js';
 import { UIDockRegionSystem } from './systems/dock-region-system.js';
 import { UIControlsSystem } from './systems/controls-system.js';
 import { UITouchGuardSystem } from './systems/touch-guard-system.js';
+import { UIPointerOfferSystem, pointerOffersFor, type PointerArbiterLike } from './systems/pointer-offer-system.js';
 import { windowManagerFor } from './manager-registry.js';
 import type { TouchPressOptions, WindowManager } from '@realitycollective/webxr-uiextensions';
 
@@ -43,6 +44,12 @@ export interface RegisterOptions {
    * unsigned-distance behaviour. See `UITouchGuardSystem`.
    */
   touchGuard?: boolean | Partial<TouchPressOptions>;
+  /**
+   * The shared pointer arbiter (the Interactions runtime's), so panels take
+   * part in the one pointer decision per hand. Without it the panel offers go
+   * to an arbiter of their own, which is harmless. See `UIPointerOfferSystem`.
+   */
+  pointers?: PointerArbiterLike;
 }
 
 export function registerUIExtensions(
@@ -69,5 +76,9 @@ export function registerUIExtensions(
     // reacts to the presses.
     world.registerSystem(UITouchGuardSystem, { priority: -3.9, configData: thresholds });
   }
+  // Straight after InputSystem (-4), before the touch guard (-3.9): offers
+  // what each pointer reaches to the shared arbiter. Gates nothing.
+  pointerOffersFor(world, options.pointers);
+  world.registerSystem(UIPointerOfferSystem, { priority: -3.95 });
   return windowManagerFor(world);
 }

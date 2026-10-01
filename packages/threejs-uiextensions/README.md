@@ -2,6 +2,12 @@
 
 Plain three.js / WebXR adapter for [`@realitycollective/webxr-uiextensions`](../webxr-uiextensions/README.md), the engine-free windowing, docking and control core for WebXR spatial UI. It hosts the same UIKitML panels, window chrome, window manager, dock regions and hand menus as the IWSDK and XR Blocks adapters, inside any three.js scene with a WebXR session, driven from the browser's WebXR APIs with no engine SDK beyond three.js itself.
 
+```sh
+npm install @realitycollective/threejs-uiextensions three
+```
+
+It re-exports everything from the core, so this is the only UI Extensions package your app needs. Peer dependency: `three >= 0.170.0`.
+
 `@realitycollective/xrblocks-uiextensions` builds directly on this package: its `UixWindowHost` is a thin subclass of this one, supplying its own interaction source (Google XR Blocks' interaction manager) in place of this package's session-driven bridge. Everything about how a window, panel or region behaves - spawn, chrome, follow mode, dock regions, hand menus, drag, focus bias - lives here, once, and both adapters run it unchanged.
 
 > **Maturity:** new. Proved headlessly (window lifecycle, follow and placement by the core rules, the shared `WindowHost`/`SceneTarget`/`UixElement` contracts, and every interaction rule against wired meshes and a faked WebXR session); it has had no on-device pass yet.
@@ -15,6 +21,8 @@ Plain three.js / WebXR adapter for [`@realitycollective/webxr-uiextensions`](../
 - **`connectWebXrPointerInput`** - wires that bridge to a live WebXR session through `renderer.xr`: `selectstart`/`selectend`/`squeezestart`/`squeezeend` on three's own controller objects for ray and near/grab press, a per-frame `index-finger-tip` joint poll for touch, and - given a `scene` - a `CursorVisual` per ray, updated from the same per-frame ray cast hover already runs.
 - **`connectUIExtensions`** - the one setup entry point: builds the host bound to a scene and camera, and, given a renderer, wires the session input above (including cursors) automatically.
 - **`configureRendererForUikit`** - the renderer settings uikit needs (transparent sort by `renderOrder`, local clipping).
+- **Shared pointers** - `connectUIExtensions({ pointers })` and `connectWebXrPointerInput({ pointers })` offer each session input source's ray, fingertip and grip candidates to the `PointerArbiter` shared with `@realitycollective/threejs-interactions`; with a shared arbiter the Interactions binding draws every cursor, panels included.
+- **Hover and scroll** - the core's `HoverTracker` and `ScrollState` rules run here, as on every platform.
 
 ## Required renderer setup (read this first)
 
@@ -109,4 +117,4 @@ Real WebXR-session raycasting against an actual UIKitML panel is not exercised h
 
 ## License
 
-MIT © Reality Collective
+MIT - see [LICENSE](./LICENSE).

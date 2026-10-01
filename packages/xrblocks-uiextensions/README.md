@@ -1,12 +1,18 @@
 # @realitycollective/xrblocks-uiextensions
 
-**EXPERIMENTAL** adapter for [Google XR Blocks](https://github.com/google/xrblocks) and plain three.js. It hosts the same [`@realitycollective/webxr-uiextensions`](../webxr-uiextensions/README.md) core as the IWSDK adapter, with the same UIKitML panels, window chrome and window manager, inside any three.js WebXR scene. An XR Blocks Script gives you exactly that kind of scene.
+**EXPERIMENTAL** adapter for [Google XR Blocks](https://github.com/google/xrblocks). It builds on [`@realitycollective/threejs-uiextensions`](../threejs-uiextensions/README.md) and hosts the same [`@realitycollective/webxr-uiextensions`](../webxr-uiextensions/README.md) core as the IWSDK adapter, with the same UIKitML panels, window chrome and window manager, inside an XR Blocks Script's three.js scene. For plain three.js without XR Blocks, use `@realitycollective/threejs-uiextensions` directly.
 
-> **Maturity:** the IWSDK adapter is the most complete one, and this adapter is built to match it. It now has nearly all the same windowing features, and its desktop path is verified in a real browser (panels render, mouse clicks reach uikit controls, WASD/jump/ crouch move the camera). It has still had NO on-device pass on Android XR hardware - treat the XR Blocks path specifically as unverified.
+```sh
+npm install @realitycollective/xrblocks-uiextensions three
+```
+
+It re-exports everything from the core, so this is the only UI Extensions package your app needs. Peer dependency: `three >= 0.170.0`; `xrblocks` itself is not a dependency.
+
+> **Maturity:** the IWSDK adapter is the most complete one, and this adapter is built to match it. It now has nearly all the same windowing features, and its desktop path is verified in a real browser (panels render, mouse clicks reach uikit controls, WASD, jump and crouch move the camera). It has still had NO on-device pass on Android XR hardware - treat the XR Blocks path specifically as unverified.
 
 ## Feature matrix vs the IWSDK adapter
 
-| Feature | IWSDK | XR Blocks / three.js (this package) |
+| Feature | IWSDK | XR Blocks (this package) |
 | --- | --- | --- |
 | UIKitML panel hosting (runtime interpret, scale-to-fit) | ✅ | ✅ `UixPanelDocument` |
 | Window lifecycle + chrome (focus/PIN/DOCK/MIN/X, all opt-in, pin labels) | ✅ | ✅ `UixWindowHost` |
@@ -28,8 +34,13 @@
 | Focus bias (the focused window drawn nearer) | ✅ | ✅ `applyFocusBias`, every frame, for every window including a docked one - `regionSlotPose` re-places every docked window every frame, not only on a dock change |
 | Guarded poke (one press per touch, front only) | ✅ `UITouchGuardSystem` over IWSDK's touch pointers | ✅ the same core `TouchPress`, fed from `onObjectTouching` |
 | System keyboard text input | ✅ | ⬜ untested on Android XR |
+| Shared pointers with the Interactions family | ✅ `UIPointerOfferSystem` | ✅ `connectUIExtensions({ pointers })`: touch, grab and ray candidates offered to the same `PointerArbiter` as `@realitycollective/xrblocks-interactions` |
+| Hover per pointer | ✅ | ✅ the bridge raycasts panels itself; XR Blocks' per-element hover callbacks are not relied on |
+| Scrolling (drag, coast, clamp) | ✅ uikit | ⬜ core `ScrollState` exists; no case yet drives uikit beside it |
 
 A ray drag rides the ray at a fixed grab distance, the same laser math IWSDK and native use, when `input: xb.input` is supplied to `connectUIExtensions` (or `rayInput` to the host directly) - `xb.input.getFrame()`'s `raySources` give the controller's live ray, since `SelectEvent` itself carries none. With no `rayInput` wired it falls back to the controller's own position delta instead: correct, but not laser-distance.
+
+Requires `xrblocks` **0.20 or later** when `input: xb.input` is supplied: the host reads rays with `xb.input.getFrame()`, and refuses an older input once, at construction, by name. Verified against `xrblocks` 0.21.1.
 
 ## Required renderer setup (read this first)
 
@@ -76,7 +87,7 @@ Nothing here imports `xrblocks` at the type level - the glue binds to plain thre
 
 ### Window options and handles
 
-`createWindow` takes the portable `WindowOptionsBase` fields plus `config`, so an option means here what it means on the IWSDK adapter. Two notes specific to this host:
+`createWindow` takes the portable `WindowOptionsBase` fields plus `config`, so an option means here what it means on the IWSDK adapter. Notes specific to this host:
 
 - `id` is optional. Omit it and the window is named `uix-window-<n>`.
 - `movable` (default `true`) gates the title-bar drag: `false` never wires a press listener onto the title bar at all.
@@ -99,7 +110,7 @@ handle.onReady((panel) => wire(panel));   // fires straight away here
 
 ## Known constraint: three versions
 
-`xrblocks@0.19` declares a peer of `three@^0.184`, while IWSDK mandates the `super-three@0.181` fork used workspace-wide. Vite resolves a single `three` per bundle so the pairing works in practice, but npm's peer check cannot express it - this workspace uses `legacy-peer-deps` (see the root `.npmrc`). Revisit when IWSDK's three catches up.
+`xrblocks` declares a peer of `three@^0.184`, while IWSDK mandates the `super-three@0.181` fork used workspace-wide. Vite resolves a single `three` per bundle so the pairing works in practice, but npm's peer check cannot express it - this workspace uses `legacy-peer-deps` (see the root `.npmrc`). Revisit when IWSDK's three catches up.
 
 ## Testing
 
@@ -118,4 +129,4 @@ npm test   # scale/follow/pointer math + a headless host lifecycle suite
 
 ## License
 
-MIT © Reality Collective
+MIT - see [LICENSE](./LICENSE).

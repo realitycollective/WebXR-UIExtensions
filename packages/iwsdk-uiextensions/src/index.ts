@@ -27,3 +27,4 @@ export * from './systems/drag-system.js';
 export * from './systems/dock-region-system.js';
 export * from './systems/controls-system.js';
 export * from './systems/touch-guard-system.js';
+export * from './systems/pointer-offer-system.js';
