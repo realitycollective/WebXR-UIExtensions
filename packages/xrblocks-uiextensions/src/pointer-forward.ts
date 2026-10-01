@@ -1,18 +1,23 @@
 /**
- * Minimal pointer forwarding - turns engine raycast hits into uikit events.
+ * Minimal pointer forwarding - turns an engine raycast hit into a uikit
+ * click, with no press/release timing.
  *
- * XR Blocks (and any plain three.js app) raycasts with its own machinery;
- * uikit components are ordinary three.js Meshes, so they appear in those
- * intersections. This module picks the correct interactive element from a
- * hit list and dispatches DOM-ish events to it. v1 forwards clicks and
- * hover enter/leave - enough for window chrome and `data-uix` controls.
- * (Full pointer capture / poke semantics: use `@pmndrs/pointer-events`,
- * which is what IWSDK itself builds on.)
+ * Superseded for `UixWindowHost` / `connectUIExtensions`: the host now wires
+ * `pointer-bridge.ts`'s `XrBlocksPointerBridge` onto every panel it creates,
+ * which drives the core `TouchPress` and `TitlebarDragController` from XR
+ * Blocks' own select/touch/grab/hover callbacks - clicking on release, not
+ * on intersection, as IWSDK does. This module
+ * stays for a caller driving its OWN raycaster outside the host (a bare
+ * `createPanel`, or a hand-rolled three.js integration) that only needs a
+ * plain click with no drag, hover or touch.
  */
 import type { Object3D } from 'three';
 
-/** The event surface uikit components expose (three.js EventDispatcher). */
-interface InteractiveLike {
+/**
+ * The event surface uikit components expose (three.js EventDispatcher).
+ * Exported because `pickInteractive` returns it.
+ */
+export interface InteractiveLike {
   dispatchEvent?(event: { type: string; [key: string]: unknown }): void;
   userData?: Record<string, unknown>;
   parent?: unknown;

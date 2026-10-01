@@ -22,6 +22,7 @@
  */
 import { htmlComponentSet, type ComponentSet, type ComponentDefinition } from '@drawcall/uikitml';
 import { z } from 'zod';
+import { UIX_ELEMENT_TAGS, dataAttributeKey } from '@realitycollective/webxr-uiextensions';
 
 /**
  * Base container, taken from the parser's own `<div>` definition rather than
@@ -32,44 +33,6 @@ const BaseContainer = htmlComponentSet['div']
   ?.component as unknown as new (properties?: Record<string, unknown>) => {
   userData: Record<string, unknown>;
 };
-
-/** Control elements an author writes, and the parts that live inside them. */
-const CONTROL_TAGS = [
-  'uix-stepper',
-  'uix-toggle',
-  'uix-expandable-label',
-  'uix-log-view',
-] as const;
-
-const ROLE_TAGS = [
-  'uix-decrement',
-  'uix-value',
-  'uix-increment',
-  'uix-label',
-  'uix-line',
-  'uix-up',
-  'uix-down',
-  'uix-clear',
-  'uix-status',
-  'uix-text',
-  'uix-more',
-] as const;
-
-/**
- * `data-uix-min` → `uixMin`, matching how the other parser fills userData.
- *
- * The parser hands properties over already camelCased, so `data-uix-min`
- * arrives as `dataUixMin`; both spellings are normalised here.
- */
-function toUserDataKey(attribute: string): string {
-  if (/^data[A-Z]/.test(attribute)) {
-    const rest = attribute.slice(4);
-    return rest.charAt(0).toLowerCase() + rest.slice(1);
-  }
-  return attribute
-    .replace(/^data-/, '')
-    .replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
-}
 
 /**
  * A plain uikit Container that records what it was declared as.
@@ -85,7 +48,7 @@ function controlComponent(tag: string): typeof BaseContainer {
       const userData: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(properties)) {
         if (key.startsWith('data-') || /^data[A-Z]/.test(key)) {
-          userData[toUserDataKey(key)] = value;
+          userData[dataAttributeKey(key)] = value;
         } else {
           uikitProps[key] = value;
         }
@@ -114,5 +77,5 @@ function define(tag: string): ComponentDefinition {
  * Without it, a panel using any control fails to parse and never attaches.
  */
 export const uixComponentSet: ComponentSet = Object.fromEntries(
-  [...CONTROL_TAGS, ...ROLE_TAGS].map((tag) => [tag, define(tag)]),
+  UIX_ELEMENT_TAGS.map((tag) => [tag, define(tag)]),
 );

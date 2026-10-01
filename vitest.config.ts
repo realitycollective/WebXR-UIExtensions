@@ -12,8 +12,14 @@ export default defineConfig({
       "@realitycollective/iwsdk-uiextensions": pkg(
         "./packages/iwsdk-uiextensions/src/index.ts",
       ),
+      "@realitycollective/threejs-uiextensions": pkg(
+        "./packages/threejs-uiextensions/src/index.ts",
+      ),
       "@realitycollective/xrblocks-uiextensions": pkg(
         "./packages/xrblocks-uiextensions/src/index.ts",
+      ),
+      "@realitycollective/native-uiextensions": pkg(
+        "./packages/native-uiextensions/src/index.ts",
       ),
       // The multiplatform demo reads the showcase's scene descriptor under
       // this alias, matching its own vite and tsconfig paths.
@@ -29,7 +35,8 @@ export default defineConfig({
       all: true,
       // Coverage is gated on the modules that can be driven headlessly:
       //  - the library's core/, plus the shipped WindowHost conformance
-      //    cases, which are ordinary engine-free logic and public API
+      //    cases and the in-memory WindowHost mock, which are ordinary
+      //    engine-free logic and public API
       //  - the IWSDK adapter's factories and scene host. `new World()` from
       //    @iwsdk/core constructs with no renderer and no WebGL, so their
       //    entities, components and ECS query all run for real in node. The
@@ -39,8 +46,14 @@ export default defineConfig({
       include: [
         "packages/webxr-uiextensions/src/core/**/*.ts",
         "packages/webxr-uiextensions/src/contract-cases.ts",
+        "packages/webxr-uiextensions/src/scene-contract-cases.ts",
+        "packages/webxr-uiextensions/src/element-contract-cases.ts",
+        "packages/webxr-uiextensions/src/memory-window-host.ts",
         "packages/iwsdk-uiextensions/src/factory.ts",
         "packages/iwsdk-uiextensions/src/scene-host.ts",
+        "packages/native-uiextensions/src/native-types.ts",
+        "packages/native-uiextensions/src/element.ts",
+        "packages/native-uiextensions/src/host.ts",
         "packages/uix-devtools/src/gate.ts",
         "packages/uix-devtools/src/runtime-compile.ts",
         "packages/uix-devtools/src/cli/lib.ts",

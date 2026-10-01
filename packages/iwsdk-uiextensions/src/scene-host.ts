@@ -129,8 +129,16 @@ function buildSceneHost(world: World): IwsdkSceneHost {
   const readyListeners = new Set<(event: PanelReadyEvent) => void>();
   const ready = new Map<string, PanelReadyEvent>();
   const seen = new WeakSet<object>();
+  /** Ids of the windows this host spawned, closed by `dispose`. */
+  const spawned = new Set<string>();
+  let disposed = false;
 
   const announce = (entity: Entity): void => {
+    // The readiness system stays registered on the world after `dispose`
+    // (IWSDK has no per-system removal here), so it goes quiet instead.
+    if (disposed) {
+      return;
+    }
     const document = PanelDocument.data.document[entity.index] as
       | UIKitDocument
       | undefined;
@@ -165,8 +173,10 @@ function buildSceneHost(world: World): IwsdkSceneHost {
 
   // A window closed through the manager is gone: stop replaying it to late
   // subscribers. (The window system destroys the entity on the same event.)
-  windowManagerFor(world).events.on('closed', ({ id }) => {
+  const manager = windowManagerFor(world);
+  const stopClosed = manager.events.on('closed', ({ id }) => {
     ready.delete(id);
+    spawned.delete(id);
   });
 
   let windowSequence = 0;
@@ -185,6 +195,30 @@ function buildSceneHost(world: World): IwsdkSceneHost {
       );
     },
 
+    // Leave nothing behind: close every window this host spawned through the
+    // world's manager (the window system destroys each entity on that event),
+    // silence the readiness system, release the manager subscription, and
+    // forget this host so `createSceneHost` builds a fresh one. Safe to call
+    // twice.
+    dispose(): void {
+      if (disposed) {
+        return;
+      }
+      // The window system opens a window's record only once its panel
+      // attaches, so a window still loading has nothing to close yet.
+      for (const id of [...spawned]) {
+        if (manager.has(id)) {
+          manager.close(id);
+        }
+      }
+      disposed = true;
+      spawned.clear();
+      ready.clear();
+      readyListeners.clear();
+      stopClosed();
+      hosts.delete(world);
+    },
+
     onPanelReady(listener) {
       readyListeners.add(listener);
       for (const event of ready.values()) {
@@ -196,6 +230,7 @@ function buildSceneHost(world: World): IwsdkSceneHost {
     createWindow(options: CreateWindowOptions): IwsdkWindowHandle {
       const id = options.id ?? `uix-window-${(windowSequence += 1)}`;
       const entity = createUIWindow(world, { ...options, id });
+      spawned.add(id);
       return {
         entity,
         id,

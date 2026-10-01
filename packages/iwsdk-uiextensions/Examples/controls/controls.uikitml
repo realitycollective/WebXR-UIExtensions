@@ -23,27 +23,27 @@
 <div class="panel">
   <div class="row">
     <span class="label">Volume</span>
-    <div data-uix="stepper" data-uix-id="volume" data-uix-min="0" data-uix-max="10" class="stepper">
-      <div data-uix-role="decrement" class="stepper-button">-</div>
-      <span data-uix-role="value" class="stepper-value">.</span>
-      <div data-uix-role="increment" class="stepper-button">+</div>
-    </div>
+    <uix-stepper data-uix-id="volume" data-uix-min="0" data-uix-max="10" class="stepper">
+      <uix-decrement class="stepper-button">-</uix-decrement>
+      <uix-value class="stepper-value">.</uix-value>
+      <uix-increment class="stepper-button">+</uix-increment>
+    </uix-stepper>
   </div>
   <div class="row">
     <span class="label">Music</span>
-    <div data-uix="toggle" data-uix-id="music" data-uix-on-color="#1f6d3d" data-uix-off-color="#5a3037" class="toggle">
-      <span data-uix-role="label" class="toggle-label">.</span>
-    </div>
+    <uix-toggle data-uix-id="music" data-uix-on-color="#1f6d3d" data-uix-off-color="#5a3037" class="toggle">
+      <uix-label class="toggle-label">.</uix-label>
+    </uix-toggle>
   </div>
-  <div data-uix="expandable-label" data-uix-id="details" data-uix-lines="2" data-uix-chars-per-line="40"
+  <uix-expandable-label data-uix-id="details" data-uix-lines="2" data-uix-chars-per-line="40"
        data-uix-text="Long descriptive text collapses to two lines with an ellipsis, and the more/less affordance expands it in place - no scrolling, no clipping."
        class="long">
-    <span data-uix-role="text" class="long-text">.</span>
-    <div data-uix-role="toggle" class="long-toggle">more</div>
-  </div>
-  <div data-uix="log-view" data-uix-id="log" class="log">
-    <span data-uix-role="line" class="log-line">.</span>
-    <span data-uix-role="line" class="log-line">.</span>
-    <span data-uix-role="line" class="log-line">.</span>
-  </div>
+    <uix-text class="long-text">.</uix-text>
+    <uix-more class="long-toggle">more</uix-more>
+  </uix-expandable-label>
+  <uix-log-view data-uix-id="log" class="log">
+    <uix-line class="log-line">.</uix-line>
+    <uix-line class="log-line">.</uix-line>
+    <uix-line class="log-line">.</uix-line>
+  </uix-log-view>
 </div>

@@ -6,22 +6,14 @@
  */
 import * as horizonKit from '@pmndrs/uikit-horizon';
 import { applyScene } from '@realitycollective/webxr-uiextensions';
-import {
-  connectUIExtensions,
-  forwardClick,
-  type UixWindowHost,
-} from '@realitycollective/xrblocks-uiextensions';
-import { Quaternion, Raycaster, Vector3, type Object3D } from 'three';
+import { connectUIExtensions, type UixWindowHost } from '@realitycollective/xrblocks-uiextensions';
+import type { Object3D } from 'three';
 import * as xb from 'xrblocks';
 import { installPlaygroundBehaviour } from '@showcase/playground-behaviour.js';
 import { PLAYGROUND } from '@showcase/playground-scene.js';
 
 class UixShowcaseScript extends xb.Script {
   private host?: UixWindowHost;
-  private readonly raycaster = new Raycaster();
-  private readonly rayOrigin = new Vector3();
-  private readonly rayDirection = new Vector3();
-  private readonly tempRotation = new Quaternion();
 
   override async init(): Promise<void> {
     // xrblocks bundles its own three type declarations; at runtime Vite
@@ -31,6 +23,10 @@ class UixShowcaseScript extends xb.Script {
       camera: xb.camera,
       // renderer.xr gives hand menus the tracked hands in a session.
       xr: xb.core.renderer.xr as never,
+      // xb.input gives a title-bar ray drag the controller's live ray, so it
+      // rides at a fixed distance (laser math) as IWSDK and native do,
+      // rather than by the controller's own position (point-delta).
+      input: xb.input as never,
       kit: horizonKit as never,
     });
 
@@ -38,30 +34,27 @@ class UixShowcaseScript extends xb.Script {
     applyScene(this.host, PLAYGROUND);
 
     (window as unknown as { uix: unknown }).uix = { host: this.host };
+
+    // Press, poke, hover and drag no longer need wiring here: `UixWindowHost`
+    // attaches its own pointer bridge to every panel it creates, driven by
+    // XR Blocks' own onSelectStart/End, onObjectTouch*, onObjectGrab* and
+    // onHoverEnter/Exit callbacks (see `pointer-bridge.ts`). A manual
+    // Script-level `onSelectStart` raycast that clicked on intersection -
+    // clicking before release - used to live here; it is gone now that the host
+    // clicks on release, as every other platform does.
   }
 
   override update(): void {
     this.host?.update(xb.getDeltaTime());
   }
-
-  override onSelectStart(event: {
-    target: {
-      getWorldPosition(v: Vector3): Vector3;
-      getWorldQuaternion(q: Quaternion): Quaternion;
-    };
-  }): void {
-    // Ray from the selecting controller's pose, -Z forward.
-    event.target.getWorldPosition(this.rayOrigin);
-    event.target.getWorldQuaternion(this.tempRotation);
-    this.rayDirection.set(0, 0, -1).applyQuaternion(this.tempRotation);
-    this.raycaster.set(this.rayOrigin, this.rayDirection);
-    forwardClick(
-      this.raycaster.intersectObject(this as unknown as Object3D, true),
-    );
-  }
 }
 
-export async function bootXRBlocks(): Promise<void> {
+export async function bootXRBlocks(container: HTMLElement): Promise<void> {
   xb.add(new UixShowcaseScript());
   await xb.init();
+  // XR Blocks appends its own root to <body>. Move it into the mount point, as the other two
+  // pipelines draw there, so "did the page render anything" is answered by #scene-container.
+  const canvas = xb.core.renderer.domElement as HTMLCanvasElement;
+  const root = canvas.parentElement && canvas.parentElement !== document.body ? canvas.parentElement : canvas;
+  container.appendChild(root);
 }

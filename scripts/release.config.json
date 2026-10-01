@@ -3,11 +3,14 @@
   "packages": [
     "webxr-uiextensions",
     "iwsdk-uiextensions",
+    "threejs-uiextensions",
     "xrblocks-uiextensions",
+    "native-uiextensions",
     "uix-devtools"
   ],
   "importCheck": [
-    "webxr-uiextensions"
+    "webxr-uiextensions",
+    "native-uiextensions"
   ],
   "declarationCheck": true,
   "binSmoke": [

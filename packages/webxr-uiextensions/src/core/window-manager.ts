@@ -13,7 +13,14 @@
  * It is also the ONE API app code calls to change a window: a hand menu that
  * hides, docks or pins a targeted window talks to the manager, and every
  * adapter applies the resulting events. Nothing here needs an engine handle.
+ *
+ * A window in a region is always world-locked: the region places it, so it
+ * cannot also follow the viewer. Opening into a region or `dockTo` makes it
+ * world-locked, and a follow mode set through `setDockMode` or `togglePin`
+ * takes it out of its region first. The manager holds this rule so every
+ * platform lays out the same descriptor the same way.
  */
+import { resolveFollow, type FollowOptions } from './follow.js';
 import { Emitter } from './events.js';
 import { DockMode, DockModeValue, isDockMode, togglePinned } from './dock-state.js';
 import { resolveHandMenu, type HandMenuOptions } from './hand-menu.js';
@@ -56,6 +63,12 @@ export interface WindowRecord {
   chrome: WindowChrome;
   /** Hand, anchor and palm gate used while the window is `hand-locked`. */
   handMenu: HandMenuOptions;
+  /**
+   * Offset, speed, dead zone and angle used while the window follows
+   * (`body-follow`). `DEFAULT_WINDOW_FOLLOW` unless the app said otherwise;
+   * `setFollow` changes it after spawn, on every platform.
+   */
+  follow: FollowOptions;
 }
 
 export interface WindowManagerEvents extends Record<string, unknown> {
@@ -73,6 +86,8 @@ export interface WindowManagerEvents extends Record<string, unknown> {
   returnHome: WindowRecord;
   chromeChanged: { window: WindowRecord; previous: WindowChrome };
   handMenuChanged: { window: WindowRecord; previous: HandMenuOptions };
+  /** `setFollow` changed a window's follow offset or tuning; a binding following it applies the new values from the next frame. */
+  followChanged: { window: WindowRecord; previous: FollowOptions };
   dragStarted: WindowRecord;
   dragEnded: WindowRecord;
 }
@@ -82,12 +97,14 @@ export interface OpenWindowOptions {
   dockMode?: DockModeValue;
   /** Open hidden; `show()` reveals it. */
   hidden?: boolean;
-  /** Open docked into this region. */
+  /** Open docked into this region. The window is then world-locked, whatever `dockMode` says. */
   region?: string;
   /** Buttons to enable; anything omitted stays off. */
   chrome?: Partial<WindowChrome>;
   /** Hand-menu placement, used when `dockMode` is (or becomes) `hand-locked`. */
   handMenu?: Partial<HandMenuOptions>;
+  /** Follow placement, used when `dockMode` is (or becomes) `body-follow`: the offset in the viewer's yaw frame, metres, and the follow tuning. */
+  follow?: Partial<FollowOptions>;
 }
 
 /**
@@ -124,20 +141,21 @@ export class WindowManager {
     if (this.windows.has(id)) {
       throw new Error(`[uix] window "${id}" is already open`);
     }
-    const dockMode = options.dockMode ?? DockMode.WorldLocked;
-    if (!isDockMode(dockMode)) {
-      throw new Error(`[uix] "${String(dockMode)}" is not a dock mode`);
+    const requested = options.dockMode ?? DockMode.WorldLocked;
+    if (!isDockMode(requested)) {
+      throw new Error(`[uix] "${String(requested)}" is not a dock mode`);
     }
     const record: WindowRecord = {
       id,
       title: options.title ?? id,
-      dockMode,
+      dockMode: options.region !== undefined ? DockMode.WorldLocked : requested,
       minimized: false,
       hidden: options.hidden ?? false,
       dragging: false,
       region: options.region,
       chrome: { ...NO_CHROME, ...options.chrome },
       handMenu: resolveHandMenu(options.handMenu),
+      follow: resolveFollow(options.follow ?? {}),
     };
     this.windows.set(id, record);
     this.focusStack.push(id);
@@ -240,15 +258,20 @@ export class WindowManager {
     if (record.dockMode === mode) {
       return;
     }
+    if (mode !== DockMode.WorldLocked) {
+      // A region places its windows, so a window that follows cannot stay in one.
+      this.undock(id);
+    }
     const previous = record.dockMode;
     record.dockMode = mode;
     this.events.emit('dockChanged', { window: record, previous });
   }
 
   /**
-   * Dock a window into a layout region. The manager records the intent and
-   * emits `regionChanged`; the adapter places the window in a slot (and may
-   * call `undock` back if the region is full or unknown).
+   * Dock a window into a layout region. The manager records the intent,
+   * makes the window world-locked, and emits `regionChanged` then, if the
+   * mode changed, `dockChanged`. The adapter places the window in a slot
+   * (and may call `undock` back if the region is full or unknown).
    */
   dockTo(id: string, regionId: string): void {
     if (!regionId) {
@@ -259,8 +282,13 @@ export class WindowManager {
       return;
     }
     const previous = record.region;
+    const previousMode = record.dockMode;
     record.region = regionId;
+    record.dockMode = DockMode.WorldLocked;
     this.events.emit('regionChanged', { window: record, previous });
+    if (previousMode !== DockMode.WorldLocked) {
+      this.events.emit('dockChanged', { window: record, previous: previousMode });
+    }
   }
 
   /** Take a window out of its region. No-op when it is not docked. */
@@ -321,6 +349,29 @@ export class WindowManager {
     const previous = record.handMenu;
     record.handMenu = next;
     this.events.emit('handMenuChanged', { window: record, previous });
+  }
+
+  /**
+   * Change where a following window sits relative to the viewer (its offset
+   * in the viewer's yaw frame, metres) or how it follows, after spawn. Takes
+   * effect at once while the window is `body-follow`, and is remembered
+   * otherwise. Every binding reads the record's `follow` when it steps the
+   * core follow rule, so the change lands on every platform the same way.
+   */
+  setFollow(id: string, options: Partial<FollowOptions>): void {
+    const record = this.require(id);
+    const next = resolveFollow({ ...record.follow, ...options });
+    const same =
+      next.speed === record.follow.speed &&
+      next.tolerance === record.follow.tolerance &&
+      next.maxAngle === record.follow.maxAngle &&
+      next.offset.every((value, index) => value === record.follow.offset[index]);
+    if (same) {
+      return;
+    }
+    const previous = record.follow;
+    record.follow = next;
+    this.events.emit('followChanged', { window: record, previous });
   }
 
   /** Track an active title-bar drag; emits dragStarted/dragEnded on change. */

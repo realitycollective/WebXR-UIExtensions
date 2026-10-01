@@ -10,13 +10,22 @@
 // Pure logic
 export * from './core/events.js';
 export * from './core/dock-state.js';
+export * from './core/follow.js';
+export * from './core/placement.js';
 export * from './core/window-manager.js';
 export * from './core/region-layout.js';
 export * from './core/region-registry.js';
 export * from './core/drag-math.js';
 export * from './core/hold-to-drag.js';
 export * from './core/hand-menu.js';
+export * from './core/cursor.js';
 export * from './core/touch-press.js';
+export * from './core/pointer-events.js';
+export * from './core/hover.js';
+export * from './core/pointer-offers.js';
+export * from './core/scroll.js';
+export * from './core/text-entry.js';
+export * from './core/titlebar-drag.js';
 export * from './core/stepper-model.js';
 export * from './core/toggle-model.js';
 export * from './core/expandable-model.js';
@@ -39,3 +48,6 @@ export * from './scene.js';
 
 // The WindowHost conformance suite, as data an adapter runs in its own runner
 export * from './contract-cases.js';
+export * from './scene-contract-cases.js';
+export * from './element-contract-cases.js';
+export * from './memory-window-host.js';

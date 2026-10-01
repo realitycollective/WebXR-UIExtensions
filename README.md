@@ -1,8 +1,13 @@
 # WebXR UI Extensions
 
+| Branch | Build | Publish | Published on npm |
+| --- | --- | --- | --- |
+| `main` | [![main build](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/ci.yml?branch=main&label=build)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/ci.yml?query=branch%3Amain) | [![main publish](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/publish-npm.yml?branch=main&label=publish)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/publish-npm.yml?query=branch%3Amain) | [![npm latest](https://img.shields.io/npm/v/@realitycollective/webxr-uiextensions/latest?label=npm%20latest)](https://www.npmjs.com/package/@realitycollective/webxr-uiextensions?activeTab=versions) |
+| `development` | [![development build](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/ci.yml?branch=development&label=build)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/ci.yml?query=branch%3Adevelopment) | [![development publish](https://img.shields.io/github/actions/workflow/status/realitycollective/WebXR-UIExtensions/publish-npm.yml?branch=development&label=publish)](https://github.com/realitycollective/WebXR-UIExtensions/actions/workflows/publish-npm.yml?query=branch%3Adevelopment) | [![npm preview](https://img.shields.io/npm/v/@realitycollective/webxr-uiextensions/preview?label=npm%20preview)](https://www.npmjs.com/package/@realitycollective/webxr-uiextensions?activeTab=versions) |
+
 A library for building user interfaces inside a WebXR scene. It gives you movable, resizable windows that can be dragged, snapped into fixed regions of the scene, and filled with buttons, sliders and other controls.
 
-The core logic is plain TypeScript with no dependency on any 3D engine. Small adapters connect it to [Meta's Immersive Web SDK](https://iwsdk.dev), to [Google XR Blocks](https://github.com/google/xr-blocks), or to plain three.js. The repository also holds developer tooling and demo clients you can deploy.
+The core logic is plain TypeScript with no dependency on any 3D engine. Small adapters connect it to [Meta's Immersive Web SDK](https://iwsdk.dev), to [Google XR Blocks](https://github.com/google/xr-blocks), to plain three.js, or - through `@realitycollective/native-uiextensions` - to a native app (OpenXR, visionOS) that embeds a JavaScript engine such as Hermes, renders panels itself and installs `globalThis.__rcHost`, per the Reality Collective native host contract shared across the WebXR family repositories. The repository also holds developer tooling and demo clients you can deploy.
 
 Panels are written in **UIKitML**, IWSDK's HTML/CSS-like markup for spatial panels.
 
@@ -16,7 +21,7 @@ npm ci
 
 The repository root **is** the npm workspace root - `packages/*` are the publishable libraries, `demos/*` the clients. Work branches off `main` and PRs target `main`.
 
-## Layout - one folder per package, one demo client each
+## Layout - one folder per package, three demo clients
 
 ```text
 WebXR-UIExtensions/
@@ -34,9 +39,15 @@ WebXR-UIExtensions/
 │   │   ├── src/factory.ts …    factory, components, manager/region registries
 │   │   └── Examples/           basic-window, controls, dock-regions
 │   │                           (shipped in the npm tarball)
-│   ├── xrblocks-uiextensions/  Google XR Blocks / three.js adapter (EXPERIMENTAL)
-│   │   └── src/                panel document, window host, follow + scale math,
+│   ├── threejs-uiextensions/   plain three.js + WebXR adapter (no engine SDK)
+│   │   └── src/                panel document, window host, scale math,
+│   │                           WebXR pointer input, cursor visual
+│   ├── xrblocks-uiextensions/  Google XR Blocks adapter (EXPERIMENTAL)
+│   │   └── src/                builds on the three.js adapter; follow math,
 │   │                           desktop controls/locomotion, pointer forwarding
+│   ├── native-uiextensions/    Native app adapter (OpenXR/visionOS host, no engine)
+│   │   └── src/                NativeWindowHost, proxy UixElements over the
+│   │                           host's element tree, the `ui` slice contract
 │   └── uix-devtools/           dev tooling (dev-only, NEVER ship)
 │       ├── src/gate.ts         edit-session launch gate (compiled out of prod)
 │       ├── src/runtime-compile.ts  live UIKitML → panel compilation
@@ -59,33 +70,40 @@ WebXR-UIExtensions/
 │                               them; edit gate on IWSDK; own Pages projects
 ├── scripts/verify-pack.mjs     consumer check - packs, installs, imports
 ├── docs/developer-cycle.md     the four development loops, terminal to deploy
-├── CHANGELOG.md                shared across all four packages
-├── .github/workflows/          CI, Cloudflare Pages deploy, GitHub publish
+├── CHANGELOG.md                shared across all six packages
+├── .github/workflows/          ci.yml (gates + Cloudflare Pages deploy), publish-npm.yml
 ├── vitest.config.ts            workspace test run + coverage gates
 └── tsconfig.base.json          shared strict compiler options
 ```
 
-Every package ships a demo, and all three demos build the same playground scene. The scene is a portable `SceneDescriptor` and its behaviour is wired through the `onPanelReady` contract, neither of which depends on an engine. Because of that, the IWSDK, XR Blocks and plain three.js versions behave identically from identical data.
+All three demos build the same playground scene. The scene is a portable `SceneDescriptor` and its behaviour is wired through the `onPanelReady` contract, neither of which depends on an engine. Because of that, the IWSDK, XR Blocks and plain three.js versions behave identically from identical data.
 
 Each adapter re-exports the whole core, so an app installs one package:
 
 | Install | For |
 | --- | --- |
 | `@realitycollective/iwsdk-uiextensions` | Meta IWSDK apps (core re-exported) |
-| `@realitycollective/xrblocks-uiextensions` | XR Blocks / three.js apps (core re-exported, experimental) |
+| `@realitycollective/threejs-uiextensions` | plain three.js apps with a WebXR session (core re-exported; the XR Blocks adapter builds on it) |
+| `@realitycollective/xrblocks-uiextensions` | XR Blocks apps (core re-exported, experimental) |
+| `@realitycollective/native-uiextensions` | native apps (OpenXR, visionOS) embedding a JS engine and rendering panels themselves (core re-exported, no engine dependency) |
 | `@realitycollective/webxr-uiextensions` | writing your own engine adapter |
 | `@realitycollective/uix-devtools` | dev dependency only - never in a shipped bundle |
 
-Working **in** this repo needs none of the above: `npm ci` is the whole setup, and the demos, tests and typecheck all resolve `@realitycollective/*` to `packages/<name>/src` rather than to anything installed. That stays true after the packages are published - see [How the demos resolve the libraries](./docs/developer-cycle.md#how-the-demos-resolve-the-libraries-and-what-changes-once-published)
+Working **in** this repo needs none of the above: `npm ci` is the whole setup, and the demos, tests and typecheck all resolve `@realitycollective/*` to `packages/<name>/src` rather than to anything installed. That stays true after the packages are published - see [How the demos resolve the libraries](./docs/developer-cycle.md#how-the-demos-resolve-the-libraries-and-what-changes-once-published) for the contributor-vs-consumer split and how to test the published path.
 
-for the contributor-vs-consumer split and how to test the published path.
+## Native, tested on a headset
+
+A native app built with the native package has been tested on a headset and checked by its conformance kit.
+
+> [!IMPORTANT]
+> **Known issue on native.** The system keyboard for a text field opens outside the wearer's view on a Quest 3, so text cannot be typed yet. Pressing a field focuses it and asks for the keyboard as it should. The native host still has to decide where to show the keyboard.
 
 ## Commands (workspace root)
 
 | Command | What |
 | --- | --- |
 | `npm ci` | install everything |
-| `npm run build` | build all four packages (`tsc` → `dist/`, core first) |
+| `npm run build` | build all six packages (`tsc` → `dist/`, core first) |
 | `npm run typecheck` | strict typecheck - all packages + all demos |
 | `npm test` | vitest + v8 coverage (100% thresholds on the pure modules) |
 | `npm run test:watch` | the same suites in watch mode |
@@ -98,11 +116,11 @@ for the contributor-vs-consumer split and how to test the published path.
 | `npm run build:showcase` / `build:playground` | one demo bundle at a time (what deploy uses) |
 | `npx uix-dev doctor` | check node / cloudflared / adb before first use |
 
-New here? Read **[docs/developer-cycle.md](./docs/developer-cycle.md)** - the full developer cycle: desktop preview, testing on a Quest (USB and tunnel), live edit sessions, deployment and publishing. Released changes are tracked in **[CHANGELOG.md](./CHANGELOG.md)** - all four packages version together.
+New here? Read **[docs/developer-cycle.md](./docs/developer-cycle.md)** - the full developer cycle: desktop preview, testing on a Quest (USB and tunnel), live edit sessions, deployment and publishing. Released changes are tracked in **[CHANGELOG.md](./CHANGELOG.md)** - all six packages version together.
 
 ## Live demos
 
-Deployed from `main` by the **Deploy** workflow. Pull requests deploy to the isolated `-test` projects instead, so a PR can never touch these.
+Deployed from `main` by the deploy jobs in `ci.yml`. Pull requests deploy to the isolated `-test` projects instead, so a PR can never touch these.
 
 | Demo | Production | Staging (per PR) |
 | --- | --- | --- |
@@ -117,10 +135,8 @@ Two workflows ship in every Reality Collective TypeScript repository, with the s
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
-| `ci.yml` | every PR + push to `main` / `development` | Build, typecheck, test with coverage gates, `verify:pack`, and all three demo builds. On a PR it then deploys to the `-test` Pages projects; on a push to `main`, to production, with short codes and QR codes in the step summary. The deploy steps skip when the Cloudflare secrets are absent, leaving a pure build gate |
-| `publish-npm.yml` | manual dispatch | packs all four packages and publishes to **npmjs.com** with provenance - `preview` dist-tag from `development`, `latest` from `main`. **Defaults to a dry run** |
-
-A PR can never touch production - staging lives in its own isolated Pages projects.
+| `ci.yml` | every PR + push to `main` / `development` | Build, typecheck, test with coverage gates, `verify:pack`, and all three demo builds. On a PR it then deploys to the `-test` Pages projects; on a push to `main`, to production, with short codes and QR codes in the step summary. The deploy steps skip when the Cloudflare secrets are absent, leaving a pure build gate. After a merged PR passes, it queues a publish dry run on the branch the PR merged into |
+| `publish-npm.yml` | manual dispatch, plus the dry run CI queues after a merged PR | packs all six packages and publishes to **npmjs.com** with provenance - `preview` dist-tag from `development`, `latest` from `main`. **Defaults to a dry run** |
 
 ### Publish order
 
@@ -133,7 +149,7 @@ To develop against an unreleased `webxr-input`, use `npm link` rather than editi
 Six windows + two dock regions demonstrating the whole surface:
 
 - **Crew Registration** - native UIKitML `<input>`/`<textarea>` (system keyboard), horizon-kit `Slider`, submit validation
-- **Event Log** - `data-uix="log-view"` fed by live `WindowManager` events; spawns docked into the world-locked "console wall" region
+- **Event Log** - a `<uix-log-view>` fed by live `WindowManager` events; spawns docked into the world-locked "console wall" region
 - **Click Machine (all buttons)** - a button with a "clicked" list display; every title-bar button enabled at spawn
 - **Player Status (menu-driven)** - movable info window: health stepper, shield toggle, expandable bio; follows the player until pinned or dragged. Spawned with no buttons and driven from Window Control
 - **Gallery (no buttons)** - image rendering via the native `<img>` element; the opt-in default, so no title-bar buttons, only drag
@@ -146,8 +162,8 @@ Known verification gap: everything headless is CI-tested, including the IWSDK sy
 
 ## What this stack is and is not
 
-The Reality Collective WebXR packages aim at one outcome: an app's logic, input handling, interactions and UI should not care which engine hosts them. Each family ships an engine-free core and thin adapters for Meta IWSDK, plain three.js and WebXR, and Google XR Blocks. When an app still has to reach into the host, either a contract is missing, which is a bug to report, or the app is overreaching.
+The Reality Collective WebXR packages aim at one outcome: an app's logic, input handling, interactions and UI should not care which engine hosts them. Each family ships an engine-free core and an adapter for each platform it serves. The platforms are Meta IWSDK (the reference), plain three.js and WebXR, Google XR Blocks, native XR apps (OpenXR, visionOS) that embed a JavaScript engine, and Babylon.js where the family has a binding. When an app still has to reach into the host, either a contract is missing, which is a bug to report, or the app is overreaching.
 
 Portable world-building is not a current promise. Scene content (meshes, prefabs, placement) is built by the app, ideally behind a factory interface the app owns, so that a second host can implement the same factories. A shared content descriptor, following the shape of the UI family's `SceneDescriptor`, will be considered only when a second host is actually targeted. Meta's `iwsdk.scene.v1` format is an acceptable authoring interchange in the meantime.
 
-Position recorded on 2026-09-03 from the Pale Signal client's gaps report.
+Position recorded on 2026-09-03 from the Pale Signal client's gaps report. Updated 2026-09-25: loading, stacking and switching scenes is now the Environment family's `SceneManager`; what a scene contains is still the app's.

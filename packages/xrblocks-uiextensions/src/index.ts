@@ -16,7 +16,9 @@ export * from './scale-math.js';
 export * from './follow-math.js';
 export * from './panel-document.js';
 export * from './host.js';
+export * from './pointer-bridge.js';
 export * from './pointer-forward.js';
+export * from './ray-input.js';
 export * from './xrblocks.js';
 
 // Desktop (mouse + keyboard) support

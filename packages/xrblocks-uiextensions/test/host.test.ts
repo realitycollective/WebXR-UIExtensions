@@ -6,7 +6,8 @@
  * input - those need the browser demo.
  */
 import { parse } from '@pmndrs/uikitml';
-import { Group } from 'three';
+import { Group, Object3D, Quaternion, Vector3 } from 'three';
+import { PointerArbiter } from '@realitycollective/webxr-input';
 import { describe, expect, it, vi } from 'vitest';
 import { DockMode } from '@realitycollective/webxr-uiextensions';
 import type {
@@ -17,8 +18,10 @@ import type {
   QuatTuple,
 } from '@realitycollective/webxr-uiextensions';
 import { windowHostContract } from '../../webxr-uiextensions/test/helpers/window-host-contract.js';
+import { sceneTargetContract } from '../../webxr-uiextensions/test/helpers/scene-target-contract.js';
 import { UixWindowHost } from '../src/host.js';
-import { webxrHandPoseSource } from '../src/xrblocks.js';
+import { connectUIExtensions, webxrHandPoseSource } from '../src/xrblocks.js';
+import type { XrBlocksRayInputAccess } from '../src/ray-input.js';
 
 const PANEL_SOURCE = `
 <div id="uix-window">
@@ -84,6 +87,23 @@ describe('UixWindowHost', () => {
     expect(scene.children).toHaveLength(0);
     expect(host.window('w1')).toBeUndefined();
     expect(host.manager.get('w1')).toBeUndefined();
+  });
+
+  it('dispose removes every window and region it added, and stops following the manager', () => {
+    const { scene, host } = makeHost();
+    host.createRegion({ id: 'shelf', position: [0, 1, -1] });
+    host.createWindow({ id: 'w1', config: config(), region: 'shelf' });
+    host.createWindow({ id: 'w2', config: config() });
+
+    host.dispose();
+
+    expect(scene.children).toHaveLength(0);
+    expect(host.manager.has('w1')).toBe(false);
+    expect(host.manager.has('w2')).toBe(false);
+    // A window opened on the manager afterwards is no longer mirrored.
+    host.manager.open('late');
+    expect(host.window('late')).toBeUndefined();
+    expect(() => host.dispose()).not.toThrow();
   });
 
   it('minimize collapses the content element and restore expands it', () => {
@@ -379,7 +399,10 @@ describe('UixWindowHost hand menus', () => {
     expect(handle.group.visible).toBe(true);
   });
 
-  it('falls back to body-follow placement where there are no hands', () => {
+  it('a hand-locked window is hidden, not shown by body-follow, where there is no hand source at all', () => {
+    // No `handPose` supplied - a desktop page with no hand tracking. Native
+    // and IWSDK hide a hand-locked window with no hand to ride; a platform
+    // never keeps it shown by some other rule (see the family's rule 1).
     const { host } = makeHost();
     const handle = host.createWindow({
       id: 'menu',
@@ -389,19 +412,14 @@ describe('UixWindowHost hand menus', () => {
       followOffset: [0, -0.15, -1.2],
       followTolerance: 0.05,
     });
-    const target = { x: 0, y: 1.45, z: -1.2 } as never;
-    const before = handle.group.position.distanceTo(target);
     for (let i = 0; i < 60; i += 1) {
       host.update(1 / 60);
     }
-    expect(handle.group.visible).toBe(true);
-    expect(handle.group.position.distanceTo(target)).toBeLessThan(before);
+    expect(handle.group.visible).toBe(false);
   });
 
-  it('falls back to body-follow while the source reports no hands, then rides them', () => {
+  it('a hand-locked window is hidden while a real hand source reports no tracked hand, then shows once one is raised', () => {
     const { poses, source } = makeHands();
-    let hasHands = false;
-    source.hasHands = () => hasHands;
     const { host } = makeHost(source);
     const handle = host.createWindow({
       id: 'menu',
@@ -410,11 +428,6 @@ describe('UixWindowHost hand menus', () => {
       position: [3, 0, 3],
       followTolerance: 0.05,
     });
-    const before = handle.group.position.distanceTo({ x: 0, y: 1.45, z: -1.2 } as never);
-    host.update(1 / 60);
-    expect(handle.group.visible).toBe(true);
-    expect(handle.group.position.distanceTo({ x: 0, y: 1.45, z: -1.2 } as never)).toBeLessThan(before);
-    hasHands = true; // a session started, nothing raised yet
     host.update(1 / 60);
     expect(handle.group.visible).toBe(false);
     poses.left = { position: [-0.3, 1.2, -0.4], quaternion: PALM_UP };
@@ -471,8 +484,6 @@ describe('webxrHandPoseSource', () => {
   it('reads the grip space of the matching input source', () => {
     const grip = {};
     const { xr, asked } = makeXR([{ handedness: 'left', gripSpace: grip, targetRaySpace: {} }]);
-    expect(webxrHandPoseSource(xr).hasHands?.()).toBe(true);
-    expect(webxrHandPoseSource(makeXR([]).xr).hasHands?.()).toBe(false);
     const pose = webxrHandPoseSource(xr).getHandPose('left');
     expect(pose).toEqual({ position: [1, 2, 3], quaternion: [0, 0, 1, 0] });
     expect(asked).toEqual([grip]);
@@ -492,6 +503,57 @@ describe('webxrHandPoseSource', () => {
     expect(webxrHandPoseSource(unposed).getHandPose('left')).toBeUndefined();
     const none = { getFrame: () => null, getReferenceSpace: () => null, getSession: () => null };
     expect(webxrHandPoseSource(none).getHandPose('left')).toBeUndefined();
-    expect(webxrHandPoseSource(none).hasHands?.()).toBe(false);
+  });
+});
+
+sceneTargetContract('XR Blocks window host', () => {
+  const host = new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, loadConfig: async () => config() });
+  return {
+    target: host,
+    manager: host.manager,
+    // Configs load asynchronously, so a window opens once its load resolves.
+    settle: async (ids) => {
+      await vi.waitFor(() => {
+        for (const id of ids) expect(host.manager.has(id)).toBe(true);
+      });
+    },
+  };
+});
+
+describe('UixWindowHost shared pointer arbitration', () => {
+  const camera = { getWorldPosition: (v: Vector3) => v.set(0, 1.6, 0), getWorldQuaternion: (q: Quaternion) => q.set(0, 0, 0, 1) };
+  const leftController = Object.assign(new Object3D(), { inputSource: { handedness: 'left' } });
+  const input = (): XrBlocksRayInputAccess => ({
+    getFrame: () => ({ raySources: [{ controller: leftController, ray: { origin: { x: 0, y: 0, z: 0 }, direction: { x: 0, y: 0, z: -1 } } }] }),
+  });
+
+  it('connectUIExtensions passes the arbiter and ray input on: update raycasts and resolves each source', () => {
+    const pointers = new PointerArbiter();
+    const host = connectUIExtensions({ scene: new Group(), camera, input: input(), pointers });
+    host.update(0.016);
+    expect(pointers.decision('left')).toBeDefined();
+    expect(pointers.getSets().map((set) => set.id)).toContain('uix');
+  });
+
+  it('a host with no arbiter still resolves rays into an arbiter of its own', () => {
+    const host = new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, rayInput: input() });
+    expect(() => host.update(0.016)).not.toThrow();
+  });
+
+  it('refuses the input of an xrblocks older than 0.20, which has no getFrame, once and by name', () => {
+    // xrblocks 0.19's `xb.input`: no per-frame input frame, so every update would throw.
+    const old = {} as unknown as XrBlocksRayInputAccess;
+    expect(() => new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, rayInput: old })).toThrow(/xrblocks 0\.20/);
+  });
+
+  it('without ray input, or with a caller-supplied bridge, update reads no ray frame', () => {
+    const getFrame = vi.fn(() => ({ raySources: [] }));
+    const wire = vi.fn();
+    const custom = new UixWindowHost({ scene: new Group(), headPose: STATIC_HEAD, rayInput: { getFrame }, pointerBridgeFactory: () => ({ wire }) });
+    custom.update(0.016);
+    expect(getFrame).not.toHaveBeenCalled();
+    const xr = { getFrame: () => null, getReferenceSpace: () => null, getSession: () => null };
+    const plain = connectUIExtensions({ scene: new Group(), camera, xr, kit: {} as never });
+    expect(() => plain.update(0.016)).not.toThrow();
   });
 });

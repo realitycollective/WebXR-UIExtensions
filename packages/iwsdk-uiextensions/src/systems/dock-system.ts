@@ -48,6 +48,7 @@ export class UIDockSystem extends createSystem({
 
   override init(): void {
     this.manager = windowManagerFor(this.world);
+    this.cleanupFuncs.push(this.manager.events.on('followChanged', ({ window }) => this.applyFollowChange(window.id)));
   }
 
   override update(): void {
@@ -214,12 +215,13 @@ export class UIDockSystem extends createSystem({
   private yawEuler = new Euler();
 
   private addFollower(entity: Entity, options: { fromCurrentPose?: boolean } = {}): void {
+    // The record's follow settings (`manager.setFollow` may have changed them
+    // since spawn); the component's own values only before a record exists.
+    const record = this.manager.get(entity.getValue(UIWindow, 'windowId') as string);
     const configured = entity.getVectorView(UIWindow, 'followOffset');
-    let offset: [number, number, number] = [
-      configured[0] ?? 0,
-      configured[1] ?? 0,
-      configured[2] ?? 0,
-    ];
+    let offset: [number, number, number] = record
+      ? [record.follow.offset[0], record.follow.offset[1], record.follow.offset[2]]
+      : [configured[0] ?? 0, configured[1] ?? 0, configured[2] ?? 0];
 
     const object = entity.object3D;
     if (options.fromCurrentPose && object) {
@@ -247,8 +249,23 @@ export class UIDockSystem extends createSystem({
       target: this.camera,
       offsetPosition: offset,
       behavior: FollowBehavior.PivotY,
-      speed: entity.getValue(UIWindow, 'followSpeed') as number,
-      tolerance: entity.getValue(UIWindow, 'followTolerance') as number,
+      speed: record ? record.follow.speed : (entity.getValue(UIWindow, 'followSpeed') as number),
+      tolerance: record ? record.follow.tolerance : (entity.getValue(UIWindow, 'followTolerance') as number),
     });
+  }
+
+  /** `manager.setFollow` after spawn: the live Follower takes the new offset and tuning at once. */
+  private applyFollowChange(windowId: string): void {
+    const record = this.manager.get(windowId);
+    if (!record) return;
+    for (const entity of this.queries.windows.entities) {
+      if (entity.getValue(UIWindow, 'windowId') !== windowId || !entity.hasComponent(Follower)) continue;
+      const offset = entity.getVectorView(Follower, 'offsetPosition');
+      offset[0] = record.follow.offset[0];
+      offset[1] = record.follow.offset[1];
+      offset[2] = record.follow.offset[2];
+      entity.setValue(Follower, 'speed', record.follow.speed);
+      entity.setValue(Follower, 'tolerance', record.follow.tolerance);
+    }
   }
 }

@@ -63,3 +63,33 @@ export function faceViewerYaw(windowPosition: Vec3, viewer: Vec3, current: numbe
   }
   return Math.atan2(dx, dz);
 }
+
+const dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/**
+ * Where a ray meets a plane, for a title-bar ray press that has no reported
+ * hit point of its own and must find one itself (XR Blocks' `SelectEvent`
+ * carries no hit point - only the ray). `rayDirection` and `planeNormal`
+ * must be normalized.
+ *
+ * Returns `undefined` when the ray cannot reach the plane going forward:
+ * parallel to it (the denominator is ~0), or the plane is behind the ray
+ * origin (`t < 0`) - a title-bar press pointed away from its own window,
+ * which should never happen but is not this function's business to assume.
+ */
+export function intersectRayPlane(
+  rayOrigin: Vec3,
+  rayDirection: Vec3,
+  planePoint: Vec3,
+  planeNormal: Vec3,
+): Vec3 | undefined {
+  const denominator = dot(rayDirection, planeNormal);
+  if (Math.abs(denominator) < 1e-9) {
+    return undefined;
+  }
+  const t = dot(sub(planePoint, rayOrigin), planeNormal) / denominator;
+  if (t < 0) {
+    return undefined;
+  }
+  return add(rayOrigin, scale(rayDirection, t));
+}

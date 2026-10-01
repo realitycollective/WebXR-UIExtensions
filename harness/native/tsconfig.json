@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "../..",
+    "types": []
+  },
+  "include": ["entry.ts", "src/**/*.ts", "../../demos/showcase/src/playground-scene.ts", "../../demos/showcase/src/playground-behaviour.ts", "../../packages/native-uiextensions/test/helpers/fake-native-ui-host.ts"]
+}

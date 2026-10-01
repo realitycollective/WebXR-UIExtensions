@@ -25,6 +25,7 @@ const ONCE = 'onReady fires once when the panel attaches';
 const REPLAY = 'onReady replays for a subscriber that arrives late';
 const HOST_REPLAY = 'onPanelReady replays for a subscriber that arrives late';
 const CLOSE = 'closing through the manager takes the window out of onPanelReady replay';
+const DISPOSE = 'dispose closes the host windows, stops replay, and can be called twice';
 
 /** One deliberate defect at a time, so each test names the case it breaks. */
 interface FakeConfig {
@@ -45,6 +46,12 @@ interface FakeConfig {
    * (stale).
    */
   manager?: 'ok' | 'unopened' | 'reopens' | 'stale';
+  /**
+   * How `dispose()` misbehaves: absent (missing), leaves windows open
+   * (keeps-windows), keeps replaying after it (keeps-replay), or throws when
+   * called again (throws-twice).
+   */
+  dispose?: 'ok' | 'missing' | 'keeps-windows' | 'keeps-replay' | 'throws-twice';
 }
 
 interface FakeHandle {
@@ -79,6 +86,8 @@ function makeSetup(config: FakeConfig = {}): WindowHostContractSetup {
   const panelReadyMode = config.onPanelReady ?? 'ok';
   const panelReadyUnsubscribe = config.panelReadyUnsubscribe ?? 'ok';
   const managerMode = config.manager ?? 'ok';
+  const disposeMode = config.dispose ?? 'ok';
+  let disposed = false;
 
   const manager = new WindowManager();
   const events: PanelReadyEvent[] = [];
@@ -106,7 +115,25 @@ function makeSetup(config: FakeConfig = {}): WindowHostContractSetup {
         listeners.delete(listener);
       };
     },
+    dispose() {
+      if (disposed && disposeMode === 'throws-twice') {
+        throw new Error('already disposed');
+      }
+      disposed = true;
+      const kept = [...events];
+      if (disposeMode !== 'keeps-windows') {
+        for (const id of handles.keys()) {
+          if (manager.has(id)) manager.close(id);
+        }
+      }
+      events.length = 0;
+      if (disposeMode === 'keeps-replay') events.push(...kept);
+      listeners.clear();
+    },
   };
+  if (disposeMode === 'missing') {
+    delete (host as { dispose?: unknown }).dispose;
+  }
 
   function attach(id: string): void {
     const handle = handles.get(id);
@@ -310,5 +337,29 @@ describe('windowHostContractCases catches a broken host', () => {
 
   it('fails loudly when asked for a case that does not exist', () => {
     expect(() => runCase('no such case', {})).toThrow(/no contract case named/);
+  });
+
+  it('rejects a host with no dispose', () => {
+    expect(() => runCase(DISPOSE, { dispose: 'missing' })).toThrow(
+      /must implement dispose/,
+    );
+  });
+
+  it('rejects a dispose that leaves windows open', () => {
+    expect(() => runCase(DISPOSE, { dispose: 'keeps-windows' })).toThrow(
+      /must close the windows the host opened/,
+    );
+  });
+
+  it('rejects a dispose that keeps replaying panels', () => {
+    expect(() => runCase(DISPOSE, { dispose: 'keeps-replay' })).toThrow(
+      /must replay nothing/,
+    );
+  });
+
+  it('rejects a second dispose that throws', () => {
+    expect(() => runCase(DISPOSE, { dispose: 'throws-twice' })).toThrow(
+      /second dispose\(\) must be a no-op/,
+    );
   });
 });

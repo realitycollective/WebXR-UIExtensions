@@ -22,6 +22,11 @@
 #   - CLOUDFLARE_API_TOKEN   (token with "Cloudflare Pages: Edit")
 #   - CLOUDFLARE_ACCOUNT_ID
 
+# Dry run:
+#   - after a pull request merges into `main` or `development` and every job
+#     above passes on the merge, queue-dry-run dispatches "Publish to npm"
+#     on that branch with dryRun ticked. A direct push queues nothing.
+
 name: CI
 
 on:
@@ -57,6 +62,14 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
+      # Reads only the manifests, the lockfile and npm, so it runs before the install. Into main,
+      # every dependency on another Reality Collective repository names npm's latest release;
+      # into any other branch, the newest version on npm (scripts/rc-dependencies.mjs).
+      - name: Check Reality Collective dependencies
+        env:
+          INTO: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref_name }}
+        run: node scripts/rc-dependencies.mjs --into "$INTO"
+
       - name: Install dependencies
         run: npm ci
 
@@ -74,6 +87,11 @@ jobs:
       # installs into a clean project and imports.
       - name: Verify the published artifact is consumable
         run: npm run verify:pack -- --skip-build
+
+      # CI compiles the native harness (typecheck, bundle gates, Hermes bytecode) and never runs it:
+      # a native build runs only on a developer's machine or a headset.
+      - name: Compile the native harness (no run)
+        run: npm run harness:compile -- --require-hermes
 
       - name: Build showcase (static Vite bundle)
         run: npm run build:showcase
@@ -322,6 +340,14 @@ jobs:
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: npm install --no-save --no-audit --no-fund playwright-core@1.61.1
 
+      # The lab is smoked three times: its launch screen, then the desktop and
+      # IWSDK pipelines booted directly through ?uix-autostart=1, because a
+      # pipeline that fails to start is invisible behind the launch screen (the
+      # IWSDK pipeline shipped once with a bare three-mesh-bvh import that only
+      # pressing START would have revealed). The XR Blocks pipeline is not
+      # smoked: xrblocks renders into <body> rather than the mount point and
+      # logs a console.error about the three.js revision it wants, both of
+      # which the smoke test counts as failures.
       - name: Smoke test the deployed site
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: |
@@ -329,6 +355,8 @@ jobs:
             "${{ steps.deploy.outputs.deployment-url }}" \
             "${{ steps.deploy.outputs.deployment-url }}/?uix-engine=iwsdk" \
             "${{ steps.deploylab.outputs.deployment-url }}" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=desktop&uix-autostart=1" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=iwsdk&uix-autostart=1" \
             --mount "#scene-container"
 
   # ---------------------------------------------------------------------------
@@ -550,6 +578,14 @@ jobs:
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: npm install --no-save --no-audit --no-fund playwright-core@1.61.1
 
+      # The lab is smoked three times: its launch screen, then the desktop and
+      # IWSDK pipelines booted directly through ?uix-autostart=1, because a
+      # pipeline that fails to start is invisible behind the launch screen (the
+      # IWSDK pipeline shipped once with a bare three-mesh-bvh import that only
+      # pressing START would have revealed). The XR Blocks pipeline is not
+      # smoked: xrblocks renders into <body> rather than the mount point and
+      # logs a console.error about the three.js revision it wants, both of
+      # which the smoke test counts as failures.
       - name: Smoke test the deployed site
         if: steps.deploy.outcome == 'success' || steps.deploylab.outcome == 'success'
         run: |
@@ -557,5 +593,52 @@ jobs:
             "${{ steps.deploy.outputs.deployment-url }}" \
             "${{ steps.deploy.outputs.deployment-url }}/?uix-engine=iwsdk" \
             "${{ steps.deploylab.outputs.deployment-url }}" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=desktop&uix-autostart=1" \
+            "${{ steps.deploylab.outputs.deployment-url }}/?uix-engine=iwsdk&uix-autostart=1" \
             --mount "#scene-container"
 
+  # ---------------------------------------------------------------------------
+  # DRY RUN - after a merged pull request, queue "Publish to npm" with dryRun
+  # ticked on the branch it merged into. It waits for every job above and runs
+  # only when none failed. A direct push to the branch queues nothing, because
+  # releases are cut from pull requests. The publish run itself is still
+  # dispatched by hand when it is for real.
+  # ---------------------------------------------------------------------------
+  queue-dry-run:
+    name: Queue publish dry run
+    needs: [build-test, deploy-production, deploy-staging]
+    if: >-
+      !cancelled()
+      && !contains(needs.*.result, 'failure')
+      && github.event_name == 'push'
+      && (github.ref_name == 'main' || github.ref_name == 'development')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    steps:
+      # GITHUB_TOKEN cannot trigger most workflows, but workflow_dispatch is
+      # the documented exception, so no extra secret is needed.
+      - name: Dispatch the dry run if this push merged a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          PR="$(gh api "repos/$REPO/commits/$SHA/pulls" \
+            --jq "[.[] | select(.merged_at != null and .base.ref == \"$BRANCH\")][0].number // empty")"
+          if [ -z "$PR" ]; then
+            echo "$SHA on $BRANCH is not a merged pull request. No dry run queued."
+            exit 0
+          fi
+          gh workflow run publish-npm.yml --repo "$REPO" --ref "$BRANCH" -f dryRun=true
+          {
+            echo "## Publish dry run queued"
+            echo ""
+            echo "PR #$PR merged into \`$BRANCH\`, so a dry run of **Publish to npm** was dispatched on \`$BRANCH\`."
+            echo "Find it in [Publish to npm](https://github.com/$REPO/actions/workflows/publish-npm.yml?query=branch%3A$BRANCH)."
+          } >> "$GITHUB_STEP_SUMMARY"
