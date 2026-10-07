@@ -4,6 +4,22 @@ Change log for the Reality Collective WebXR UI Extensions packages. All five pac
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Preview builds are not listed separately. The entry for a version accumulates while its previews are published, and is dated when that version is released.
 
+## [0.1.2]
+
+### Changed
+
+- Development, tests and demos run on one shared copy of Meta's `super-three` fork at 0.185.0 (root `overrides`, with `@types/three` 0.185.4), the version every WebXR repository now uses, and on `@iwsdk/core` 1.0.1. IWSDK 1.0.1 changes no runtime code from 1.0.0. XR Blocks needs three r182 or later and logged an error on the r181 copy the demos used before. Published peer ranges are unchanged.
+- `@realitycollective/iwsdk-uiextensions` - `@pmndrs/handle` floor raised to `^6.6.31`, the current release.
+- The showcase and the multiplatform lab choose their engine by asking the browser's WebXR runtime which immersive modes it can start (`probeXRSupport`, `chooseEngine(userAgent, search, xr)` in `demos/showcase/src/platform-detect.ts`). The user agent now only tells a Meta browser from any other. Before, a browser was taken for Android XR only if its user agent said so, and an XREAL Aura whose browser did not was offered the desktop pipeline.
+
+### Added
+
+- Multiplatform lab diagnostics for framework testers (`demos/showcase/src/diagnostics.ts`), behind a hidden URL option. `?uix-log=1` records console output, errors, failed loads, WebGL context loss and every WebXR session from the first line, keeps the last three page loads on the device, and sends the log by itself 20 s after the page opens, when each session ends and when the page is left. `?uix-log=local` keeps it on the device. Without the option nothing is recorded. A Pages Function (`demos/webxr-multiplatform/functions/api/report.ts`) stores each report as one D1 row for at least 48 hours, capped per client, per day and by size; it answers 503 until a D1 database is bound. The lab README's "Diagnostics" section covers testers and maintainers.
+
+### Fixed
+
+- Multiplatform lab, XR Blocks pipeline on a browser that can enter XR (Android XR, XREAL Aura): the page showed a near-empty dark view and no way in. XR Blocks skips its desktop simulator there, draws the page from its own camera at floor level, and appends an unstyled Enter XR button below the full-height canvas, off screen. The pipeline now pins the button at the bottom centre and raises the 2D view to 1.7 m, IWSDK's camera height (`demos/webxr-multiplatform/src/pipelines/xrblocks-page.ts`).
+
 ## [0.1.1] - 2026-10-01
 
 ### Added

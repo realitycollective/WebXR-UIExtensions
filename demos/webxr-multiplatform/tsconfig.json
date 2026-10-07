@@ -20,5 +20,5 @@
       "@playground/*": ["../devtools-playground/src/*"]
     }
   },
-  "include": ["src/**/*", "test/**/*", "vite.config.ts"]
+  "include": ["src/**/*", "test/**/*", "functions/**/*", "vite.config.ts"]
 }

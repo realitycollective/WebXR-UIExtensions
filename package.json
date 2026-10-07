@@ -9,8 +9,8 @@
     "demos/*"
   ],
   "overrides": {
-    "three": "npm:super-three@0.181.0",
-    "@types/three": "0.184.0"
+    "three": "npm:super-three@0.185.0",
+    "@types/three": "0.185.4"
   },
   "scripts": {
     "build": "npm --workspace @realitycollective/webxr-uiextensions run build && npm --workspace @realitycollective/iwsdk-uiextensions run build && npm --workspace @realitycollective/threejs-uiextensions run build && npm --workspace @realitycollective/xrblocks-uiextensions run build && npm --workspace @realitycollective/native-uiextensions run build && npm --workspace @realitycollective/uix-devtools run build",
