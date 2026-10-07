@@ -6,17 +6,37 @@
  * chosen implementation actually runs on this browser. All three pipelines
  * are dynamic imports, so a session only downloads the engine it launches.
  *
+ * The platform is detected by asking the browser's WebXR runtime which
+ * immersive modes it can start (`@showcase/platform-detect.ts`); the user agent
+ * only tells a Meta browser from any other.
+ *
+ * `?uix-log=1`, a hidden option for framework testers, records diagnostics
+ * from the first line, before any pipeline loads, and sends them to the lab's
+ * report service (`@showcase/diagnostics.ts`); `?uix-log=local` keeps them on
+ * the device. Without it nothing is recorded.
+ *
  * `?uix-engine=<engine>&uix-autostart=1` skips the launch screen and boots
  * that pipeline at once. It exists for the post-deploy smoke test, which
  * must reach the pipeline code and not only the launch screen: the deployed
  * lab once passed smoke while its IWSDK pipeline failed on a bare
  * `three-mesh-bvh` import, because nothing pressed START.
  */
+import { installDiagnostics } from '@showcase/diagnostics.js';
 import {
   ENGINE_PARAM,
   chooseEngine,
+  probeXRSupport,
   type UixEngine,
 } from '@showcase/platform-detect.js';
+
+const AUTOSTART_PARAM = 'uix-autostart';
+const LOG_PARAM = 'uix-log';
+
+const diagnostics = installDiagnostics({
+  lab: 'uix-lab',
+  param: LOG_PARAM,
+  keepParams: [ENGINE_PARAM, AUTOSTART_PARAM, LOG_PARAM],
+});
 
 interface ModeInfo {
   title: string;
@@ -38,9 +58,9 @@ const MODES: Record<UixEngine, ModeInfo> = {
   },
 };
 
-const AUTOSTART_PARAM = 'uix-autostart';
-
-const choice = chooseEngine(navigator.userAgent, location.search);
+const xrSupport = await probeXRSupport();
+const choice = chooseEngine(navigator.userAgent, location.search, xrSupport);
+diagnostics.note(`engine pre-selected: ${choice.engine}`, { reason: choice.reason, overridden: choice.overridden, xrSupport });
 const container = document.getElementById('scene-container') as HTMLDivElement;
 
 async function boot(engine: UixEngine): Promise<void> {
@@ -49,6 +69,7 @@ async function boot(engine: UixEngine): Promise<void> {
     badge.textContent = `engine: ${engine} - ${MODES[engine].title}`;
     badge.style.display = 'block';
   }
+  diagnostics.note(`booting the ${engine} pipeline`);
   if (engine === 'desktop') {
     await import('./pipelines/desktop-pipeline.js').then((m) => m.bootDesktop(container));
   } else if (engine === 'xrblocks') {

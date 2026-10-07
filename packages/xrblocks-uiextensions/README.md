@@ -110,7 +110,7 @@ handle.onReady((panel) => wire(panel));   // fires straight away here
 
 ## Known constraint: three versions
 
-`xrblocks` declares a peer of `three@^0.184`, while IWSDK mandates the `super-three@0.181` fork used workspace-wide. Vite resolves a single `three` per bundle so the pairing works in practice, but npm's peer check cannot express it - this workspace uses `legacy-peer-deps` (see the root `.npmrc`). Revisit when IWSDK's three catches up.
+`xrblocks` 0.21 declares a peer of `three@^0.184` and logs an error below r182, while IWSDK 1.0 pins the `super-three@0.181.0` fork. The Reality Collective workspaces override both to one shared copy of `super-three@0.185.0`, which meets XR Blocks' r182 floor and which IWSDK runs unchanged. npm's peer check cannot express that override, so the workspaces use `legacy-peer-deps` (see the root `.npmrc`). An app that installs this package picks its own `three`, and XR Blocks needs r182 or later.
 
 ## Testing
 

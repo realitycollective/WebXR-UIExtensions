@@ -11,6 +11,7 @@ import type { Object3D } from 'three';
 import * as xb from 'xrblocks';
 import { installPlaygroundBehaviour } from '@showcase/playground-behaviour.js';
 import { PLAYGROUND } from '@showcase/playground-scene.js';
+import { fitXRBlocksPage, type XRBlocksPageCore } from './xrblocks-page.js';
 
 class UixShowcaseScript extends xb.Script {
   private host?: UixWindowHost;
@@ -52,9 +53,8 @@ class UixShowcaseScript extends xb.Script {
 export async function bootXRBlocks(container: HTMLElement): Promise<void> {
   xb.add(new UixShowcaseScript());
   await xb.init();
-  // XR Blocks appends its own root to <body>. Move it into the mount point, as the other two
-  // pipelines draw there, so "did the page render anything" is answered by #scene-container.
-  const canvas = xb.core.renderer.domElement as HTMLCanvasElement;
-  const root = canvas.parentElement && canvas.parentElement !== document.body ? canvas.parentElement : canvas;
-  container.appendChild(root);
+  // Everything XR Blocks draws moves into the mount point, as the other two pipelines draw there,
+  // so "did the page render anything" is answered by #scene-container. On a browser that can
+  // enter XR the Enter XR button is pinned on screen and the 2D view raised to standing height.
+  fitXRBlocksPage(container, xb.core as unknown as XRBlocksPageCore);
 }

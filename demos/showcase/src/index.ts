@@ -1,9 +1,10 @@
 /**
  * IWSDK UI Extensions - showcase client entry.
  *
- * The runtime is picked from the hardware, the same way the multiplatform
- * lab picks one: a Meta Horizon OS browser boots the IWSDK build, everything
- * else boots the native three.js build. IWSDK is Meta's SDK - it takes the
+ * The runtime is picked the same way the multiplatform lab picks one: the
+ * browser's WebXR runtime is asked which immersive modes it can start, and a
+ * Meta Horizon OS browser with immersive WebXR boots the IWSDK build;
+ * everything else boots the native three.js build. IWSDK is Meta's SDK - it takes the
  * view pose from the headset and ships no desktop camera - so on a desktop
  * it would render this scene from a frozen viewpoint, with two of the five
  * windows and one of the two dock regions permanently outside the frustum.
@@ -18,10 +19,10 @@
  * Both bootstraps are dynamic imports: a desktop visitor never downloads
  * IWSDK, and a headset never downloads the three.js host.
  */
-import { chooseEngine } from './platform-detect.js';
+import { chooseEngine, probeXRSupport } from './platform-detect.js';
 
 const container = document.getElementById('scene-container') as HTMLDivElement;
-const choice = chooseEngine(navigator.userAgent, location.search);
+const choice = chooseEngine(navigator.userAgent, location.search, await probeXRSupport());
 
 // The lab ships all three pipelines; the showcase ships two of them. Android
 // XR resolves to 'xrblocks' there and has no IWSDK build to fall back on, so
