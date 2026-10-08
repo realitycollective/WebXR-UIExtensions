@@ -42,7 +42,7 @@
     "@drawcall/uikitml": "0.1.8",
     "zod": "^4.4.3",
     "@pmndrs/handle": "^6.6.31",
-    "@realitycollective/webxr-input": "^0.1.8",
+    "@realitycollective/webxr-input": "^0.1.9",
     "@realitycollective/webxr-uiextensions": "^0.1.2-preview.1"
   },
   "peerDependencies": {
