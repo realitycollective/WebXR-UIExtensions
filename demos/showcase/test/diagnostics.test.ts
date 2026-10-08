@@ -11,6 +11,7 @@ import {
   pageUrl,
   postReport,
   redact,
+  resolveOption,
   saveStored,
   wrapConsole,
   type DiagnosticsReport,
@@ -290,5 +291,53 @@ describe('postReport', () => {
     }) as unknown as typeof fetch;
     const result = await postReport('/api/report', '{}', offline);
     expect(result).toMatchObject({ ok: false, retry: true });
+  });
+});
+
+describe('resolveOption: the hidden option holds for the tab', () => {
+  const session = () => {
+    const map = new Map<string, string>();
+    return {
+      map,
+      getItem: (key: string) => map.get(key) ?? null,
+      setItem: (key: string, value: string) => void map.set(key, value),
+      removeItem: (key: string) => void map.delete(key),
+    };
+  };
+
+  it('a value in the query wins and is remembered', () => {
+    const store = session();
+    expect(resolveOption('?uix-log=1&uix-engine=xrblocks', 'uix-log', 'k', store)).toEqual({ value: '1', fromSession: false });
+    expect(store.map.get('k')).toBe('1');
+  });
+
+  it('with no value in the query the remembered one applies, and asks to be put back in the URL', () => {
+    const store = session();
+    resolveOption('?uix-log=local', 'uix-log', 'k', store);
+    expect(resolveOption('?uix-engine=xrblocks', 'uix-log', 'k', store)).toEqual({ value: 'local', fromSession: true });
+    expect(resolveOption('', 'uix-log', 'k', store)).toEqual({ value: 'local', fromSession: true });
+  });
+
+  it('an explicit off value ends it for the tab', () => {
+    const store = session();
+    resolveOption('?uix-log=1', 'uix-log', 'k', store);
+    expect(resolveOption('?uix-log=off', 'uix-log', 'k', store)).toEqual({ value: 'off', fromSession: false });
+    expect(store.map.has('k')).toBe(false);
+    expect(resolveOption('', 'uix-log', 'k', store)).toEqual({ value: null, fromSession: false });
+  });
+
+  it('a fresh tab starts without it, and a storage that refuses still answers the query', () => {
+    expect(resolveOption('', 'uix-log', 'k', session())).toEqual({ value: null, fromSession: false });
+    expect(resolveOption('?uix-engine=desktop', 'uix-log', 'k', null)).toEqual({ value: null, fromSession: false });
+    const refusing = {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+    };
+    expect(resolveOption('?uix-log=1', 'uix-log', 'k', refusing)).toEqual({ value: '1', fromSession: false });
+    expect(resolveOption('', 'uix-log', 'k', refusing)).toEqual({ value: null, fromSession: false });
   });
 });

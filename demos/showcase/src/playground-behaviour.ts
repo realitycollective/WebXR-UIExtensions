@@ -24,6 +24,12 @@ type Uikit = {
 };
 
 export interface PlaygroundBehaviour {
+  /**
+   * Write a timestamped line to the Event Log window. Lines written before
+   * the window has loaded are held and shown when it does. The platform
+   * files hand this to the Service Framework app service as its `report`.
+   */
+  log(message: string): void;
   dispose(): void;
 }
 
@@ -61,12 +67,12 @@ export function installPlaygroundBehaviour(
   manager.events.on('minimized', (w) => log(`minimized "${w.title}"`));
   manager.events.on('restored', (w) => log(`restored "${w.title}"`));
   manager.events.on('dockChanged', ({ window, previous }) =>
-    log(`"${window.title}" ${previous} → ${window.dockMode}`),
+    log(`"${window.title}" ${previous} -> ${window.dockMode}`),
   );
   manager.events.on('hidden', (w) => log(`hidden "${w.title}"`));
   manager.events.on('shown', (w) => log(`shown "${w.title}"`));
   manager.events.on('regionChanged', ({ window, previous }) =>
-    log(`"${window.title}" region ${previous ?? 'none'} → ${window.region ?? 'none'}`),
+    log(`"${window.title}" region ${previous ?? 'none'} -> ${window.region ?? 'none'}`),
   );
   manager.events.on('chromeChanged', ({ window }) => {
     const on = Object.entries(window.chrome)
@@ -168,7 +174,7 @@ export function installPlaygroundBehaviour(
     }
   });
 
-  return { dispose: unsubscribe };
+  return { log, dispose: unsubscribe };
 }
 
 /** The window every control-panel button acts on. */

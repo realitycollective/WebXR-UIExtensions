@@ -15,10 +15,15 @@
  * bridges DOM pointer events into the uikit panels, so hover states, button
  * presses, sliders and text fields behave exactly as they do under IWSDK.
  * WASD/Space/C locomotion stands in for a headset's head tracking.
+ *
+ * The page is a Service Framework app. The three.js `WebXRRuntimeAdapter`
+ * owns the frame loop (`setAnimationLoop` on the renderer) and emits
+ * `renderTick`; the manager forwards it to the app service's `render()`
+ * (`app-service.ts`), which runs this page's frame closure: controls, the
+ * window host, pointer events and the draw.
  */
 import {
   AmbientLight,
-  Clock,
   DirectionalLight,
   EdgesGeometry,
   GridHelper,
@@ -34,6 +39,16 @@ import {
 } from 'three';
 import { forwardHtmlEvents } from '@pmndrs/pointer-events';
 import * as horizonKit from '@pmndrs/uikit-horizon';
+import {
+  ManualScheduler,
+  ServiceManager,
+  createServiceProfile,
+} from '@realitycollective/service-framework';
+import {
+  WebXRRuntimeAdapter,
+  type WebXRManagerLike,
+  type WebXRSystemLike,
+} from '@realitycollective/service-framework-three';
 import { applyScene } from '@realitycollective/webxr-uiextensions';
 import {
   DesktopControls,
@@ -43,6 +58,7 @@ import {
   configureRendererForUikit,
   type WindowManager,
 } from '@realitycollective/xrblocks-uiextensions';
+import { uixAppRegistration, type UixAppConfig } from './app-service.js';
 import { installPlaygroundBehaviour } from './playground-behaviour.js';
 import { PLAYGROUND } from './playground-scene.js';
 
@@ -53,6 +69,10 @@ export interface DesktopShowcaseHandles {
   scene: Scene;
   camera: PerspectiveCamera;
   controls: DesktopControls;
+  /** The Service Framework manager the app service runs in. */
+  services: ServiceManager;
+  /** The three.js runtime adapter: it owns the frame loop. */
+  adapter: WebXRRuntimeAdapter;
 }
 
 export async function bootstrapDesktopShowcase(
@@ -121,17 +141,53 @@ export async function bootstrapDesktopShowcase(
     handPose: webxrHandPoseSource(renderer.xr),
     kit: horizonKit as never,
   });
-  installPlaygroundBehaviour(host, host.manager);
+  const behaviour = installPlaygroundBehaviour(host, host.manager);
   applyScene(host, PLAYGROUND);
 
-  const clock = new Clock();
-  renderer.setAnimationLoop(() => {
-    const delta = clock.getDelta();
-    controls.update(delta);
-    host.update(delta);
-    pointerEvents.update();
-    renderer.render(scene, camera);
+  // --- The Service Framework app ---------------------------------------------
+  // The adapter owns the loop: `adapter.start()` binds the renderer's
+  // animation loop and each frame emits `renderTick`, which the manager hands
+  // to the app service's `render()` and so to `frame` below. This page
+  // requests no XR session (the hint bar's Enter VR reloads into the IWSDK
+  // build), so the adapter is given no `sessionInit`.
+  const scheduler = new ManualScheduler();
+  const services = new ServiceManager({ scheduler });
+  const adapter = new WebXRRuntimeAdapter({
+    // Casts, not conversions: the adapter's structural host types do not
+    // accept three's own `WebXRManager` (its `setSession` takes `null`) or the
+    // WebXR typings' `XRSession` under this repository's
+    // `exactOptionalPropertyTypes`. At run time these are the objects the
+    // adapter is written for.
+    xr: renderer.xr as unknown as WebXRManagerLike,
+    xrSystem: (navigator.xr ?? null) as WebXRSystemLike | null,
+    host: renderer,
+    scheduler,
+    manager: services,
+  });
+  const app: UixAppConfig = {
+    adapter,
+    frame: (deltaSeconds) => {
+      controls.update(deltaSeconds);
+      host.update(deltaSeconds);
+      pointerEvents.update();
+      renderer.render(scene, camera);
+    },
+    // Capabilities and session state land in the Event Log window.
+    report: behaviour.log,
+  };
+  services.initializeProfile(
+    createServiceProfile('uix-showcase-desktop', [uixAppRegistration(app)]),
+  );
+  services.start();
+  adapter.start();
+
+  // With no XR session the adapter raises no focus or pause of its own, so
+  // the browser's page visibility reaches every service from here.
+  document.addEventListener('visibilitychange', () => {
+    const focused = document.visibilityState === 'visible';
+    services.emitFocusChange(focused);
+    services.emitPauseChange({ paused: !focused });
   });
 
-  return { host, manager: host.manager, scene, camera, controls };
+  return { host, manager: host.manager, scene, camera, controls, services, adapter };
 }

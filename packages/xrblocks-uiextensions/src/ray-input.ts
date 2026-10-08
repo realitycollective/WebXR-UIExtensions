@@ -37,9 +37,22 @@ export interface XBRaySourceLike {
   ray: XBRayLike;
 }
 
-/** Structural `xb.input.getFrame()`'s return shape. Only `raySources` is read here. */
+/**
+ * Structural `DirectTouchInput` (xrblocks `src/interaction/InteractionTypes.ts`):
+ * one tracked hand's index fingertip this frame. Only the fields this binding reads.
+ */
+export interface XBDirectTouchLike {
+  /** 0 is the left hand, anything else the right. */
+  handIndex: number;
+  /** The index fingertip's world position. */
+  point: XBVec3Like;
+}
+
+/** Structural `xb.input.getFrame()`'s return shape: the rays and fingertips XR Blocks sampled this frame. */
 export interface XBInputFrameLike {
   raySources: readonly XBRaySourceLike[];
+  /** Absent on an input that predates direct touch, or in a fake that has no hands. */
+  directTouches?: readonly XBDirectTouchLike[];
 }
 
 /** `xb.input` itself - the one method this binding calls on it. */

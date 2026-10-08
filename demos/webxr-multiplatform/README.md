@@ -38,6 +38,10 @@ All three build the **identical playground** - five windows and two dock regions
 | Right-drag | look around |
 | Left click | interact with panels |
 
+## Service Framework
+
+All three pipelines are [Service Framework](https://github.com/realitycollective/com.realitycollective.service-framework.ts) apps and share one app service, `UixAppService` in [`demos/showcase/src/app-service.ts`](../showcase/src/app-service.ts). Engine objects stay in each pipeline and reach the service only through its frame closure, which the service's `render()` runs. On the desktop pipeline the three.js `WebXRRuntimeAdapter` owns the loop through the renderer's `setAnimationLoop`. On the IWSDK pipeline the World owns it, and the bridge system from `@realitycollective/service-framework-iwsdk` relays each visible frame. The UI Extensions systems there keep ticking from the World. On the XR Blocks pipeline XR Blocks owns the loop, so the adapter has no host and is never started. The Script's `update()` calls `adapter.tick(performance.now())` instead, and the service's frame closure ticks the window host. Every pipeline writes the adapter's capabilities and each XR session state to the Event Log window.
+
 ## Run it
 
 ```bash
@@ -60,7 +64,7 @@ For framework testers only. A hidden URL option, not shown anywhere on the page,
 | `?uix-log=local` | records, but keeps the log on the device; the tester presses Send |
 | absent, `0` or `off` | nothing |
 
-Add it to whatever else the link carries, for example `https://webxr-uix-lab-test.pages.dev/?uix-log=1`. The launch screen keeps it when START rewrites the URL.
+Add it to whatever else the link carries, for example `https://webxr-uix-lab-test.pages.dev/?uix-log=1`. Once given, it holds for the rest of the visit in that tab: the page remembers it in session storage and puts it back in the URL after any navigation that dropped it, whichever engine is started. `?uix-log=off` ends it; a new tab starts without it.
 
 The log holds console output, uncaught errors, failed loads, WebGL context loss, and every WebXR session: its mode, blend mode, granted features, first frame, and frame and pose counts every 10 s. Each send carries the whole log of the page load so far, so the newest report for a page load is the complete one. The device keeps the last three page loads in local storage, so a reload or a crash does not lose them, and a send that failed offline goes when the browser is back online. Query values other than `uix-engine`, `uix-autostart` and `uix-log` are never recorded, so an edit token is never stored.
 

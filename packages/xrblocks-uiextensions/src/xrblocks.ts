@@ -24,6 +24,7 @@ import type { Kit } from '@pmndrs/uikitml';
 import type { PointerArbiter } from '@realitycollective/webxr-input';
 import { UixWindowHost } from './host.js';
 import type { XrBlocksRayInputAccess } from './ray-input.js';
+import type { UikitRenderer } from './renderer-setup.js';
 
 /** The slice of an XR Blocks Script / three.js app the host binds to. */
 export interface EngineContext {
@@ -52,6 +53,13 @@ export interface EngineContext {
    * pointer kind it says owns the source. Also needs `input` for rays.
    */
   pointers?: PointerArbiter;
+  /**
+   * The engine's renderer (`xb.core.renderer`), configured for uikit once
+   * at connection: transparent meshes sorted by `renderOrder` and local
+   * clipping on. Leave it out and panel plates hide their own text, as XR
+   * Blocks sets neither (see `configureRendererForUikit`).
+   */
+  renderer?: UikitRenderer;
 }
 
 /**
@@ -127,5 +135,6 @@ export function connectUIExtensions(context: EngineContext): UixWindowHost {
     ...(context.kit ? { kit: context.kit } : {}),
     ...(context.input ? { rayInput: context.input } : {}),
     ...(context.pointers ? { pointers: context.pointers } : {}),
+    ...(context.renderer ? { renderer: context.renderer } : {}),
   });
 }

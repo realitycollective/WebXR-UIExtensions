@@ -24,10 +24,10 @@ It re-exports everything from the core, so this is the only UI Extensions packag
 | Dock regions (wall/belt, slots, follow) | ✅ | ✅ `createRegion`, `manager.dockTo` (`host.dock` forwards) |
 | Desktop mouse input (hover, click, drag-to-look) | ✅ | ✅ via `@pmndrs/pointer-events` |
 | Desktop locomotion (WASD, jump, crouch, sprint) | n/a | ✅ `DesktopControls` |
-| Ray click on release, poke (touch), controller-tip poke | ✅ | ✅ `pointer-bridge.ts`'s `XrBlocksPointerBridge`, attached to every panel automatically - runs the core `TouchPress` and clicks on `onSelectEnd`, not on intersection |
-| Hover styles (`pointerenter`/`pointerleave`) | ✅ | ✅ relayed from `onHoverEnter`/`onHoverExit` |
+| Ray click on release, poke (touch), controller-tip poke | ✅ | ✅ `pointer-bridge.ts`'s `XrBlocksPointerBridge`, attached to every panel automatically - clicks on `onObjectSelectEnd`, not on intersection, and runs the core `TouchPress` from `xb.input.getFrame().directTouches` |
+| Hover styles (`pointerenter`/`pointerleave`) | ✅ | ✅ per source, from the bridge's own raycast of `xb.input.getFrame().raySources` |
 | Bare panels (`createPanel`) | ⬜ ECS owns the lifecycle | ✅ `supportsStandalonePanels` is `true` |
-| Title-bar ray drag, with a per-window `dragDelay` | ✅ (`@pmndrs/handle`) | ✅ `TitlebarDragController`, from `onSelectStart`/`onSelectEnd` on the title bar |
+| Title-bar ray drag, with a per-window `dragDelay` | ✅ (`@pmndrs/handle`) | ✅ `TitlebarDragController`, from `onObjectSelectStart`/`onObjectSelectEnd` on the title bar |
 | Title-bar near grab (squeeze / pinch), starts at once | ✅ | ✅ from `onObjectGrabStart`/`onObjectGrabEnd`, gated to the title bar as on native |
 | Billboard while dragging | ✅ | ✅ `billboardWhileDragging` (default on) |
 | Drop-to-dock by dragging | ✅ | ✅ the core `RegionRegistry.capture` |
@@ -40,7 +40,9 @@ It re-exports everything from the core, so this is the only UI Extensions packag
 
 A ray drag rides the ray at a fixed grab distance, the same laser math IWSDK and native use, when `input: xb.input` is supplied to `connectUIExtensions` (or `rayInput` to the host directly) - `xb.input.getFrame()`'s `raySources` give the controller's live ray, since `SelectEvent` itself carries none. With no `rayInput` wired it falls back to the controller's own position delta instead: correct, but not laser-distance.
 
-Requires `xrblocks` **0.20 or later** when `input: xb.input` is supplied: the host reads rays with `xb.input.getFrame()`, and refuses an older input once, at construction, by name. Verified against `xrblocks` 0.21.1.
+Requires `xrblocks` **0.21 or later**: the host reads rays and fingertips with `xb.input.getFrame()` (0.20 added it; the host refuses an older input once, at construction, by name), and presses arrive through the Script hooks 0.21 introduced, `onObjectSelectStart`/`onObjectSelectEnd` and `onObjectGrabStart`/`onObjectGrabEnd`, which 0.21 calls only on a Script. Verified against `xrblocks` 0.21.1.
+
+Pass `renderer: xb.core.renderer` to `connectUIExtensions` (or `renderer` to the host). The host then configures it for uikit once: transparent meshes sorted by `renderOrder`, as uikit assigns, and local clipping on. XR Blocks sets neither, and without them a panel plate hides its own text.
 
 ## Required renderer setup (read this first)
 
@@ -83,7 +85,7 @@ xb.add(new MyScript());
 await xb.init();
 ```
 
-Nothing here imports `xrblocks` at the type level - the glue binds to plain three.js shapes (`scene: Object3D`, `camera`), so the same host works in a hand-rolled three.js WebXR app. Press, poke, drag and hover need no wiring in your own `Script`: `createWindow`/`createPanel` attach the pointer bridge to every panel automatically, driven by whichever of XR Blocks' `onSelectStart`/`onSelectEnd`, `onObjectTouchStart`/`onObjectTouching`/`onObjectTouchEnd`, `onObjectGrabStart`/`onObjectGrabEnd` and `onHoverEnter`/`onHoverExit` your scene calls.
+Nothing here imports `xrblocks` at the type level - the glue binds to plain three.js shapes (`scene: Object3D`, `camera`), so the same host works in a hand-rolled three.js WebXR app. Press, poke, drag and hover need no wiring in your own `Script`: `createWindow`/`createPanel` attach the pointer bridge to every panel automatically. The bridge inserts one node per panel, `XrBlocksPanelScript`, between the panel document and the uikit root. XR Blocks 0.21 treats it as the Script for every hit inside the panel and calls `onObjectSelectStart`/`onObjectSelectEnd` and `onObjectGrabStart`/`onObjectGrabEnd` on it; rays and fingertips come from `xb.input.getFrame()` each frame through the host's `update`. XR Blocks' per-object callbacks of 0.19 (`onSelectStart` on the hit object) are no longer called by the SDK and no longer read here.
 
 ### Window options and handles
 

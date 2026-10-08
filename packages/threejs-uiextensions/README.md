@@ -40,7 +40,7 @@ renderer.xr.enabled = true;
 ## Usage
 
 ```ts
-import { PerspectiveCamera, Scene, Clock } from 'three';
+import { PerspectiveCamera, Scene, Timer } from 'three';
 import { DockMode, connectUIExtensions } from '@realitycollective/threejs-uiextensions';
 
 const scene = new Scene();
@@ -50,9 +50,10 @@ const uix = connectUIExtensions({ scene, camera, renderer }); // renderer option
 const config = await fetch('./ui/my-window.json').then((r) => r.json());
 uix.createWindow({ id: 'status', title: 'Status', config, dockMode: DockMode.BodyFollow });
 
-const clock = new Clock();
-renderer.setAnimationLoop(() => {
-  uix.update(clock.getDelta());
+const timer = new Timer();
+renderer.setAnimationLoop((time) => {
+  timer.update(time);
+  uix.update(timer.getDelta());
   renderer.render(scene, camera);
 });
 ```
