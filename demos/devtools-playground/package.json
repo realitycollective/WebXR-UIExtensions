@@ -14,8 +14,8 @@
     "@iwsdk/core": "1.0.1",
     "@pmndrs/uikit-horizon": "^1.0.76",
     "@realitycollective/iwsdk-uiextensions": "*",
-    "@realitycollective/service-framework": "1.0.3-preview.0",
-    "@realitycollective/service-framework-iwsdk": "1.0.3-preview.0",
+    "@realitycollective/service-framework": "1.0.3-preview.1",
+    "@realitycollective/service-framework-iwsdk": "1.0.3-preview.1",
     "@realitycollective/uix-devtools": "*",
     "webxr-uiextensions-showcase": "*",
     "three": "npm:super-three@0.185.0"
