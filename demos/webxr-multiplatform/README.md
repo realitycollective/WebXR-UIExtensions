@@ -38,6 +38,10 @@ All three build the **identical playground** - five windows and two dock regions
 | Right-drag | look around |
 | Left click | interact with panels |
 
+## Service Framework
+
+All three pipelines are [Service Framework](https://github.com/realitycollective/com.realitycollective.service-framework.ts) apps and share one app service, `UixAppService` in [`demos/showcase/src/app-service.ts`](../showcase/src/app-service.ts). Engine objects stay in each pipeline and reach the service only through its frame closure, which the service's `render()` runs. On the desktop pipeline the three.js `WebXRRuntimeAdapter` owns the loop through the renderer's `setAnimationLoop`. On the IWSDK pipeline the World owns it, and the bridge system from `@realitycollective/service-framework-iwsdk` relays each visible frame. The UI Extensions systems there keep ticking from the World. On the XR Blocks pipeline XR Blocks owns the loop, so the adapter has no host and is never started. The Script's `update()` calls `adapter.tick(performance.now())` instead, and the service's frame closure ticks the window host. Every pipeline writes the adapter's capabilities and each XR session state to the Event Log window.
+
 ## Run it
 
 ```bash

@@ -19,6 +19,10 @@ Both builds raise the identical playground from the identical portable descripto
 
 Other demo clients build on these same modules: the [devtools playground](../devtools-playground/README.md) is the IWSDK bootstrap plus the live-edit tooling, and the lab's desktop and IWSDK pipelines wrap `src/desktop-world.ts` and `src/world.ts` directly.
 
+## Service Framework
+
+Both builds are [Service Framework](https://github.com/realitycollective/com.realitycollective.service-framework.ts) apps. Each bootstrap registers one app service, `UixAppService` in `src/app-service.ts`, which imports only `@realitycollective/service-framework`. On the desktop build the three.js `WebXRRuntimeAdapter` owns the frame loop through the renderer's `setAnimationLoop`. Each frame reaches the service's `render()`, which updates the controls, ticks the window host, forwards pointer events and draws. On the IWSDK build the World keeps its own loop, and the bridge system from `@realitycollective/service-framework-iwsdk` relays each visible frame to the service. The UI Extensions systems still tick from the World, so the service's frame closure is empty there. On both builds the service writes the adapter's capabilities and each XR session state to the Event Log window.
+
 ## Run it
 
 ```bash

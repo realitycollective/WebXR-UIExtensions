@@ -7,7 +7,7 @@
  *
  * Typical usage:
  *
- *   import { WebGLRenderer, PerspectiveCamera, Scene, Clock } from 'three';
+ *   import { WebGLRenderer, PerspectiveCamera, Scene, Timer } from 'three';
  *   import { configureRendererForUikit, connectUIExtensions } from '@realitycollective/threejs-uiextensions';
  *
  *   const renderer = new WebGLRenderer({ antialias: true });
@@ -15,9 +15,10 @@
  *   renderer.xr.enabled = true;
  *
  *   const uix = connectUIExtensions({ scene, camera, renderer });
- *   const clock = new Clock();
- *   renderer.setAnimationLoop(() => {
- *     uix.update(clock.getDelta());
+ *   const timer = new Timer();
+ *   renderer.setAnimationLoop((time) => {
+ *     timer.update(time);
+ *     uix.update(timer.getDelta());
  *     renderer.render(scene, camera);
  *   });
  */

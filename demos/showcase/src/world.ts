@@ -7,6 +7,13 @@
  * markers and the Enter VR overlay - then hands the descriptor to the
  * adapter's scene host. The XR Blocks and desktop pipelines do the same with
  * their own bootstrap, so all three build the identical playground.
+ *
+ * The world is a Service Framework app. IWSDK owns its loop, so the IWSDK
+ * binding relays frames: `startServiceRuntime` stands up the manager and the
+ * adapter, and the bridge system registered with the world emits `renderTick`
+ * while the session is visible. The UI Extensions systems keep ticking from
+ * the World, so the app service's frame closure has nothing to do here; the
+ * service reports the capabilities and session state to the Event Log.
  */
 import {
   AmbientLight,
@@ -20,8 +27,18 @@ import {
   PlaneGeometry,
   RingGeometry,
   SessionMode,
+  VisibilityState,
   World,
+  createSystem,
 } from '@iwsdk/core';
+import { createServiceProfile, type ServiceManager } from '@realitycollective/service-framework';
+import {
+  makeServiceBridgeSystem,
+  startServiceRuntime,
+  type CreateSystemLike,
+  type IWSDKAdapter,
+  type IWSDKWorldLike,
+} from '@realitycollective/service-framework-iwsdk';
 import {
   applyScene,
   createSceneHost,
@@ -29,6 +46,7 @@ import {
   uixComponentSet,
   type WindowManager,
 } from '@realitycollective/iwsdk-uiextensions';
+import { uixAppRegistration, type UixAppConfig } from './app-service.js';
 import { installEnterVROverlay } from './enter-vr.js';
 import { installPlaygroundBehaviour } from './playground-behaviour.js';
 import { PLAYGROUND } from './playground-scene.js';
@@ -36,6 +54,10 @@ import { PLAYGROUND } from './playground-scene.js';
 export interface ShowcaseHandles {
   world: World;
   manager: WindowManager;
+  /** The Service Framework manager the app service runs in. */
+  services: ServiceManager;
+  /** The IWSDK runtime adapter: the bridge system relays the World's frames through it. */
+  adapter: IWSDKAdapter;
 }
 
 export async function bootstrapShowcase(
@@ -87,10 +109,39 @@ export async function bootstrapShowcase(
 
   // --- The playground, from the portable descriptor -------------------------
   const host = createSceneHost(world);
-  installPlaygroundBehaviour(host, manager);
+  const behaviour = installPlaygroundBehaviour(host, manager);
   applyScene(host, PLAYGROUND);
+
+  // --- The Service Framework app ---------------------------------------------
+  // IWSDK keeps its own loop and its own Enter VR (it owns the session); the
+  // bridge system relays each visible frame to the app service's `render()`.
+  //
+  // Casts, not conversions. The binding's structural types do not accept
+  // IWSDK 1.0.1's own types under this repository's
+  // `exactOptionalPropertyTypes` (`World.session` is `XRSession | undefined`).
+  // `createSystem` takes its queries first, and the bridge class carries the
+  // statics `registerSystem` asks for only at run time.
+  const serviceWorld = world as unknown as IWSDKWorldLike<VisibilityState>;
+  const { manager: services, adapter } = startServiceRuntime(serviceWorld, (adapter) => {
+    const app: UixAppConfig = {
+      adapter,
+      // The UI Extensions systems tick from the World, not from here.
+      frame: () => {},
+      // Capabilities and session state land in the Event Log window.
+      report: behaviour.log,
+    };
+    return createServiceProfile('uix-showcase-iwsdk', [uixAppRegistration(app)]);
+  });
+  const ServiceBridgeSystem = makeServiceBridgeSystem({
+    adapter,
+    manager: services,
+    world: serviceWorld,
+    createSystem: createSystem as unknown as CreateSystemLike,
+    visibleState: VisibilityState.Visible,
+  });
+  world.registerSystem(ServiceBridgeSystem as unknown as Parameters<World['registerSystem']>[0]);
 
   installEnterVROverlay(world);
 
-  return { world, manager };
+  return { world, manager, services, adapter };
 }

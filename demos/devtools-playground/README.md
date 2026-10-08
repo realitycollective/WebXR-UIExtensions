@@ -5,6 +5,10 @@ Demo client for [`@realitycollective/uix-devtools`](../../packages/uix-devtools/
 - the **edit-session gate**, wired the way a real app should wire it (build-flag guard + token + dynamic import - see `src/index.ts`), and
 - the **UX Editor** overlay (`src/editor-overlay.ts`): a spatial window whose own panel is compiled at runtime, containing a UIKitML textarea (Quest system keyboard works) and SPAWN / RESPAWN / RESET buttons. Markup typed there is compiled in-browser via `compilePanelSource` and spawned as a real, draggable, dockable window - the whole edit loop without leaving the headset.
 
+## Service Framework
+
+The playground is a [Service Framework](https://github.com/realitycollective/com.realitycollective.service-framework.ts) app through the showcase's IWSDK bootstrap, `../showcase/src/world.ts`. The bridge system it registers with the World relays each visible frame to the shared app service, which writes the capabilities and XR session state to the Event Log window.
+
 ## Run it
 
 ```bash
