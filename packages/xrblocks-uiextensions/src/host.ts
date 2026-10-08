@@ -15,6 +15,8 @@
  */
 import {
   UixWindowHost as ThreeJsWindowHost,
+  configureRendererForUikit,
+  type UikitRenderer,
   type CreateRegionOptions,
   type CreateWindowOptions,
   type RegionHandle,
@@ -37,6 +39,16 @@ export interface XrBlocksWindowHostOptions extends UixWindowHostOptions {
    * on its own.
    */
   pointers?: PointerArbiter;
+  /**
+   * The engine's `WebGLRenderer` (`xb.core.renderer`, available from a
+   * Script's `init()` on). The host configures it for uikit once, at
+   * construction (`configureRendererForUikit`): transparent meshes sorted by
+   * `renderOrder`, as uikit assigns, and local clipping on. Without it three
+   * sorts panel plates and glyphs by camera distance and a plate hides its
+   * own text; XR Blocks sets neither. IWSDK does the same inside its own UI
+   * system. Omit it only if the app configures the renderer itself.
+   */
+  renderer?: UikitRenderer;
 }
 
 export class UixWindowHost extends ThreeJsWindowHost {
@@ -66,11 +78,12 @@ export class UixWindowHost extends ThreeJsWindowHost {
     });
     this.xrBridge = built.bridge;
     this.xrRayInput = options.rayInput;
+    if (options.renderer) configureRendererForUikit(options.renderer);
   }
 
-  /** Drive per-frame from the engine loop (delta in SECONDS): the bridge raycasts this frame's rays first, so hover and the arbiter are current when the windows step. */
+  /** Drive per-frame from the engine loop (delta in SECONDS): the bridge reads this frame's rays and fingertips first, so hover, touch and the arbiter are current when the windows step. */
   override update(deltaSeconds: number): void {
-    if (this.xrBridge && this.xrRayInput) this.xrBridge.updateRays(this.xrRayInput.getFrame());
+    if (this.xrBridge && this.xrRayInput) this.xrBridge.updateFrame(this.xrRayInput.getFrame());
     super.update(deltaSeconds);
   }
 }

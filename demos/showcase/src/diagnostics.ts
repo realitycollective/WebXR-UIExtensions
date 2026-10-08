@@ -228,6 +228,34 @@ export interface StoredDiagnostics {
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
+}
+
+/**
+ * The hidden option's value for this page load, and whether the URL should
+ * show it again.
+ *
+ * A value in the query wins, and is remembered in the tab's session storage
+ * so it holds for the rest of the visit: a navigation that drops the query
+ * (START pinning an engine, a pipeline reloading into another, an engine's
+ * own page changes) keeps recording. An explicit off value (`0`, `off`,
+ * `false`, empty) forgets it. With no value in the query, the remembered one
+ * applies and `fromSession` asks the caller to put it back in the URL, so the
+ * address bar keeps telling the tester that logging is on.
+ */
+export function resolveOption(search: string, param: string, key: string, session: StorageLike | null): { value: string | null; fromSession: boolean } {
+  const given = new URLSearchParams(search).get(param);
+  try {
+    if (given !== null) {
+      if (diagnosticsMode(given) === 'off') session?.removeItem?.(key);
+      else session?.setItem(key, given);
+      return { value: given, fromSession: false };
+    }
+    const remembered = session?.getItem(key) ?? null;
+    return { value: remembered, fromSession: remembered !== null };
+  } catch {
+    return { value: given, fromSession: false };
+  }
 }
 
 export function loadStored(storage: StorageLike | null, key: string): StoredDiagnostics {
@@ -508,6 +536,17 @@ function safeStorage(): StorageLike | null {
   }
 }
 
+/** The tab's session storage, where the hidden option is remembered for the visit, or `null` where the browser refuses it. */
+function safeSessionStorage(): StorageLike | null {
+  try {
+    const storage = globalThis.sessionStorage;
+    storage.getItem('rc-diagnostics-probe');
+    return storage;
+  } catch {
+    return null;
+  }
+}
+
 function webglInfo(): { info: Record<string, unknown>; canvas: HTMLCanvasElement | null } {
   try {
     const canvas = document.createElement('canvas');
@@ -538,16 +577,24 @@ const OFF: Diagnostics = {
 };
 
 /**
- * When the page was opened with the hidden option, starts recording for this
- * page load and adds the Diagnostics button; otherwise does nothing. Call it
- * before anything else the page runs. A second call returns the first.
+ * When the page was opened with the hidden option, or the option was given
+ * earlier in this tab's session ({@link resolveOption}), starts recording for
+ * this page load and adds the Diagnostics button; otherwise does nothing.
+ * Call it before anything else the page runs. A second call returns the
+ * first.
  */
 export function installDiagnostics(options: DiagnosticsOptions): Diagnostics {
-  const mode = diagnosticsMode(new URLSearchParams(location.search).get(options.param));
+  const option = resolveOption(location.search, options.param, `rc-diagnostics:${options.lab}:option`, safeSessionStorage());
+  const mode = diagnosticsMode(option.value);
   if (mode === 'off') return OFF;
   const holder = globalThis as unknown as Record<symbol, Diagnostics | undefined>;
   const existing = holder[INSTALLED];
   if (existing) return existing;
+  if (option.fromSession && option.value !== null) {
+    const url = new URL(location.href);
+    url.searchParams.set(options.param, option.value);
+    history.replaceState(history.state, '', url);
+  }
 
   const endpoint = options.endpoint ?? '/api/report';
   const keepParams = options.keepParams ?? [options.param];

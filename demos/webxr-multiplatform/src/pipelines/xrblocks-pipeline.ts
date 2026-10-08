@@ -29,20 +29,27 @@ class UixShowcaseScript extends xb.Script {
       // rather than by the controller's own position (point-delta).
       input: xb.input as never,
       kit: horizonKit as never,
+      // The renderer gets uikit's transparent sort and local clipping here;
+      // XR Blocks sets neither, and without them a panel plate hides its own
+      // text (the desktop pipeline calls configureRendererForUikit itself).
+      renderer: xb.core.renderer,
     });
 
     installPlaygroundBehaviour(this.host, this.host.manager);
     applyScene(this.host, PLAYGROUND);
 
-    (window as unknown as { uix: unknown }).uix = { host: this.host };
+    // The handles for devtools poking, as the other pipelines publish theirs. The camera lets a
+    // test project an element to the screen and click it through XR Blocks' own mouse.
+    (window as unknown as { uix: unknown }).uix = { host: this.host, camera: xb.camera, core: xb.core };
 
     // Press, poke, hover and drag no longer need wiring here: `UixWindowHost`
-    // attaches its own pointer bridge to every panel it creates, driven by
-    // XR Blocks' own onSelectStart/End, onObjectTouch*, onObjectGrab* and
-    // onHoverEnter/Exit callbacks (see `pointer-bridge.ts`). A manual
-    // Script-level `onSelectStart` raycast that clicked on intersection -
-    // clicking before release - used to live here; it is gone now that the host
-    // clicks on release, as every other platform does.
+    // attaches its own pointer bridge to every panel it creates. The bridge
+    // gives each panel the one node XR Blocks 0.21 treats as a Script and
+    // takes its onObjectSelectStart/End and onObjectGrabStart/End there, and
+    // reads rays and fingertips from xb.input's frame (see `pointer-bridge.ts`).
+    // A manual Script-level `onSelectStart` raycast that clicked on
+    // intersection - clicking before release - used to live here; it is gone
+    // now that the host clicks on release, as every other platform does.
   }
 
   override update(): void {
